@@ -1,0 +1,132 @@
+// Package session provides the session power menu (lock, suspend, reboot,
+// shutdown, logout).
+package session
+
+import (
+	"os/exec"
+	"time"
+
+	"github.com/diamondburned/gotk4/pkg/gdk/v4"
+	"github.com/diamondburned/gotk4/pkg/gtk/v4"
+	"github.com/sonroyaalmerol/snry-shell/internal/layershell"
+	"github.com/sonroyaalmerol/snry-shell/internal/bus"
+	"github.com/sonroyaalmerol/snry-shell/internal/state"
+)
+
+// Session is a power menu overlay.
+type Session struct {
+	win *gtk.ApplicationWindow
+	bus *bus.Bus
+}
+
+func New(app *gtk.Application, b *bus.Bus) *Session {
+	win := gtk.NewApplicationWindow(app)
+	win.SetDecorated(false)
+	win.SetName("snry-session")
+
+	layershell.InitForWindow(win)
+	layershell.SetLayer(win, layershell.LayerOverlay)
+	layershell.SetAnchor(win, layershell.EdgeTop, true)
+	layershell.SetAnchor(win, layershell.EdgeBottom, true)
+	layershell.SetAnchor(win, layershell.EdgeLeft, true)
+	layershell.SetAnchor(win, layershell.EdgeRight, true)
+	layershell.SetKeyboardMode(win, layershell.KeyboardModeExclusive)
+	layershell.SetNamespace(win, "snry-session")
+
+	s := &Session{win: win, bus: b}
+	s.build()
+
+	b.Subscribe(bus.TopicSystemControls, func(e bus.Event) {
+		if e.Data == "toggle-session" {
+			win.SetVisible(!win.Visible())
+			if win.Visible() {
+				win.GrabFocus()
+			}
+		}
+	})
+
+	keyCtrl := gtk.NewEventControllerKey()
+	keyCtrl.ConnectKeyPressed(func(keyval, keycode uint, _ gdk.ModifierType) bool {
+		if keyval == 0xff1b { // Escape
+			win.SetVisible(false)
+			return true
+		}
+		return false
+	})
+	win.AddController(keyCtrl)
+	win.SetVisible(false)
+	return s
+}
+
+func (s *Session) build() {
+	outer := gtk.NewBox(gtk.OrientationVertical, 0)
+	outer.AddCSSClass("session-overlay")
+	outer.SetHAlign(gtk.AlignCenter)
+	outer.SetVAlign(gtk.AlignCenter)
+
+	box := gtk.NewBox(gtk.OrientationHorizontal, 0)
+	box.AddCSSClass("session-btn")
+	box.SetHAlign(gtk.AlignCenter)
+	box.SetVAlign(gtk.AlignCenter)
+	box.SetMarginTop(24)
+	box.SetMarginBottom(24)
+
+	actions := []struct {
+		action state.SessionAction
+		icon   string
+		label  string
+		cmd    []string
+	}{
+		{state.SessionLock, "lock", "Lock", []string{"loginctl", "lock-session"}},
+		{state.SessionSuspend, "bedtime", "Sleep", []string{"systemctl", "suspend"}},
+		{state.SessionReboot, "restart_alt", "Reboot", []string{"systemctl", "reboot"}},
+		{state.SessionShutdown, "power_settings_new", "Power off", []string{"systemctl", "poweroff"}},
+		{state.SessionLogout, "logout", "Log out", []string{"hyprctl", "dispatch", "exit"}},
+	}
+
+	for _, a := range actions {
+		btn := s.buildBtn(a)
+		box.Append(btn)
+	}
+	outer.Append(box)
+	s.win.SetChild(outer)
+}
+
+func (s *Session) buildBtn(a struct {
+	action state.SessionAction
+	icon   string
+	label  string
+	cmd    []string
+}) *gtk.Button {
+	btn := gtk.NewButton()
+	btn.AddCSSClass("session-btn")
+
+	inner := gtk.NewBox(gtk.OrientationVertical, 0)
+	inner.SetHAlign(gtk.AlignCenter)
+	inner.SetVAlign(gtk.AlignCenter)
+
+	icon := gtk.NewLabel(a.icon)
+	icon.AddCSSClass("material-icon")
+	icon.SetHAlign(gtk.AlignCenter)
+
+	label := gtk.NewLabel(a.label)
+	label.AddCSSClass("session-btn-label")
+	label.SetHAlign(gtk.AlignCenter)
+
+	inner.Append(icon)
+	inner.Append(label)
+	btn.SetChild(btn.Child()) // empty by default
+	btn.SetChild(inner)
+
+	action := a
+	cmd := a.cmd
+	btn.ConnectClicked(func() {
+		s.bus.Publish(bus.TopicSessionAction, action.action)
+		s.win.SetVisible(false)
+		go func() {
+			time.Sleep(200 * time.Millisecond)
+			_ = exec.Command(cmd[0], cmd[1:]...).Run()
+		}()
+	})
+	return btn
+}
