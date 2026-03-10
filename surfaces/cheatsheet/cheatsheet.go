@@ -1,0 +1,110 @@
+// Package cheatsheet provides a keyboard shortcuts overlay.
+package cheatsheet
+
+import (
+	"github.com/diamondburned/gotk4/pkg/gdk/v4"
+	"github.com/diamondburned/gotk4/pkg/gtk/v4"
+	"github.com/sonroyaalmerol/snry-shell/internal/layershell"
+	"github.com/sonroyaalmerol/snry-shell/internal/bus"
+)
+
+// Keybind represents a single keyboard shortcut entry.
+type Keybind struct {
+	Keys        string
+	Description string
+}
+
+var defaultKeybinds = []Keybind{
+	{"Super + Enter", "Open terminal"},
+	{"Super + Q", "Close window"},
+	{"Super + Space", "Open overview / launcher"},
+	{"Super + Tab", "Cycle windows"},
+	{"Super + 1–9", "Switch to workspace"},
+	{"Super + Shift + 1–9", "Move window to workspace"},
+	{"Super + F", "Toggle fullscreen"},
+	{"Super + V", "Toggle floating"},
+	{"Super + H/J/K/L", "Move focus"},
+	{"Super + Shift + H/J/K/L", "Move window"},
+	{"Super + R", "Resize mode"},
+	{"Print", "Screenshot region"},
+	{"Shift + Print", "Screenshot full"},
+}
+
+// Cheatsheet is an overlay showing keybindings.
+type Cheatsheet struct {
+	win *gtk.ApplicationWindow
+	bus *bus.Bus
+}
+
+func New(app *gtk.Application, b *bus.Bus) *Cheatsheet {
+	win := gtk.NewApplicationWindow(app)
+	win.SetDecorated(false)
+	win.SetName("snry-cheatsheet")
+
+	layershell.InitForWindow(win)
+	layershell.SetLayer(win, layershell.LayerOverlay)
+	layershell.SetAnchor(win, layershell.EdgeTop, true)
+	layershell.SetAnchor(win, layershell.EdgeBottom, true)
+	layershell.SetAnchor(win, layershell.EdgeLeft, true)
+	layershell.SetAnchor(win, layershell.EdgeRight, true)
+	layershell.SetKeyboardMode(win, layershell.KeyboardModeOnDemand)
+	layershell.SetNamespace(win, "snry-cheatsheet")
+
+	cs := &Cheatsheet{win: win, bus: b}
+	cs.build()
+	win.SetVisible(false)
+	return cs
+}
+
+func (cs *Cheatsheet) build() {
+	outer := gtk.NewBox(gtk.OrientationVertical, 0)
+	outer.AddCSSClass("cheatsheet-overlay")
+	outer.SetHAlign(gtk.AlignCenter)
+	outer.SetVAlign(gtk.AlignCenter)
+
+	card := gtk.NewBox(gtk.OrientationVertical, 8)
+	card.AddCSSClass("cheatsheet-card")
+	card.SetMarginTop(24)
+	card.SetMarginBottom(24)
+	card.SetMarginStart(32)
+	card.SetMarginEnd(32)
+
+	title := gtk.NewLabel("Keyboard Shortcuts")
+	title.AddCSSClass("cheatsheet-title")
+	card.Append(title)
+
+	grid := gtk.NewGrid()
+	grid.SetColumnSpacing(32)
+	grid.SetRowSpacing(4)
+	for i, kb := range defaultKeybinds {
+		keys := gtk.NewLabel(kb.Keys)
+		keys.AddCSSClass("cheatsheet-keys")
+		keys.SetHAlign(gtk.AlignEnd)
+
+		desc := gtk.NewLabel(kb.Description)
+		desc.AddCSSClass("cheatsheet-desc")
+		desc.SetHAlign(gtk.AlignStart)
+
+		grid.Attach(keys, 0, i, 1, 1)
+		grid.Attach(desc, 1, i, 1, 1)
+	}
+	card.Append(grid)
+	outer.Append(card)
+
+	// Close on Escape or click outside the card.
+	keyCtrl := gtk.NewEventControllerKey()
+	keyCtrl.ConnectKeyPressed(func(keyval, keycode uint, state gdk.ModifierType) bool {
+		if keyval == 0xff1b { // GDK_KEY_Escape
+			cs.win.SetVisible(false)
+			return true
+		}
+		return false
+	})
+	cs.win.AddController(keyCtrl)
+	cs.win.SetChild(outer)
+}
+
+// Toggle shows or hides the cheatsheet.
+func (cs *Cheatsheet) Toggle() {
+	cs.win.SetVisible(!cs.win.Visible())
+}
