@@ -16,6 +16,27 @@ const (
 	TopicTheme        Topic = "theme"
 	TopicBrightness   Topic = "brightness"
 	TopicClipboard    Topic = "clipboard"
+
+	TopicBluetooth      Topic = "bluetooth"
+	TopicNightMode      Topic = "nightmode"
+	TopicSystemControls Topic = "systemcontrols"
+	TopicWallpapers     Topic = "wallpapers"
+	TopicSessionAction  Topic = "session"
+	TopicScreenLock     Topic = "screenlock"
+	TopicSettings       Topic = "settings"
+	TopicSidebarState   Topic = "sidebarstate"
+
+	TopicResources        Topic = "resources"
+	TopicWeather          Topic = "weather"
+	TopicKeyboard         Topic = "keyboard"
+	TopicAudioMixer       Topic = "audiomixer"
+	TopicWiFiNetworks     Topic = "wifinetworks"
+	TopicBluetoothDevices Topic = "btdevices"
+	TopicPomodoro         Topic = "pomodoro"
+	TopicTodo             Topic = "todo"
+	TopicDND              Topic = "dnd"
+	TopicTrayItems        Topic = "trayitems"
+	TopicTrayActivate     Topic = "trayactivate"
 )
 
 type Event struct { Topic Topic; Data any }

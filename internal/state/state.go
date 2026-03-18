@@ -11,3 +11,22 @@ type Notification struct { ID uint32; AppName string; Summary string; Body strin
 type MediaPlayer struct { PlayerName string; Title string; Artist string; ArtPath string; Playing bool; CanNext bool; CanPrev bool; Position float64; Duration float64 }
 type ClipboardEntry struct { ID int; Preview string }
 type BrightnessState struct { Current int; Max int }
+
+type SystemControls struct { Volume float64; Brightness float64; NetworkEnabled bool; BluetoothEnabled bool; NightModeEnabled bool }
+type BluetoothState struct { Powered bool; Connected bool; DeviceName string }
+type WallpaperEntry struct { Path string; Thumbnail string }
+type SessionAction int
+const (SessionLock SessionAction = iota; SessionSuspend; SessionReboot; SessionShutdown; SessionLogout)
+type LockScreenState struct { Locked bool }
+type SettingsState struct { DarkMode bool; FontScale float64; BarPosition string }
+type SidebarState struct { BottomGroupCollapsed bool }
+type MediaTick struct { PlayerName string; Position float64; Duration float64; At time.Time }
+
+type ResourceState struct { CPU float64; RAM float64 }
+type WeatherState struct { TempC int; Condition string; Icon string; Humidity int; WindKph float64 }
+type AudioApp struct { Name string; ID int; Volume float64; Muted bool }
+type AudioMixerState struct { Apps []AudioApp }
+type WiFiNetwork struct { SSID string; Signal int; Security string; Connected bool }
+type BluetoothDevice struct { Address string; Name string; Paired bool; Connected bool; Icon string }
+type PomodoroState struct { Phase string; Remaining time.Duration; Running bool; SessionsCompleted int }
+type TodoItem struct { ID int; Text string; Done bool }
