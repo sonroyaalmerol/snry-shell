@@ -53,10 +53,14 @@ func New(app *gtk.Application, b *bus.Bus) *WallpaperPicker {
 	wp := &WallpaperPicker{win: win, bus: b}
 
 	b.Subscribe(bus.TopicSystemControls, func(e bus.Event) {
-		if e.Data == "open-wallpaper-picker" {
-			wp.load(flow)
-			win.SetVisible(true)
-			win.GrabFocus()
+		if e.Data == "open-wallpaper-picker" || e.Data == "toggle-wallpaper-picker" {
+			if win.Visible() {
+				win.SetVisible(false)
+			} else {
+				wp.load(flow)
+				win.SetVisible(true)
+				win.GrabFocus()
+			}
 		}
 	})
 
