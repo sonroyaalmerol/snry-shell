@@ -1,13 +1,19 @@
 // Package polkit provides a GUI PolicyKit1 authentication agent.
 //
 // It registers on the system bus as org.freedesktop.PolicyKit1.AuthenticationAgent,
-// shows a GTK password dialog when authentication is requested, and responds via
-// the Authority's AuthenticationAgentResponse2 method.
+// shows a GTK password dialog when authentication is requested, and authenticates
+// via the polkit-agent-helper-1 setuid binary for proper PAM verification.
 package polkit
 
 import (
+	"bufio"
 	"fmt"
+	"io"
 	"os"
+	"os/exec"
+	"os/user"
+	"strconv"
+	"strings"
 	"sync"
 
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
@@ -21,6 +27,8 @@ const (
 	authorityBus   = "org.freedesktop.PolicyKit1"
 	authorityPath  = "/org/freedesktop/PolicyKit1/Authority"
 	authorityIface = "org.freedesktop.PolicyKit1.Authority"
+
+	helperPath = "/usr/lib/polkit-1/polkit-agent-helper-1"
 )
 
 // Identity represents a polkit identity: (kind, details).
@@ -32,24 +40,36 @@ type Identity struct {
 // Agent implements the polkit authentication agent interface.
 type Agent struct {
 	conn      *dbus.Conn
-	pending   map[string]*authRequest
+	pending   map[string]*helperSession
 	pendingMu sync.Mutex
 }
 
+// helperSession manages a single authentication conversation with
+// polkit-agent-helper-1 via stdin/stdout pipes.
+type helperSession struct {
+	agent   *Agent
+	cmd     *exec.Cmd
+	stdin   io.WriteCloser
+	scanner *bufio.Scanner
+	cookie  string
+	req     *authRequest
+	win     *gtk.Window
+	entry   *gtk.Entry
+	infoLbl *gtk.Label
+}
+
 type authRequest struct {
-	cookie    string
 	identity  Identity
 	actionID  string
 	message   string
 	iconName  string
-	cancelled bool
 }
 
 // New creates a new polkit agent.
 func New(conn *dbus.Conn) *Agent {
 	return &Agent{
 		conn:    conn,
-		pending: make(map[string]*authRequest),
+		pending: make(map[string]*helperSession),
 	}
 }
 
@@ -111,20 +131,23 @@ func (a *Agent) BeginAuthentication(
 	}
 
 	req := &authRequest{
-		cookie:    cookie,
-		identity:  identity,
-		actionID:  actionID,
-		message:   message,
-		iconName:  iconName,
+		identity: identity,
+		actionID: actionID,
+		message:  message,
+		iconName: iconName,
 	}
 
 	a.pendingMu.Lock()
-	a.pending[cookie] = req
+	a.pending[cookie] = &helperSession{
+		agent: a,
+		cookie: cookie,
+		req:   req,
+	}
 	a.pendingMu.Unlock()
 
 	// Show dialog on the GTK main thread.
 	glib.IdleAdd(func() {
-		a.showDialog(req)
+		a.startSession(cookie, req)
 	})
 
 	return nil
@@ -133,22 +156,89 @@ func (a *Agent) BeginAuthentication(
 // CancelAuthentication is called by polkitd when the auth request is cancelled.
 func (a *Agent) CancelAuthentication(cookie string) *dbus.Error {
 	a.pendingMu.Lock()
-	if req, ok := a.pending[cookie]; ok {
-		req.cancelled = true
+	if sess, ok := a.pending[cookie]; ok {
+		if sess.cmd != nil && sess.cmd.Process != nil {
+			sess.cmd.Process.Kill()
+		}
+		if sess.win != nil {
+			glib.IdleAdd(func() { sess.win.Close() })
+		}
 		delete(a.pending, cookie)
 	}
 	a.pendingMu.Unlock()
 	return nil
 }
 
-// showDialog shows a modal GTK dialog asking for the user's password.
-func (a *Agent) showDialog(req *authRequest) {
+// startSession spawns the helper and shows the dialog.
+func (a *Agent) startSession(cookie string, req *authRequest) {
+	// Extract username from identity UID.
+	username := "root"
+	if uidVar, ok := req.identity.Details["uid"]; ok {
+		if uid, ok := uidVar.Value().(uint32); ok {
+			if u, err := user.LookupId(strconv.Itoa(int(uid))); err == nil {
+				username = u.Username
+			}
+		}
+	}
+
+	// Check helper exists.
+	if _, err := os.Stat(helperPath); err != nil {
+		fmt.Fprintf(os.Stderr, "polkit: %s not found, skipping PAM auth\n", helperPath)
+		a.cancelSession(cookie)
+		return
+	}
+
+	// Spawn the helper.
+	cmd := exec.Command(helperPath, username)
+	stdinPipe, err := cmd.StdinPipe()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "polkit: failed to create stdin pipe: %v\n", err)
+		a.cancelSession(cookie)
+		return
+	}
+	stdoutPipe, err := cmd.StdoutPipe()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "polkit: failed to create stdout pipe: %v\n", err)
+		a.cancelSession(cookie)
+		return
+	}
+
+	if err := cmd.Start(); err != nil {
+		fmt.Fprintf(os.Stderr, "polkit: failed to spawn helper: %v\n", err)
+		a.cancelSession(cookie)
+		return
+	}
+
+	a.pendingMu.Lock()
+	sess, ok := a.pending[cookie]
+	if !ok {
+		cmd.Process.Kill()
+		a.pendingMu.Unlock()
+		return
+	}
+	sess.cmd = cmd
+	sess.stdin = stdinPipe
+	sess.scanner = bufio.NewScanner(stdoutPipe)
+	a.pendingMu.Unlock()
+
+	// Send cookie to helper.
+	fmt.Fprintf(stdinPipe, "%s\n", cookie)
+
+	// Show the dialog.
+	sess.win, sess.entry, sess.infoLbl = a.buildDialog(cookie, req)
+
+	// Read helper responses in background.
+	go sess.readLoop()
+}
+
+// buildDialog creates the authentication dialog and returns window, entry, info label.
+func (a *Agent) buildDialog(cookie string, req *authRequest) (*gtk.Window, *gtk.Entry, *gtk.Label) {
 	win := gtk.NewWindow()
 	win.SetTitle("Authentication Required")
 	win.SetModal(true)
 	win.SetDecorated(false)
 	win.SetName("snry-polkit-dialog")
-	win.SetDefaultSize(380, 180)
+	win.SetDefaultSize(380, 200)
 
 	root := gtk.NewBox(gtk.OrientationVertical, 16)
 	root.AddCSSClass("polkit-dialog")
@@ -177,6 +267,13 @@ func (a *Agent) showDialog(req *authRequest) {
 	actionLabel.SetXAlign(0)
 	root.Append(actionLabel)
 
+	// Info/error label (shown when helper sends messages).
+	infoLbl := gtk.NewLabel("")
+	infoLbl.AddCSSClass("polkit-info")
+	infoLbl.SetWrap(true)
+	infoLbl.SetXAlign(0)
+	root.Append(infoLbl)
+
 	// Password entry.
 	entry := gtk.NewEntry()
 	entry.AddCSSClass("polkit-password-entry")
@@ -198,59 +295,164 @@ func (a *Agent) showDialog(req *authRequest) {
 	btnBox.Append(cancelBtn)
 	btnBox.Append(authBtn)
 	root.Append(btnBox)
-
 	win.SetChild(root)
 
+	// Cancel: kill helper and close dialog.
 	cancelBtn.ConnectClicked(func() {
-		a.pendingMu.Lock()
-		delete(a.pending, req.cookie)
-		a.pendingMu.Unlock()
+		a.cancelSession(cookie)
 		win.Close()
 	})
 
-	authBtn.ConnectClicked(func() {
+	// Authenticate: send password to helper.
+	sendPassword := func() {
 		password := entry.Text()
-		win.Close()
-		go a.respondAuth(req.cookie, req.identity, password)
-	})
-
-	entry.ConnectActivate(func() {
-		password := entry.Text()
-		win.Close()
-		go a.respondAuth(req.cookie, req.identity, password)
-	})
+		entry.SetText("")
+		a.sendResponse(cookie, password)
+	}
+	authBtn.ConnectClicked(sendPassword)
+	entry.ConnectActivate(sendPassword)
 
 	win.Present()
 	entry.GrabFocus()
+
+	return win, entry, infoLbl
 }
 
-// respondAuth calls the Authority's AuthenticationAgentResponse2 method.
-func (a *Agent) respondAuth(cookie string, identity Identity, password string) {
+// readLoop reads lines from the helper's stdout and dispatches them.
+func (s *helperSession) readLoop() {
+	for s.scanner.Scan() {
+		line := gStrUnescape(s.scanner.Text())
+
+		switch {
+		case strings.HasPrefix(line, "PAM_PROMPT_ECHO_OFF "):
+			strings.TrimPrefix(line, "PAM_PROMPT_ECHO_OFF ")
+			glib.IdleAdd(func() {
+				if s.infoLbl != nil {
+					s.infoLbl.SetText("")
+				}
+				if s.entry != nil {
+					s.entry.GrabFocus()
+				}
+			})
+
+		case strings.HasPrefix(line, "PAM_PROMPT_ECHO_ON "):
+			prompt := strings.TrimPrefix(line, "PAM_PROMPT_ECHO_ON ")
+			glib.IdleAdd(func() {
+				if s.entry != nil {
+					s.entry.SetVisibility(true)
+					s.entry.GrabFocus()
+				}
+			})
+			_ = prompt
+
+		case strings.HasPrefix(line, "PAM_ERROR_MSG "):
+			msg := strings.TrimPrefix(line, "PAM_ERROR_MSG ")
+			glib.IdleAdd(func() {
+				if s.infoLbl != nil {
+					s.infoLbl.SetText(msg)
+				}
+			})
+
+		case strings.HasPrefix(line, "PAM_TEXT_INFO "):
+			msg := strings.TrimPrefix(line, "PAM_TEXT_INFO ")
+			glib.IdleAdd(func() {
+				if s.infoLbl != nil {
+					s.infoLbl.SetText(msg)
+				}
+			})
+
+		case line == "SUCCESS":
+			glib.IdleAdd(func() {
+				if s.win != nil {
+					s.win.Close()
+				}
+			})
+			s.cleanup()
+			return
+
+		case line == "FAILURE":
+			glib.IdleAdd(func() {
+				if s.infoLbl != nil {
+					s.infoLbl.SetText("Authentication failed")
+				}
+				if s.entry != nil {
+					s.entry.SetText("")
+					s.entry.GrabFocus()
+				}
+			})
+			// Don't return — wait for another prompt or kill.
+
+		default:
+			// Unknown line, ignore.
+		}
+	}
+	// Scanner ended (EOF / error) — clean up.
+	s.cleanup()
+}
+
+// sendResponse writes the user's password to the helper's stdin.
+func (a *Agent) sendResponse(cookie string, response string) {
 	a.pendingMu.Lock()
-	req, ok := a.pending[cookie]
+	sess, ok := a.pending[cookie]
 	a.pendingMu.Unlock()
 
-	if !ok || req.cancelled {
+	if !ok || sess.stdin == nil {
 		return
 	}
 
-	// Build identity struct for the response: (sa{sv})
-	ident := []interface{}{identity.Kind, identity.Details}
-	uid := uint32(os.Getuid())
+	fmt.Fprintf(sess.stdin, "%s\n", response)
+}
 
-	auth := a.conn.Object(authorityBus, authorityPath)
-	err := auth.Call(authorityIface+".AuthenticationAgentResponse2", 0,
-		uid, cookie, ident,
-	).Err
-
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "polkit: authentication response failed: %v\n", err)
-	}
-
+// cancelSession kills the helper, closes the dialog, and removes from pending.
+func (a *Agent) cancelSession(cookie string) {
 	a.pendingMu.Lock()
+	sess, ok := a.pending[cookie]
 	delete(a.pending, cookie)
 	a.pendingMu.Unlock()
 
-	// Clear password from memory.
-	_ = password
+	if !ok {
+		return
+	}
+	if sess.cmd != nil && sess.cmd.Process != nil {
+		sess.cmd.Process.Kill()
+	}
+}
+
+// cleanup removes the session from pending.
+func (s *helperSession) cleanup() {
+	s.agent.pendingMu.Lock()
+	delete(s.agent.pending, s.cookie)
+	s.agent.pendingMu.Unlock()
+
+	if s.stdin != nil {
+		s.stdin.Close()
+	}
+	if s.cmd != nil && s.cmd.Process != nil {
+		s.cmd.Wait()
+	}
+}
+
+// gStrUnescape reverses GLib's g_strescape() C-style escaping.
+func gStrUnescape(s string) string {
+	var b strings.Builder
+	for i := 0; i < len(s); i++ {
+		if s[i] == '\\' && i+1 < len(s) {
+			switch s[i+1] {
+			case 'n':
+				b.WriteByte('\n')
+			case 't':
+				b.WriteByte('\t')
+			case 'r':
+				b.WriteByte('\r')
+			case '\\':
+				b.WriteByte('\\')
+			default:
+				b.WriteByte(s[i+1])
+			}
+			i++
+		} else {
+			b.WriteByte(s[i])
+		}
+	}
+	return b.String()
 }

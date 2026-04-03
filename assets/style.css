@@ -1851,6 +1851,12 @@ scale.mixer-slider slider {
     font-family: "Google Sans Flex", sans-serif;
 }
 
+.polkit-info {
+    font-size: 12px;
+    color: @col_error;
+    font-family: "Google Sans Flex", sans-serif;
+}
+
 .polkit-password-entry {
     background-color: @col_surface_container_high;
     border-radius: 12px;
