@@ -2,6 +2,7 @@ package surfaces
 
 import (
 	"context"
+	"fmt"
 	"os"
 
 	"github.com/diamondburned/gotk4/pkg/gdk/v4"
@@ -12,7 +13,7 @@ import (
 	"github.com/sonroyaalmerol/snry-shell/internal/services/audiomixer"
 	"github.com/sonroyaalmerol/snry-shell/internal/services/bluetooth"
 	"github.com/sonroyaalmerol/snry-shell/internal/services/brightness"
-	"github.com/sonroyaalmerol/snry-shell/internal/services/clipboard"
+	serviceclipboard "github.com/sonroyaalmerol/snry-shell/internal/services/clipboard"
 	"github.com/sonroyaalmerol/snry-shell/internal/services/hyprland"
 	"github.com/sonroyaalmerol/snry-shell/internal/services/mpris"
 	"github.com/sonroyaalmerol/snry-shell/internal/services/network"
@@ -24,20 +25,26 @@ import (
 	"github.com/sonroyaalmerol/snry-shell/internal/services/todo"
 	"github.com/sonroyaalmerol/snry-shell/internal/services/upower"
 	"github.com/sonroyaalmerol/snry-shell/internal/services/wallpaper"
-	"github.com/sonroyaalmerol/snry-shell/internal/services/weather"
 	"github.com/sonroyaalmerol/snry-shell/internal/servicerefs"
 	"github.com/sonroyaalmerol/snry-shell/assets"
 	"github.com/sonroyaalmerol/snry-shell/surfaces/bar"
 	"github.com/sonroyaalmerol/snry-shell/surfaces/cheatsheet"
+	"github.com/sonroyaalmerol/snry-shell/surfaces/clipboard"
 	"github.com/sonroyaalmerol/snry-shell/surfaces/corners"
 	"github.com/sonroyaalmerol/snry-shell/surfaces/crosshair"
 	"github.com/sonroyaalmerol/snry-shell/surfaces/dock"
+	"github.com/sonroyaalmerol/snry-shell/surfaces/emoji"
+	"github.com/sonroyaalmerol/snry-shell/surfaces/fpslimiter"
+	"github.com/sonroyaalmerol/snry-shell/surfaces/imageviewer"
 	"github.com/sonroyaalmerol/snry-shell/surfaces/lockscreen"
 	"github.com/sonroyaalmerol/snry-shell/surfaces/mediaoverlay"
+	"github.com/sonroyaalmerol/snry-shell/surfaces/notes"
 	"github.com/sonroyaalmerol/snry-shell/surfaces/notifpopup"
 	"github.com/sonroyaalmerol/snry-shell/surfaces/osd"
 	"github.com/sonroyaalmerol/snry-shell/surfaces/osk"
 	"github.com/sonroyaalmerol/snry-shell/surfaces/overview"
+	"github.com/sonroyaalmerol/snry-shell/surfaces/polkit"
+	"github.com/sonroyaalmerol/snry-shell/surfaces/recorder"
 	"github.com/sonroyaalmerol/snry-shell/surfaces/regionselector"
 	"github.com/sonroyaalmerol/snry-shell/surfaces/session"
 	"github.com/sonroyaalmerol/snry-shell/surfaces/settings"
@@ -71,7 +78,6 @@ func Run() int {
 		Network:    network.New(sysConn, b),
 		NightMode:  nightmode.New(nightmode.NewRunner(), nightmode.NewKiller(), b),
 		Resources:  resources.New(resources.NewFileReader(), b),
-		Weather:    weather.New(weather.NewHTTPClient(), b),
 		AudioMixer: audiomixer.New(audiomixer.NewRunner(), b),
 		Hyprland:   hyprland.NewQuerier(hyprland.NewCommander()),
 		Pomodoro:   pomodoro.New(b),
@@ -86,7 +92,6 @@ func Run() int {
 	go refs.Bluetooth.Run(ctx)
 	go refs.Network.Run(ctx)
 	go refs.Resources.Run(ctx)
-	go refs.Weather.Run(ctx)
 	go refs.AudioMixer.Run(ctx)
 	go refs.Pomodoro.Run(ctx)
 	go refs.SNI.Run()
@@ -97,7 +102,7 @@ func Run() int {
 	}
 
 	// Clipboard and wallpaper watchers.
-	go clipboard.New(clipboard.NewRunner(), b).Run(ctx)
+	go serviceclipboard.New(serviceclipboard.NewRunner(), b).Run(ctx)
 	go wallpaper.New(b).Run(ctx)
 
 	// Hyprland event stream.
@@ -140,6 +145,18 @@ func Run() int {
 		cheatsheet.New(app, b)
 		wallpaperpicker.New(app, b)
 		settings.New(app, b)
+		clipboard.New(app, b)
+		emoji.New(app, b)
+		notes.New(app, b)
+		recorder.New(app, b)
+		fpslimiter.New(app, b)
+		imageviewer.New(app, b)
+		if sysConn != nil {
+			agent := polkit.New(sysConn)
+			if err := agent.Register(); err != nil {
+				fmt.Fprintf(os.Stderr, "polkit agent: %v\n", err)
+			}
+		}
 	})
 
 	return app.Run(os.Args)
