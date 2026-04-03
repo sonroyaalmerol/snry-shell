@@ -125,7 +125,7 @@ Each surface follows this pattern:
 ## Adding a Sidebar Widget
 
 1. Create `surfaces/sidebar/<name>.go`
-2. Implement a public constructor function (e.g., `newWeatherWidget(b *bus.Bus) gtk.Widgetter`)
+2. Implement a public constructor function (e.g., `newClockWidget(b *bus.Bus) gtk.Widgetter`)
 3. Subscribe to the relevant bus topic
 4. Wire into `surfaces/sidebar/right.go` → `build()`
 

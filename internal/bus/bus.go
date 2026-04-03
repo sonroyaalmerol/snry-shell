@@ -17,6 +17,7 @@ const (
 	TopicBrightness   Topic = "brightness"
 	TopicClipboard    Topic = "clipboard"
 
+	TopicFloatingImage  Topic = "floatingimage"
 	TopicBluetooth      Topic = "bluetooth"
 	TopicNightMode      Topic = "nightmode"
 	TopicSystemControls Topic = "systemcontrols"
@@ -27,7 +28,6 @@ const (
 	TopicSidebarState   Topic = "sidebarstate"
 
 	TopicResources        Topic = "resources"
-	TopicWeather          Topic = "weather"
 	TopicKeyboard         Topic = "keyboard"
 	TopicAudioMixer       Topic = "audiomixer"
 	TopicWiFiNetworks     Topic = "wifinetworks"

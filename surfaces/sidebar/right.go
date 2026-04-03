@@ -56,9 +56,6 @@ func (r *Right) build(refs *servicerefs.ServiceRefs) {
 	// Top group: notifications
 	root.Append(newNotificationList(r.bus))
 
-	// Weather widget
-	root.Append(newWeatherWidget(r.bus))
-
 	// Center group: media controls + calendar
 	root.Append(buildMediaGroup(r.bus, refs.Mpris))
 	root.Append(buildCalendarGroup())

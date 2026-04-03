@@ -12,8 +12,8 @@ import (
 	"github.com/sonroyaalmerol/snry-shell/internal/services/pomodoro"
 	"github.com/sonroyaalmerol/snry-shell/internal/services/resources"
 	"github.com/sonroyaalmerol/snry-shell/internal/services/sni"
+	"github.com/sonroyaalmerol/snry-shell/internal/services/clipboard"
 	"github.com/sonroyaalmerol/snry-shell/internal/services/todo"
-	"github.com/sonroyaalmerol/snry-shell/internal/services/weather"
 )
 
 type ServiceRefs struct {
@@ -24,10 +24,10 @@ type ServiceRefs struct {
 	Network    *network.Service
 	NightMode  *nightmode.Service
 	Resources  *resources.Service
-	Weather    *weather.Service
 	AudioMixer *audiomixer.Service
 	Hyprland   *hyprland.Querier
 	Pomodoro   *pomodoro.Service
 	Todo       *todo.Service
 	SNI        *sni.Service
+	Clipboard  *clipboard.Service
 }

@@ -23,7 +23,6 @@ type SidebarState struct { BottomGroupCollapsed bool }
 type MediaTick struct { PlayerName string; Position float64; Duration float64; At time.Time }
 
 type ResourceState struct { CPU float64; RAM float64 }
-type WeatherState struct { TempC int; Condition string; Icon string; Humidity int; WindKph float64 }
 type AudioApp struct { Name string; ID int; Volume float64; Muted bool }
 type AudioMixerState struct { Apps []AudioApp }
 type WiFiNetwork struct { SSID string; Signal int; Security string; Connected bool }
