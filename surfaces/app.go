@@ -25,6 +25,7 @@ import (
 	"github.com/sonroyaalmerol/snry-shell/internal/services/todo"
 	"github.com/sonroyaalmerol/snry-shell/internal/services/upower"
 	"github.com/sonroyaalmerol/snry-shell/internal/services/wallpaper"
+	"github.com/sonroyaalmerol/snry-shell/internal/controlsocket"
 	"github.com/sonroyaalmerol/snry-shell/internal/servicerefs"
 	"github.com/sonroyaalmerol/snry-shell/assets"
 	"github.com/sonroyaalmerol/snry-shell/surfaces/bar"
@@ -158,6 +159,11 @@ func Run() int {
 			}
 		}
 	})
+
+	// Control socket for --toggle-* commands from CLI.
+	if err := controlsocket.Start(b); err != nil {
+		fmt.Fprintf(os.Stderr, "control socket: %v\n", err)
+	}
 
 	return app.Run(os.Args)
 }
