@@ -3,6 +3,7 @@ package cheatsheet
 
 import (
 	"github.com/diamondburned/gotk4/pkg/gdk/v4"
+	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/sonroyaalmerol/snry-shell/internal/layershell"
 	"github.com/sonroyaalmerol/snry-shell/internal/bus"
@@ -53,6 +54,13 @@ func New(app *gtk.Application, b *bus.Bus) *Cheatsheet {
 	cs := &Cheatsheet{win: win, bus: b}
 	cs.build()
 	win.SetVisible(false)
+
+	b.Subscribe(bus.TopicSystemControls, func(e bus.Event) {
+		if e.Data == "toggle-cheatsheet" {
+			glib.IdleAdd(func() { cs.Toggle() })
+		}
+	})
+
 	return cs
 }
 
