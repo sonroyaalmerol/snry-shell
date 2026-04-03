@@ -1,6 +1,7 @@
 package bar
 
 import (
+	"strconv"
 	"sync/atomic"
 
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
@@ -26,35 +27,28 @@ func newUnreadWidget(b *bus.Bus) gtk.Widgetter {
 	box.Append(icon)
 	box.Append(badge)
 
-	b.Subscribe(bus.TopicNotification, func(e bus.Event) {
-		n, ok := e.Data.(state.Notification)
-		if !ok {
+	updateBadge := func() {
+		c := int(count.Load())
+		if c <= 0 {
+			badge.SetVisible(false)
 			return
 		}
-		// Notification added: increment
-		newCount := count.Add(1)
-		showCount := int(newCount)
-		if showCount > 99 {
-			showCount = 99
+		if c > 99 {
+			c = 99
 		}
-		_ = n.ID
-		if showCount > 0 {
-			badge.SetLabel(string(rune('0' + showCount/10)) + string(rune('0'+showCount%10)))
-			badge.SetVisible(true)
-		}
-	})
+		badge.SetLabel(strconv.Itoa(c))
+		badge.SetVisible(true)
+	}
 
-	// Subscribe to notification dismiss/clear — we listen for a nil Notification
-	// which signals the notification popup was dismissed.
 	b.Subscribe(bus.TopicNotification, func(e bus.Event) {
 		if e.Data == nil {
-			if c := count.Add(-1); c < 0 {
-				count.Store(0)
-				badge.SetVisible(false)
-			} else if c == 0 {
-				badge.SetVisible(false)
-			}
+			// Dismiss event — decrement.
+			count.Add(-1)
+		} else if _, ok := e.Data.(state.Notification); ok {
+			// New notification — increment.
+			count.Add(1)
 		}
+		updateBadge()
 	})
 
 	return box

@@ -41,6 +41,9 @@ func New(app *gtk.Application, b *bus.Bus) *NotifPopup {
 	p := &NotifPopup{win: win, bus: b, box: box}
 
 	b.Subscribe(bus.TopicNotification, func(e bus.Event) {
+		if e.Data == nil {
+			return // dismiss event, ignore in popup
+		}
 		n := e.Data.(state.Notification)
 		glib.IdleAdd(func() { p.AddToast(n) })
 	})
@@ -73,6 +76,7 @@ func (p *NotifPopup) removeToast(revealer *gtk.Revealer) {
 	revealer.SetRevealChild(false)
 	glib.TimeoutAdd(250, func() bool {
 		p.box.Remove(&revealer.Widget)
+		p.bus.Publish(bus.TopicNotification, nil) // dismiss event
 		if p.box.FirstChild() == nil {
 			p.win.SetVisible(false)
 		}
