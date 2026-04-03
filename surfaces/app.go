@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 
+	"github.com/diamondburned/gotk4/pkg/gdk/v4"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/godbus/dbus/v5"
 	"github.com/sonroyaalmerol/snry-shell/internal/bus"
@@ -25,6 +26,7 @@ import (
 	"github.com/sonroyaalmerol/snry-shell/internal/services/wallpaper"
 	"github.com/sonroyaalmerol/snry-shell/internal/services/weather"
 	"github.com/sonroyaalmerol/snry-shell/internal/servicerefs"
+	"github.com/sonroyaalmerol/snry-shell/assets"
 	"github.com/sonroyaalmerol/snry-shell/surfaces/bar"
 	"github.com/sonroyaalmerol/snry-shell/surfaces/cheatsheet"
 	"github.com/sonroyaalmerol/snry-shell/surfaces/corners"
@@ -83,7 +85,6 @@ func Run() int {
 	go refs.Mpris.Run(ctx)
 	go refs.Bluetooth.Run(ctx)
 	go refs.Network.Run(ctx)
-	go refs.NightMode.Run(ctx)
 	go refs.Resources.Run(ctx)
 	go refs.Weather.Run(ctx)
 	go refs.AudioMixer.Run(ctx)
@@ -115,6 +116,14 @@ func Run() int {
 	})
 
 	app.ConnectActivate(func() {
+		// Load embedded stylesheet.
+		display := gdk.DisplayGetDefault()
+		if display != nil {
+			provider := gtk.NewCSSProvider()
+			provider.LoadFromString(assets.StyleCSS)
+			gtk.StyleContextAddProviderForDisplay(display, provider, gtk.STYLE_PROVIDER_PRIORITY_USER)
+		}
+
 		bar.New(app, b, refs)
 		overview.New(app, b, refs.Hyprland)
 		sidebar.NewRight(app, b, refs)

@@ -30,3 +30,16 @@ type WiFiNetwork struct { SSID string; Signal int; Security string; Connected bo
 type BluetoothDevice struct { Address string; Name string; Paired bool; Connected bool; Icon string }
 type PomodoroState struct { Phase string; Remaining time.Duration; Running bool; SessionsCompleted int }
 type TodoItem struct { ID int; Text string; Done bool }
+
+type ColorScheme struct {
+	Primary, OnPrimary, PrimaryContainer, OnPrimaryContainer string
+	Secondary, OnSecondary, SecondaryContainer, OnSecondaryContainer string
+	Tertiary, OnTertiary, TertiaryContainer, OnTertiaryContainer string
+	Error, OnError, ErrorContainer, OnErrorContainer string
+	Surface, SurfaceDim, SurfaceBright string
+	SurfaceContainer, SurfaceContainerLow, SurfaceContainerHigh, SurfaceContainerHighest string
+	OnSurface, OnSurfaceVariant string
+	Background, OnBackground string
+	Outline, OutlineVariant string
+	Subtext string
+}

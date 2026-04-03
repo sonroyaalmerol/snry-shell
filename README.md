@@ -1,5 +1,10 @@
 # snry-shell
 
+[![CI](https://github.com/sonroyaalmerol/snry-shell/actions/workflows/ci.yml/badge.svg)](https://github.com/sonroyaalmerol/snry-shell/actions/workflows/ci.yml)
+[![Release](https://github.com/sonroyaalmerol/snry-shell/actions/workflows/release.yml/badge.svg)](https://github.com/sonroyaalmerol/snry-shell/releases)
+[![Go Reference](https://pkg.go.dev/badge/github.com/sonroyaalmerol/snry-shell.svg)](https://pkg.go.dev/github.com/sonroyaalmerol/snry-shell)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
 A Wayland desktop shell panel built with Go, GTK4, and gtk4-layer-shell for the Hyprland compositor.
 
 ## Overview
@@ -77,6 +82,41 @@ assets/
 - **Dependency injection** — Every service that touches the OS (subprocesses, sockets, DBus) is abstracted behind an interface, enabling unit tests with fakes.
 - **Layer shell** — Each surface is a separate gtk-layer-shell window with its own layer, anchors, exclusive zone, and keyboard mode.
 - **Service refs** — A single `ServiceRefs` struct bundles all service pointers and is passed to surface constructors that need them.
+
+## Installation
+
+### From package
+
+Download the latest release from [GitHub Releases](https://github.com/sonroyaalmerol/snry-shell/releases). Packages are available for:
+
+| Format | Distro |
+|--------|--------|
+| `.deb` | Debian, Ubuntu, Pop!_OS |
+| `.rpm` | Fedora, RHEL, openSUSE |
+| `.apk` | Alpine Linux |
+| AUR | Arch Linux |
+
+#### Arch Linux (AUR)
+
+```
+yay -S snry-shell-bin
+```
+
+#### Debian / Ubuntu
+
+```
+sudo dpkg -i snry-shell_<version>_linux_x86_64.deb
+```
+
+#### Fedora
+
+```
+sudo rpm -i snry-shell_<version>_linux_x86_64.rpm
+```
+
+### From source
+
+See [Building](#building) below.
 
 ## Prerequisites
 
@@ -178,7 +218,6 @@ make test
 
 ## Known Limitations
 
-- CSS and assets are loaded via relative paths (`assets/style.css`) — the binary must be run from the project root or the working directory must contain `assets/style.css`. This will be addressed in a future version with `//go:embed`.
 - Hyprland IPC is required — snry-shell does not work with other compositors.
 - The on-screen keyboard requires `wtype` for key injection.
 
