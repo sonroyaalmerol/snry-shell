@@ -47,8 +47,8 @@
 /* ── Bar ─────────────────────────────────────────────────────────────────────── */
 
 .bar {
-    background-color: alpha(@col_surface, 0.85);
-    min-height: 36px;
+    background-color: alpha(@col_surface, 0.88);
+    min-height: 40px;
     padding: 0 8px;
 }
 
@@ -221,7 +221,7 @@
     background-color: alpha(@col_surface, 0.92);
     border-radius: 16px 0 0 16px;
     padding: 12px 8px;
-    min-width: 360px;
+    min-width: 460px;
 }
 
 .notification-list {
@@ -277,9 +277,9 @@
 
 .osd {
     background-color: alpha(@col_surface_container_high, 0.92);
-    border-radius: 28px;
+    border-radius: 9999px;
     padding: 12px 20px;
-    min-width: 280px;
+    min-width: 200px;
 }
 
 .osd-icon {
@@ -1128,33 +1128,6 @@ scale.settings-scale slider {
     color: @col_on_secondary_container;
 }
 
-/* ── Weather widget (sidebar) ───────────────────────────────────────────────── */
-
-.weather-widget {
-    background-color: @col_surface_container;
-    border-radius: 16px;
-    padding: 12px 16px;
-    margin: 4px 0;
-}
-
-.weather-icon {
-    font-size: 24px;
-    color: @col_on_surface;
-}
-
-.weather-temp {
-    font-size: 16px;
-    font-weight: 500;
-    color: @col_on_surface;
-    font-family: "Google Sans Flex", sans-serif;
-}
-
-.weather-condition {
-    font-size: 12px;
-    color: @col_on_surface_variant;
-    font-family: "Google Sans Flex", sans-serif;
-}
-
 /* ── Pomodoro widget (sidebar) ──────────────────────────────────────────────── */
 
 .pomodoro-widget {
@@ -1615,4 +1588,309 @@ scale.mixer-slider slider {
     font-size: 10px;
     color: @col_on_surface_variant;
     font-family: "Google Sans Flex", sans-serif;
+}
+
+/* ── Clipboard panel ────────────────────────────────────────────────────────── */
+
+.clipboard-panel {
+    background-color: alpha(@col_surface_container, 0.92);
+    border-radius: 16px;
+    border: 1px solid alpha(@col_outline_variant, 0.3);
+    padding: 8px;
+}
+
+.clipboard-search {
+    padding: 4px;
+    margin-bottom: 4px;
+}
+
+.clipboard-clear-btn {
+    background-color: transparent;
+    border: none;
+    border-radius: 9999px;
+    color: @col_on_surface_variant;
+    min-width: 32px;
+    min-height: 32px;
+}
+
+.clipboard-clear-btn:hover {
+    background-color: alpha(@col_error, 0.12);
+    color: @col_error;
+}
+
+.clipboard-list {
+    padding: 4px;
+}
+
+.clipboard-row {
+    background-color: transparent;
+    border-radius: 12px;
+    padding: 10px 12px;
+    border: none;
+    transition: background-color 150ms var(--ease-emphasized-decel);
+}
+
+.clipboard-row:hover {
+    background-color: alpha(@col_primary_container, 0.3);
+}
+
+.clipboard-preview {
+    font-size: 13px;
+    color: @col_on_surface;
+    font-family: "Google Sans Flex", sans-serif;
+}
+
+/* ── Emoji picker ────────────────────────────────────────────────────────────── */
+
+.emoji-picker {
+    background-color: alpha(@col_surface_container, 0.92);
+    border-radius: 16px;
+    border: 1px solid alpha(@col_outline_variant, 0.3);
+    padding: 4px;
+}
+
+.emoji-grid {
+    padding: 8px;
+    row-spacing: 2px;
+    column-spacing: 2px;
+}
+
+.emoji-category-header {
+    font-size: 11px;
+    font-weight: 600;
+    color: @col_primary;
+    font-family: "Google Sans Flex", sans-serif;
+    padding: 8px 4px 4px 4px;
+}
+
+.emoji-btn {
+    background-color: transparent;
+    border: none;
+    border-radius: 8px;
+    min-width: 40px;
+    min-height: 40px;
+    transition: background-color 100ms var(--ease-emphasized-decel);
+}
+
+.emoji-btn:hover {
+    background-color: alpha(@col_primary_container, 0.3);
+}
+
+.emoji-char {
+    font-size: 22px;
+}
+
+/* ── Notes overlay ───────────────────────────────────────────────────────────── */
+
+.notes-overlay {
+    background-color: alpha(@col_surface_container, 0.92);
+    border-radius: 16px;
+    border: 1px solid alpha(@col_outline_variant, 0.3);
+    padding: 12px;
+}
+
+.notes-toolbar {
+    padding: 0 4px 8px 4px;
+}
+
+.notes-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: @col_on_surface;
+    font-family: "Google Sans Flex", sans-serif;
+}
+
+.notes-action-btn {
+    background-color: transparent;
+    border: none;
+    border-radius: 9999px;
+    color: @col_on_surface_variant;
+    min-width: 32px;
+    min-height: 32px;
+}
+
+.notes-action-btn:hover {
+    background-color: alpha(@col_on_surface, 0.08);
+}
+
+.notes-text {
+    background-color: transparent;
+    color: @col_on_surface;
+    font-size: 13px;
+    font-family: "Google Sans Flex", sans-serif;
+    caret-color: @col_primary;
+    border: none;
+    padding: 8px;
+}
+
+/* ── Screen recorder pill ────────────────────────────────────────────────────── */
+
+.recorder-pill {
+    background-color: alpha(@col_surface_container_high, 0.92);
+    border-radius: 9999px;
+    padding: 8px 20px;
+    border: 1px solid alpha(@col_outline_variant, 0.3);
+}
+
+.recorder-dot {
+    font-size: 12px;
+    color: @col_error;
+}
+
+.recorder-btn {
+    background-color: @col_error;
+    border-radius: 9999px;
+    min-width: 32px;
+    min-height: 32px;
+    border: none;
+}
+
+.recorder-btn-icon {
+    color: @col_on_primary;
+    font-size: 18px;
+}
+
+.recorder-btn-active .recorder-btn-icon {
+    color: @col_on_primary;
+}
+
+.recorder-timer {
+    font-size: 13px;
+    color: @col_on_surface;
+    font-family: "Google Sans Flex", sans-serif;
+    font-variant-numeric: tabular-nums;
+    min-width: 40px;
+}
+
+/* ── FPS limiter overlay ─────────────────────────────────────────────────────── */
+
+.fps-limiter-overlay {
+    background-color: alpha(@col_surface_container, 0.92);
+    border-radius: 16px;
+    border: 1px solid alpha(@col_outline_variant, 0.3);
+    padding: 20px;
+}
+
+.fps-limiter-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: @col_on_surface;
+    font-family: "Google Sans Flex", sans-serif;
+}
+
+.fps-limiter-scale {
+    margin: 8px 0;
+}
+
+.fps-limiter-value {
+    font-size: 28px;
+    font-weight: 300;
+    color: @col_primary;
+    font-family: "Google Sans Flex", sans-serif;
+    font-variant-numeric: tabular-nums;
+}
+
+.fps-limiter-apply {
+    background-color: @col_primary;
+    color: @col_on_primary;
+    border-radius: 9999px;
+    padding: 8px 24px;
+    font-size: 13px;
+    font-family: "Google Sans Flex", sans-serif;
+    border: none;
+}
+
+.fps-limiter-apply:hover {
+    background-color: @col_primary_container;
+    color: @col_on_primary_container;
+}
+
+/* ── Floating image viewer ───────────────────────────────────────────────────── */
+
+/* Image viewer uses layer-shell anchor-all, no additional styling needed.
+   The gtk.Picture automatically sizes to image aspect ratio. */
+
+/* ── Notification unread badge (bar) ────────────────────────────────────────── */
+
+.notif-unread-badge {
+    background-color: @col_error;
+    color: @col_on_primary;
+    border-radius: 9999px;
+    font-size: 10px;
+    font-weight: 600;
+    font-family: "Google Sans Flex", sans-serif;
+    min-width: 16px;
+    min-height: 16px;
+    padding: 0 4px;
+}
+
+/* ── Polkit authentication dialog ───────────────────────────────────────────── */
+
+.polkit-dialog {
+    background-color: @col_surface_container;
+    border-radius: 28px;
+    border: 1px solid alpha(@col_outline_variant, 0.3);
+    padding: 24px;
+    box-shadow: 0 8px 32px alpha(#000000, 0.3);
+}
+
+.polkit-icon {
+    color: @col_primary;
+}
+
+.polkit-message {
+    font-size: 15px;
+    font-weight: 500;
+    color: @col_on_surface;
+    font-family: "Google Sans Flex", sans-serif;
+}
+
+.polkit-action {
+    font-size: 12px;
+    color: @col_on_surface_variant;
+    font-family: "Google Sans Flex", sans-serif;
+}
+
+.polkit-password-entry {
+    background-color: @col_surface_container_high;
+    border-radius: 12px;
+    padding: 10px 14px;
+    color: @col_on_surface;
+    font-size: 14px;
+    font-family: "Google Sans Flex", sans-serif;
+    caret-color: @col_primary;
+    border: none;
+}
+
+.polkit-password-entry:focus {
+    box-shadow: 0 0 0 2px @col_primary;
+}
+
+.polkit-cancel-btn {
+    background-color: transparent;
+    border-radius: 9999px;
+    padding: 8px 20px;
+    font-size: 13px;
+    font-family: "Google Sans Flex", sans-serif;
+    color: @col_on_surface_variant;
+    border: none;
+}
+
+.polkit-cancel-btn:hover {
+    background-color: alpha(@col_on_surface, 0.08);
+}
+
+.polkit-auth-btn {
+    background-color: @col_primary;
+    color: @col_on_primary;
+    border-radius: 9999px;
+    padding: 8px 20px;
+    font-size: 13px;
+    font-family: "Google Sans Flex", sans-serif;
+    border: none;
+}
+
+.polkit-auth-btn:hover {
+    background-color: @col_primary_container;
+    color: @col_on_primary_container;
 }
