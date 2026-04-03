@@ -25,7 +25,7 @@ func New(app *gtk.Application, b *bus.Bus, refs *servicerefs.ServiceRefs) *Bar {
 	layershell.SetAnchor(win, layershell.EdgeTop, true)
 	layershell.SetAnchor(win, layershell.EdgeLeft, true)
 	layershell.SetAnchor(win, layershell.EdgeRight, true)
-	layershell.SetExclusiveZone(win, 36)
+	layershell.SetExclusiveZone(win, 40)
 	layershell.SetNamespace(win, "snry-bar")
 
 	bar := &Bar{win: win, bus: b}
@@ -47,6 +47,7 @@ func (b *Bar) buildLeft() gtk.Widgetter {
 	box := gtk.NewBox(gtk.OrientationHorizontal, 4)
 	box.SetVAlign(gtk.AlignCenter)
 	box.Append(newWorkspacesWidget(b.bus))
+	box.Append(newUnreadWidget(b.bus))
 	box.Append(newWindowTitleWidget(b.bus))
 	return box
 }
