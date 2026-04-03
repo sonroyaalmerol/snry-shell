@@ -11,15 +11,23 @@ A Wayland desktop shell panel built with Go, GTK4, and gtk4-layer-shell for the 
 
 snry-shell provides a complete desktop shell UI layer:
 
-- **Status bar** — workspaces, window title, system tray (SNI), resource monitor, keyboard layout, volume/brightness/network/battery indicators, clock
+- **Status bar** — workspaces, window title, notification unread badge, system tray (SNI), resource monitor, keyboard layout, volume/brightness/network/battery indicators, clock
 - **Application overview** — window previews grouped by workspace, fuzzy app launcher
 - **Notifications** — freedesktop notification daemon (DBus), toast popups, sidebar notification list
-- **Right sidebar** — media controls, calendar, weather, quick toggles (WiFi, Bluetooth, night light, DND, mic mute), pomodoro timer, todo list, volume mixer, WiFi picker, Bluetooth picker
+- **Right sidebar** — media controls, calendar, quick toggles (14 total), pomodoro timer, todo list, volume mixer, WiFi picker, Bluetooth picker
+- **Quick toggles** — WiFi, Bluetooth, Night Light, Anti-Flashbang, Mic Mute, EasyEffects, Volume Mixer, DND, Idle Inhibitor, GameMode, Performance, Screenshot, Color Picker, WiFi Networks
 - **Dock** — pinned application launcher
 - **Lock screen** — password entry, clock display
 - **Session menu** — lock, suspend, reboot, shutdown, logout
 - **Settings panel** — dark mode, font scale, bar position
 - **Wallpaper picker** — grid browser with automatic Material Design 3 theming via matugen
+- **Clipboard history** — searchable panel with cliphist integration
+- **Emoji picker** — categorized emoji grid with wl-copy
+- **Notes overlay** — persistent text notes (auto-saved to disk)
+- **Screen recorder** — wf-recorder integration with live timer
+- **FPS limiter** — Hyprland FPS control overlay
+- **Floating image viewer** — click-to-dismiss image display
+- **Polkit agent** — GUI authentication dialog (replaces text-based agent)
 - **On-screen keyboard** — QWERTY layout with key injection via wtype
 - **Extras** — screen corner hotspots, crosshair overlay, region screenshot selector, cheatsheet, OSD (volume/brightness)
 
@@ -38,6 +46,13 @@ surfaces/
   settings/                     Settings panel
   wallpaperpicker/              Wallpaper browser
   mediaoverlay/                 Full-screen media controls
+  clipboard/                    Clipboard history panel
+  emoji/                        Emoji picker overlay
+  notes/                        Notes overlay
+  recorder/                     Screen recorder controls
+  fpslimiter/                   FPS limiter overlay
+  imageviewer/                  Floating image viewer
+  polkit/                       PolicyKit authentication agent
   osd/                          Volume/brightness on-screen display
   notifpopup/                   Notification toast popups
   osk/                          On-screen keyboard
@@ -63,7 +78,6 @@ internal/
     clipboard/                  Clipboard history (wl-clipboard)
     wallpaper/                  Wallpaper watcher (swww)
     nightmode/                  Night light (hyprsunset)
-    weather/                    Weather data (wttr.in)
     pomodoro/                   Pomodoro timer
     todo/                       Task list (JSON persistence)
     sni/                        System tray host (StatusNotifierItem DBus)
@@ -123,13 +137,13 @@ See [Building](#building) below.
 - **Go** 1.26+
 - **Hyprland** compositor
 - **gtk4-layer-shell** development headers
-- **System tools**: pkg-config, swww, matugen, wpctl (wireplumber), grim, wl-copy, wtype, mako (notifications)
+- **System tools**: pkg-config, swww, matugen, wpctl (wireplumber), grim, wl-copy, wtype, cliphist, hyprpicker, wf-recorder
 - **Fonts**: Google Sans Flex, Material Symbols Rounded, JetBrains Mono NF
 
 ### Arch Linux
 
 ```
-pacman -S gtk4 gtk4-layer-shell pkg-config swww matugen wireplumber grim wl-clipboard wtype mako
+pacman -S gtk4 gtk4-layer-shell pkg-config sww matugen wireplumber grim wl-clipboard wtype cliphist hyprpicker wf-recorder
 ```
 
 ## Building
@@ -164,6 +178,9 @@ bind = SUPER, P,      exec, snry-shell --toggle-settings
 bind = SUPER, S,      exec, snry-shell --toggle-region-selector
 bind = SUPER, K,      exec, snry-shell --toggle-osk
 bind = SUPER, M,      exec, snry-shell --toggle-media-overlay
+bind = SUPER, V,      exec, snry-shell --toggle-clipboard
+bind = SUPER, E,      exec, snry-shell --toggle-emoji
+bind = SUPER, N,      exec, snry-shell --toggle-notes
 ```
 
 ### Control socket
@@ -181,6 +198,11 @@ snry-shell listens on `/tmp/snry-shell.sock`. The following commands are accepte
 | `toggle-settings` | Toggle settings panel |
 | `toggle-region-selector` | Toggle region screenshot selector |
 | `toggle-osk` | Toggle on-screen keyboard |
+| `toggle-clipboard` | Toggle clipboard history panel |
+| `toggle-emoji` | Toggle emoji picker |
+| `toggle-notes` | Toggle notes overlay |
+| `toggle-recorder` | Toggle screen recorder |
+| `toggle-fps-limiter` | Toggle FPS limiter |
 
 ## Configuration
 
@@ -220,6 +242,7 @@ make test
 
 - Hyprland IPC is required — snry-shell does not work with other compositors.
 - The on-screen keyboard requires `wtype` for key injection.
+- The polkit agent uses direct DBus response (not the setuid polkit-agent-helper-1 PAM flow) — full PAM integration is planned.
 
 ## License
 
