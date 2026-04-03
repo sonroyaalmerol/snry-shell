@@ -27,6 +27,7 @@ jobs:
           sudo apt-get install -y --no-install-recommends \
             libgtk-4-dev libwayland-dev wayland-protocols \
             pkg-config meson gcc g++ git \
+            libgirepository1.0-dev \
             gcc-aarch64-linux-gnu
           # Build gtk4-layer-shell from source (not packaged in all Ubuntu versions)
           git clone --depth 1 https://github.com/wmww/gtk4-layer-shell.git /tmp/gtk4-layer-shell
