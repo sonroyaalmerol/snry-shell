@@ -23,9 +23,12 @@ extern void gtk_layer_set_namespace(GtkWindow *window, const char *namespace);
 */
 import "C"
 
-import "unsafe"
+import (
+	"unsafe"
 
-// Layer is the z-order layer for a layer-shell surface.
+	"github.com/diamondburned/gotk4/pkg/gtk/v4"
+)
+
 type Layer int
 
 const (
@@ -35,7 +38,6 @@ const (
 	LayerOverlay
 )
 
-// Edge is a screen edge for anchoring/margins.
 type Edge int
 
 const (
@@ -45,17 +47,14 @@ const (
 	EdgeBottom
 )
 
-// KeyboardMode controls keyboard interactivity for a layer-shell surface.
 type KeyboardMode int
 
 const (
-	KeyboardModeNone      KeyboardMode = iota // 0
-	KeyboardModeExclusive                     // 1
-	KeyboardModeOnDemand                      // 2
+	KeyboardModeNone KeyboardMode = iota
+	KeyboardModeExclusive
+	KeyboardModeOnDemand
 )
 
-// WindowPtr returns the underlying C pointer for a GTK4 window.
-// In gotk4 v4, widget types implement native() uintptr returning the C pointer.
 func WindowPtr(w any) *C.GtkWindow {
 	type native interface {
 		native() uintptr
@@ -67,17 +66,14 @@ func WindowPtr(w any) *C.GtkWindow {
 	return nil
 }
 
-// InitForWindow must be called before the window is realized.
 func InitForWindow(w any) {
 	C.gtk_layer_init_for_window(WindowPtr(w))
 }
 
-// SetLayer sets the z-order layer.
 func SetLayer(w any, layer Layer) {
 	C.gtk_layer_set_layer(WindowPtr(w), C.int(layer))
 }
 
-// SetAnchor anchors the window to a screen edge.
 func SetAnchor(w any, edge Edge, anchor bool) {
 	var a C.int
 	if anchor {
@@ -86,29 +82,87 @@ func SetAnchor(w any, edge Edge, anchor bool) {
 	C.gtk_layer_set_anchor(WindowPtr(w), C.int(edge), a)
 }
 
-// SetMargin sets the margin from a screen edge.
 func SetMargin(w any, edge Edge, margin int) {
 	C.gtk_layer_set_margin(WindowPtr(w), C.int(edge), C.int(margin))
 }
 
-// SetExclusiveZone sets the exclusive zone (pixels).
 func SetExclusiveZone(w any, zone int) {
 	C.gtk_layer_set_exclusive_zone(WindowPtr(w), C.int(zone))
 }
 
-// SetKeyboardMode sets keyboard interactivity.
 func SetKeyboardMode(w any, mode KeyboardMode) {
 	C.gtk_layer_set_keyboard_mode(WindowPtr(w), C.int(mode))
 }
 
-// SetNamespace sets the layer shell namespace for the compositor.
 func SetNamespace(w any, namespace string) {
 	cstr := C.CString(namespace)
 	C.gtk_layer_set_namespace(WindowPtr(w), cstr)
 	C.free(unsafe.Pointer(cstr))
 }
 
-// IsSupported checks if the compositor supports layer shell.
 func IsSupported() bool {
 	return true
+}
+
+type WindowConfig struct {
+	Name          string
+	Layer         Layer
+	Anchors       map[Edge]bool
+	Margins       map[Edge]int
+	KeyboardMode  KeyboardMode
+	ExclusiveZone int
+	Namespace     string
+}
+
+func NewWindow(app *gtk.Application, cfg WindowConfig) *gtk.ApplicationWindow {
+	win := gtk.NewApplicationWindow(app)
+	win.SetDecorated(false)
+	win.SetName(cfg.Name)
+
+	InitForWindow(win)
+	SetLayer(win, cfg.Layer)
+
+	if cfg.Anchors != nil {
+		for edge, anchor := range cfg.Anchors {
+			SetAnchor(win, edge, anchor)
+		}
+	}
+
+	if cfg.Margins != nil {
+		for edge, margin := range cfg.Margins {
+			SetMargin(win, edge, margin)
+		}
+	}
+
+	if cfg.KeyboardMode != 0 {
+		SetKeyboardMode(win, cfg.KeyboardMode)
+	}
+
+	if cfg.ExclusiveZone != 0 {
+		SetExclusiveZone(win, cfg.ExclusiveZone)
+	}
+
+	if cfg.Namespace != "" {
+		SetNamespace(win, cfg.Namespace)
+	}
+
+	return win
+}
+
+func FullscreenAnchors() map[Edge]bool {
+	return map[Edge]bool{
+		EdgeTop: true, EdgeBottom: true, EdgeLeft: true, EdgeRight: true,
+	}
+}
+
+func TopEdgeAnchors() map[Edge]bool {
+	return map[Edge]bool{EdgeTop: true, EdgeLeft: true, EdgeRight: true}
+}
+
+func BottomEdgeAnchors() map[Edge]bool {
+	return map[Edge]bool{EdgeBottom: true, EdgeLeft: true, EdgeRight: true}
+}
+
+func RightEdgeAnchors() map[Edge]bool {
+	return map[Edge]bool{EdgeTop: true, EdgeBottom: true, EdgeRight: true}
 }
