@@ -4,8 +4,8 @@ import "github.com/diamondburned/gotk4/pkg/gtk/v4"
 
 func ClearChildren(w *gtk.Widget) {
 	for child := w.FirstChild(); child != nil; {
-		next := child.(*gtk.Widget).NextSibling()
-		child.(*gtk.Widget).SetParent(nil)
+		next := gtk.BaseWidget(child).NextSibling()
+		gtk.BaseWidget(child).SetParent(nil)
 		child = next
 	}
 }

@@ -20,6 +20,7 @@ func New(app *gtk.Application, b *bus.Bus, refs *servicerefs.ServiceRefs) *Bar {
 		Name:          "snry-bar",
 		Layer:         layershell.LayerTop,
 		Anchors:       layershell.TopEdgeAnchors(),
+		KeyboardMode:  layershell.KeyboardModeOnDemand,
 		ExclusiveZone: 40,
 		Namespace:     "snry-bar",
 	})

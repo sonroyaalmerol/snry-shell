@@ -96,28 +96,31 @@ func newBTDeviceRow(refs *servicerefs.ServiceRefs, dev state.BluetoothDevice) gt
 	row.Append(statusLabel)
 
 	if refs.Bluetooth != nil {
-		actionBtn := gtk.NewButton()
+		actionBtn := gtkutil.MaterialButton("")
 		actionBtn.AddCSSClass("bt-action-btn")
 
-		if dev.Connected {
-			actionBtn.SetChild(gtkutil.MaterialButton("disconnect").Child())
+		var icon string
+		switch {
+		case dev.Connected:
+			icon = "disconnect"
 			addr := dev.Address
 			actionBtn.ConnectClicked(func() {
 				go refs.Bluetooth.DisconnectDevice(addr)
 			})
-		} else if dev.Paired {
-			actionBtn.SetChild(gtkutil.MaterialButton("connect").Child())
+		case dev.Paired:
+			icon = "connect"
 			addr := dev.Address
 			actionBtn.ConnectClicked(func() {
 				go refs.Bluetooth.ConnectDevice(addr)
 			})
-		} else {
-			actionBtn.SetChild(gtkutil.MaterialButton("add").Child())
+		default:
+			icon = "add"
 			addr := dev.Address
 			actionBtn.ConnectClicked(func() {
 				go refs.Bluetooth.PairDevice(addr)
 			})
 		}
+		actionBtn.Child().(*gtk.Label).SetText(icon)
 
 		row.Append(actionBtn)
 	}

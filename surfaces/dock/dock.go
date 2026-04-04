@@ -19,6 +19,7 @@ func New(app *gtk.Application, b *bus.Bus) *Dock {
 		Name:          "snry-dock",
 		Layer:         layershell.LayerTop,
 		Anchors:       layershell.BottomEdgeAnchors(),
+		KeyboardMode:  layershell.KeyboardModeOnDemand,
 		ExclusiveZone: 64,
 		Namespace:     "snry-dock",
 	})
@@ -39,7 +40,7 @@ func (d *Dock) build() {
 	for _, app := range pinned {
 		icon := gtk.NewImage()
 		icon.SetFromIconName(app.Icon)
-		icon.SetIconSize(gtk.IconSizeLarge)
+		icon.SetPixelSize(40)
 
 		btn := gtk.NewButton()
 		btn.AddCSSClass("dock-btn")
