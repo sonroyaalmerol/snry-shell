@@ -1,6 +1,9 @@
 package controls
 
 import (
+	"fmt"
+	"os"
+
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/sonroyaalmerol/snry-shell/internal/bus"
@@ -90,22 +93,28 @@ func (c *Controls) build(refs *servicerefs.ServiceRefs) {
 }
 
 func (c *Controls) positionUnderTrigger() {
-	monW := surfaceutil.MonitorWidth()
-	if monW <= 0 {
-		return
-	}
-
 	triggerX := surfaceutil.WidgetXRelativeToRoot(c.trigger)
 	triggerW := surfaceutil.WidgetWidth(c.trigger)
 	popupW := panelWidth + panelMargin*2
+	monW := surfaceutil.MonitorWidth()
+
+	fmt.Fprintf(os.Stderr, "controls: triggerX=%d triggerW=%d popupW=%d monW=%d\n",
+		triggerX, triggerW, popupW, monW)
 
 	desiredLeft := triggerX + triggerW/2 - popupW/2
-	if desiredLeft < panelMargin {
-		desiredLeft = panelMargin
+	if monW > 0 {
+		if desiredLeft < panelMargin {
+			desiredLeft = panelMargin
+		}
+		if desiredLeft+popupW > monW-panelMargin {
+			desiredLeft = monW - panelMargin - popupW
+		}
+	} else {
+		fmt.Fprintln(os.Stderr, "controls: monW=0, skipping clamp")
 	}
-	if desiredLeft+popupW > monW-panelMargin {
-		desiredLeft = monW - panelMargin - popupW
-	}
+
+	fmt.Fprintf(os.Stderr, "controls: desiredLeft=%d marginTop=%d\n",
+		desiredLeft, layershell.BarExclusiveZone+8)
 
 	c.root.SetMarginTop(layershell.BarExclusiveZone + 8)
 	c.root.SetMarginStart(desiredLeft)

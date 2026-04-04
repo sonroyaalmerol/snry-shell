@@ -1,6 +1,9 @@
 package notifcenter
 
 import (
+	"fmt"
+	"os"
+
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/sonroyaalmerol/snry-shell/internal/bus"
@@ -91,21 +94,22 @@ func (nc *NotifCenter) build(refs *servicerefs.ServiceRefs) {
 }
 
 func (nc *NotifCenter) positionUnderTrigger() {
-	monW := surfaceutil.MonitorWidth()
-	if monW <= 0 {
-		return
-	}
-
 	triggerX := surfaceutil.WidgetXRelativeToRoot(nc.trigger)
 	triggerW := surfaceutil.WidgetWidth(nc.trigger)
 	popupW := panelWidth + panelMargin*2
+	monW := surfaceutil.MonitorWidth()
+
+	fmt.Fprintf(os.Stderr, "notifcenter: triggerX=%d triggerW=%d popupW=%d monW=%d\n",
+		triggerX, triggerW, popupW, monW)
 
 	desiredLeft := triggerX + triggerW/2 - popupW/2
-	if desiredLeft < panelMargin {
-		desiredLeft = panelMargin
-	}
-	if desiredLeft+popupW > monW-panelMargin {
-		desiredLeft = monW - panelMargin - popupW
+	if monW > 0 {
+		if desiredLeft < panelMargin {
+			desiredLeft = panelMargin
+		}
+		if desiredLeft+popupW > monW-panelMargin {
+			desiredLeft = monW - panelMargin - popupW
+		}
 	}
 
 	nc.root.SetMarginTop(layershell.BarExclusiveZone + 8)
