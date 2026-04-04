@@ -197,6 +197,7 @@ func (s *Service) ScanWiFi() ([]state.WiFiNetwork, error) {
 		}
 		apPaths, ok := apsV.Value().([]dbus.ObjectPath)
 		if !ok {
+			fmt.Fprintf(os.Stderr, "wifi scan: device %s APs type=%T\n", p, apsV.Value())
 			continue
 		}
 		fmt.Fprintf(os.Stderr, "wifi scan: device %s has %d APs\n", p, len(apPaths))
