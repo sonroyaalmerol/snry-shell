@@ -3,7 +3,6 @@ package network
 import (
 	"context"
 	"fmt"
-	"os"
 	"time"
 
 	"github.com/godbus/dbus/v5"
@@ -22,6 +21,8 @@ const (
 )
 
 const (
+	nmDeviceTypeWifi = uint32(2)
+
 	nmStateConnectedGlobal = uint32(70)
 	nmStateConnectedSite   = uint32(60)
 	nmStateConnectedLocal  = uint32(50)
@@ -93,14 +94,11 @@ func (s *Service) fetchState() (state.NetworkState, error) {
 
 	// Try to get SSID from the primary WiFi device.
 	ssid := ""
-	devicesV, err := nmObj.GetProperty(nmIface + ".Devices")
-	if err == nil {
-		if paths, ok := devicesV.Value().([]dbus.ObjectPath); ok {
-			for _, p := range paths {
-				if s2, ok := s.getWifiSSID(p); ok {
-					ssid = s2
-					break
-				}
+	if wifiPaths, err := s.wifiDevicePaths(); err == nil {
+		for _, p := range wifiPaths {
+			if s2, ok := s.getWifiSSID(p); ok {
+				ssid = s2
+				break
 			}
 		}
 	}
@@ -146,28 +144,45 @@ func (s *Service) getWifiSSID(devicePath dbus.ObjectPath) (string, bool) {
 	return string(ssidBytes), true
 }
 
+// wifiDevicePaths returns only WiFi device paths from NetworkManager.
+func (s *Service) wifiDevicePaths() ([]dbus.ObjectPath, error) {
+	nmObj := s.conn.Object(nmDest, nmPath)
+	if nmObj == nil {
+		return nil, fmt.Errorf("no D-Bus connection")
+	}
+	devicesV, err := nmObj.GetProperty(nmIface + ".Devices")
+	if err != nil {
+		return nil, err
+	}
+	paths, ok := devicesV.Value().([]dbus.ObjectPath)
+	if !ok {
+		return nil, nil
+	}
+	var wifiPaths []dbus.ObjectPath
+	for _, p := range paths {
+		devObj := s.conn.Object(nmDest, p)
+		dtV, err := devObj.GetProperty(nmIface + ".Device.DeviceType")
+		if err != nil {
+			continue
+		}
+		dt, _ := dtV.Value().(uint32)
+		if dt == nmDeviceTypeWifi {
+			wifiPaths = append(wifiPaths, p)
+		}
+	}
+	return wifiPaths, nil
+}
+
 // ScanWiFi requests a WiFi scan and returns available networks.
 // It always publishes to TopicWiFiNetworks so the widget can update.
 func (s *Service) ScanWiFi() ([]state.WiFiNetwork, error) {
 	networks := []state.WiFiNetwork{}
 	defer func() { s.bus.Publish(bus.TopicWiFiNetworks, networks) }()
 
-	nmObj := s.conn.Object(nmDest, nmPath)
-	if nmObj == nil {
-		fmt.Fprintf(os.Stderr, "wifi scan: no D-Bus connection\n")
-		return nil, fmt.Errorf("no D-Bus connection")
-	}
-
-	devicesV, err := nmObj.GetProperty(nmIface + ".Devices")
+	paths, err := s.wifiDevicePaths()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "wifi scan: GetProperty Devices: %v\n", err)
 		return networks, err
 	}
-	paths, ok := devicesV.Value().([]dbus.ObjectPath)
-	if !ok {
-		return nil, nil
-	}
-	fmt.Fprintf(os.Stderr, "wifi scan: found %d devices\n", len(paths))
 
 	seen := make(map[string]bool)
 
@@ -175,12 +190,9 @@ func (s *Service) ScanWiFi() ([]state.WiFiNetwork, error) {
 	currentSSID := ""
 	if ns, err := s.fetchState(); err == nil {
 		currentSSID = ns.SSID
-		fmt.Fprintf(os.Stderr, "wifi scan: connected SSID=%q wireless=%v\n", ns.SSID, ns.WirelessEnabled)
-	} else {
-		fmt.Fprintf(os.Stderr, "wifi scan: fetchState error: %v\n", err)
 	}
 
-	// Request scan on all devices, then wait for NM to discover APs.
+	// Request scan on all WiFi devices, then wait for NM to discover APs.
 	for _, p := range paths {
 		devObj := s.conn.Object(nmDest, p)
 		devObj.Call(nmDeviceWireless+".RequestScan", 0)
@@ -188,20 +200,16 @@ func (s *Service) ScanWiFi() ([]state.WiFiNetwork, error) {
 	time.Sleep(3 * time.Second)
 
 	for _, p := range paths {
-		fmt.Fprintf(os.Stderr, "wifi scan: iterating device %s\n", p)
 		devObj := s.conn.Object(nmDest, p)
 
-		// Get all access points.
 		apsV, err := devObj.GetProperty(nmDeviceWireless + ".AllAccessPoints")
 		if err != nil {
 			continue
 		}
 		apPaths, ok := apsV.Value().([]dbus.ObjectPath)
 		if !ok {
-			fmt.Fprintf(os.Stderr, "wifi scan: device %s APs type=%T\n", p, apsV.Value())
 			continue
 		}
-		fmt.Fprintf(os.Stderr, "wifi scan: device %s has %d APs\n", p, len(apPaths))
 
 		for _, apPath := range apPaths {
 			apObj := s.conn.Object(nmDest, apPath)
@@ -249,8 +257,6 @@ func (s *Service) ScanWiFi() ([]state.WiFiNetwork, error) {
 		}
 	}
 
-	s.bus.Publish(bus.TopicWiFiNetworks, networks)
-	fmt.Fprintf(os.Stderr, "wifi scan: publishing %d networks\n", len(networks))
 	return networks, nil
 }
 
