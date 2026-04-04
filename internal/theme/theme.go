@@ -112,50 +112,54 @@ func parseMatugenJSON(data []byte) (state.ColorScheme, error) {
 	if err := json.Unmarshal(data, &out); err != nil {
 		return state.ColorScheme{}, fmt.Errorf("parse matugen JSON: %w", err)
 	}
-	d := out.Colors.Dark
-	return paletteToScheme(d), nil
-}
 
-func paletteToScheme(d palette) state.ColorScheme {
-	s := state.ColorScheme{
-		Primary:            d.Primary,
-		OnPrimary:          d.OnPrimary,
-		PrimaryContainer:   d.PrimaryContainer,
-		OnPrimaryContainer: d.OnPrimaryContainer,
-
-		Secondary:            d.Secondary,
-		OnSecondary:          d.OnSecondary,
-		SecondaryContainer:   d.SecondaryContainer,
-		OnSecondaryContainer: d.OnSecondaryContainer,
-
-		Tertiary:            d.Tertiary,
-		OnTertiary:          d.OnTertiary,
-		TertiaryContainer:   d.TertiaryContainer,
-		OnTertiaryContainer: d.OnTertiaryContainer,
-
-		Error:            d.Error,
-		OnError:          d.OnError,
-		ErrorContainer:   d.ErrorContainer,
-		OnErrorContainer: d.OnErrorContainer,
-
-		Surface:                 d.Surface,
-		SurfaceDim:              d.SurfaceDim,
-		SurfaceBright:           d.SurfaceBright,
-		SurfaceContainer:        d.SurfaceContainer,
-		SurfaceContainerLow:     d.SurfaceContainerLow,
-		SurfaceContainerHigh:    d.SurfaceContainerHigh,
-		SurfaceContainerHighest: d.SurfaceContainerHighest,
-		OnSurface:               d.OnSurface,
-		OnSurfaceVariant:        d.OnSurfaceVariant,
-
-		Background:   d.Background,
-		OnBackground: d.OnBackground,
-
-		Outline:        d.Outline,
-		OutlineVariant: d.OutlineVariant,
-
-		// Subtext is on_surface_variant — a convenience alias.
-		Subtext: d.OnSurfaceVariant,
+	// Use "dark" variant for each color role.
+	lookup := func(role string) string {
+		if entry, ok := out.Colors[role]; ok {
+			return entry.Dark.Color
+		}
+		return ""
 	}
-	return s
+
+	s := state.ColorScheme{
+		Primary:            lookup("primary"),
+		OnPrimary:          lookup("on_primary"),
+		PrimaryContainer:   lookup("primary_container"),
+		OnPrimaryContainer: lookup("on_primary_container"),
+
+		Secondary:            lookup("secondary"),
+		OnSecondary:          lookup("on_secondary"),
+		SecondaryContainer:   lookup("secondary_container"),
+		OnSecondaryContainer: lookup("on_secondary_container"),
+
+		Tertiary:            lookup("tertiary"),
+		OnTertiary:          lookup("on_tertiary"),
+		TertiaryContainer:   lookup("tertiary_container"),
+		OnTertiaryContainer: lookup("on_tertiary_container"),
+
+		Error:            lookup("error"),
+		OnError:          lookup("on_error"),
+		ErrorContainer:   lookup("error_container"),
+		OnErrorContainer: lookup("on_error_container"),
+
+		Surface:                 lookup("surface"),
+		SurfaceDim:              lookup("surface_dim"),
+		SurfaceBright:           lookup("surface_bright"),
+		SurfaceContainer:        lookup("surface_container"),
+		SurfaceContainerLow:     lookup("surface_container_low"),
+		SurfaceContainerHigh:    lookup("surface_container_high"),
+		SurfaceContainerHighest: lookup("surface_container_highest"),
+		OnSurface:               lookup("on_surface"),
+		OnSurfaceVariant:        lookup("on_surface_variant"),
+
+		Background:   lookup("background"),
+		OnBackground: lookup("on_background"),
+
+		Outline:        lookup("outline"),
+		OutlineVariant: lookup("outline_variant"),
+
+		Subtext: lookup("on_surface_variant"),
+	}
+
+	return s, nil
 }

@@ -30,21 +30,41 @@ type fakeMatugen struct {
 	err    error
 }
 
+// fakeMatugenJSON matches matugen v4 output format.
 const fakeMatugenJSON = `{
 	"colors": {
-		"dark": {
-			"primary": "#BB86FC", "on_primary": "#000000", "primary_container": "#BB86FC", "on_primary_container": "#000000",
-			"secondary": "#03DAC6", "on_secondary": "#000000", "secondary_container": "#03DAC6", "on_secondary_container": "#000000",
-			"tertiary": "#CF6679", "on_tertiary": "#000000", "tertiary_container": "#CF6679", "on_tertiary_container": "#000000",
-			"error": "#CF6679", "on_error": "#000000", "error_container": "#CF6679", "on_error_container": "#000000",
-			"surface": "#121212", "surface_dim": "#121212", "surface_bright": "#121212",
-			"surface_container": "#1E1E1E", "surface_container_low": "#1E1E1E",
-			"surface_container_high": "#2C2C2C", "surface_container_highest": "#2C2C2C",
-			"on_surface": "#E6E1E5", "on_surface_variant": "#CAC4D0",
-			"background": "#121212", "on_background": "#E6E1E5",
-			"outline": "#938F99", "outline_variant": "#49454F"
-		}
-	}
+		"primary": {"dark": {"color": "#BB86FC"}, "default": {"color": "#BB86FC"}, "light": {"color": "#6750A4"}},
+		"on_primary": {"dark": {"color": "#000000"}, "default": {"color": "#000000"}, "light": {"color": "#FFFFFF"}},
+		"primary_container": {"dark": {"color": "#BB86FC"}, "default": {"color": "#BB86FC"}, "light": {"color": "#EADDFF"}},
+		"on_primary_container": {"dark": {"color": "#000000"}, "default": {"color": "#000000"}, "light": {"color": "#21005D"}},
+		"secondary": {"dark": {"color": "#03DAC6"}, "default": {"color": "#03DAC6"}, "light": {"color": "#625B71"}},
+		"on_secondary": {"dark": {"color": "#000000"}, "default": {"color": "#000000"}, "light": {"color": "#FFFFFF"}},
+		"secondary_container": {"dark": {"color": "#03DAC6"}, "default": {"color": "#03DAC6"}, "light": {"color": "#E8DEF8"}},
+		"on_secondary_container": {"dark": {"color": "#000000"}, "default": {"color": "#000000"}, "light": {"color": "#1D192B"}},
+		"tertiary": {"dark": {"color": "#CF6679"}, "default": {"color": "#CF6679"}, "light": {"color": "#7D5260"}},
+		"on_tertiary": {"dark": {"color": "#000000"}, "default": {"color": "#000000"}, "light": {"color": "#FFFFFF"}},
+		"tertiary_container": {"dark": {"color": "#CF6679"}, "default": {"color": "#CF6679"}, "light": {"color": "#FFD8E4"}},
+		"on_tertiary_container": {"dark": {"color": "#000000"}, "default": {"color": "#000000"}, "light": {"color": "#31111D"}},
+		"error": {"dark": {"color": "#CF6679"}, "default": {"color": "#CF6679"}, "light": {"color": "#B3261E"}},
+		"on_error": {"dark": {"color": "#000000"}, "default": {"color": "#000000"}, "light": {"color": "#FFFFFF"}},
+		"error_container": {"dark": {"color": "#CF6679"}, "default": {"color": "#CF6679"}, "light": {"color": "#F9DEDC"}},
+		"on_error_container": {"dark": {"color": "#000000"}, "default": {"color": "#000000"}, "light": {"color": "#410E0B"}},
+		"surface": {"dark": {"color": "#121212"}, "default": {"color": "#121212"}, "light": {"color": "#FFFBFE"}},
+		"surface_dim": {"dark": {"color": "#121212"}, "default": {"color": "#121212"}, "light": {"color": "#DED8E1"}},
+		"surface_bright": {"dark": {"color": "#121212"}, "default": {"color": "#121212"}, "light": {"color": "#FFFBFE"}},
+		"surface_container": {"dark": {"color": "#1E1E1E"}, "default": {"color": "#1E1E1E"}, "light": {"color": "#F3EDF7"}},
+		"surface_container_low": {"dark": {"color": "#1E1E1E"}, "default": {"color": "#1E1E1E"}, "light": {"color": "#F7F2FA"}},
+		"surface_container_high": {"dark": {"color": "#2C2C2C"}, "default": {"color": "#2C2C2C"}, "light": {"color": "#ECE6F0"}},
+		"surface_container_highest": {"dark": {"color": "#2C2C2C"}, "default": {"color": "#2C2C2C"}, "light": {"color": "#E6E0E9"}},
+		"on_surface": {"dark": {"color": "#E6E1E5"}, "default": {"color": "#E6E1E5"}, "light": {"color": "#1C1B1F"}},
+		"on_surface_variant": {"dark": {"color": "#CAC4D0"}, "default": {"color": "#CAC4D0"}, "light": {"color": "#49454F"}},
+		"background": {"dark": {"color": "#121212"}, "default": {"color": "#121212"}, "light": {"color": "#FFFBFE"}},
+		"on_background": {"dark": {"color": "#E6E1E5"}, "default": {"color": "#E6E1E5"}, "light": {"color": "#1C1B1F"}},
+		"outline": {"dark": {"color": "#938F99"}, "default": {"color": "#938F99"}, "light": {"color": "#79747E"}},
+		"outline_variant": {"dark": {"color": "#49454F"}, "default": {"color": "#49454F"}, "light": {"color": "#CAC4D0"}}
+	},
+	"mode": "dark",
+	"is_dark_mode": true
 }`
 
 func (f *fakeMatugen) Run(path string) ([]byte, error) {
