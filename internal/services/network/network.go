@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/godbus/dbus/v5"
 	"github.com/sonroyaalmerol/snry-shell/internal/bus"
@@ -175,10 +176,15 @@ func (s *Service) ScanWiFi() ([]state.WiFiNetwork, error) {
 		currentSSID = ns.SSID
 	}
 
+	// Request scan on all devices, then wait for NM to discover APs.
 	for _, p := range paths {
 		devObj := s.conn.Object(nmDest, p)
-		// Request scan.
 		devObj.Call(nmDeviceWireless+".RequestScan", 0)
+	}
+	time.Sleep(3 * time.Second)
+
+	for _, p := range paths {
+		devObj := s.conn.Object(nmDest, p)
 
 		// Get all access points.
 		apsV, err := devObj.GetProperty(nmDeviceWireless + ".AllAccessPoints")
