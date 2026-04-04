@@ -50,12 +50,8 @@ func New(app *gtk.Application, b *bus.Bus) *OSD {
 		}
 		osdLogger.Printf("audio changed: vol=%.4f muted=%v (last vol=%.4f muted=%v)", sink.Volume, sink.Muted, o.lastAudio.Volume, o.lastAudio.Muted)
 		o.lastAudio = sink
-		vol := sink.Volume
-		if sink.Muted {
-			vol = 0
-		}
 		icon := audioIcon(sink.Volume, sink.Muted)
-		o.show(osdLogger, icon, vol)
+		o.show(osdLogger, icon, sink.Volume)
 	})
 
 	b.Subscribe(bus.TopicBrightness, func(e bus.Event) {

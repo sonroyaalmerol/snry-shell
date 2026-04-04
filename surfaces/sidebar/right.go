@@ -14,49 +14,37 @@ import (
 
 // Right is the right-edge sidebar showing notifications, media, calendar, and controls.
 type Right struct {
-	win        *gtk.ApplicationWindow
-	clickCatcher *gtk.ApplicationWindow
-	bus        *bus.Bus
+	win *gtk.ApplicationWindow
+	bus *bus.Bus
 }
 
 // NewRight creates the right sidebar.
 func NewRight(app *gtk.Application, b *bus.Bus, refs *servicerefs.ServiceRefs) *Right {
+	// Fullscreen overlay — the sidebar panel sits on the right, clicks on the
+	// empty area dismiss it.
 	win := layershell.NewWindow(app, layershell.WindowConfig{
 		Name:         "snry-sidebar-right",
 		Layer:        layershell.LayerOverlay,
-		Anchors:      layershell.RightEdgeAnchors(),
+		Anchors:      layershell.FullscreenAnchors(),
 		KeyboardMode: layershell.KeyboardModeOnDemand,
+		ExclusiveZone: -1,
 		Namespace:    "snry-sidebar-right",
 	})
 
-	// Full-screen invisible click catcher behind the sidebar.
-	clickCatcher := layershell.NewWindow(app, layershell.WindowConfig{
-		Name:         "snry-sidebar-catcher",
-		Layer:        layershell.LayerOverlay,
-		Anchors:      layershell.FullscreenAnchors(),
-		KeyboardMode: layershell.KeyboardModeNone,
-		ExclusiveZone: -1,
-		Namespace:    "snry-sidebar-catcher",
-	})
-	clickCatcher.SetVisible(false)
-
-	// The click catcher needs a child widget to receive input events.
-	dummy := gtk.NewBox(gtk.OrientationVertical, 0)
-	clickCatcher.SetChild(dummy)
-
-	r := &Right{win: win, clickCatcher: clickCatcher, bus: b}
+	r := &Right{win: win, bus: b}
 	r.build(refs)
 	win.SetVisible(false)
 
-	// Clicking the catcher dismisses the sidebar.
 	logger := log.New(os.Stderr, "[sidebar] ", log.Lmsgprefix|log.Ltime)
+
+	// Click on the background (not on the sidebar panel) closes it.
 	clickGesture := gtk.NewGestureClick()
 	clickGesture.SetButton(1)
 	clickGesture.ConnectReleased(func(_ int, _ float64, _ float64) {
-		logger.Printf("click catcher released — closing sidebar")
+		logger.Printf("background click — closing sidebar")
 		r.close()
 	})
-	clickCatcher.AddController(clickGesture)
+	win.AddController(clickGesture)
 
 	b.Subscribe(bus.TopicSystemControls, func(e bus.Event) {
 		if e.Data == "toggle-sidebar" {
@@ -69,66 +57,71 @@ func NewRight(app *gtk.Application, b *bus.Bus, refs *servicerefs.ServiceRefs) *
 }
 
 func (r *Right) build(refs *servicerefs.ServiceRefs) {
+	// Root overlay: fullscreen box with sidebar content packed to the right.
+	root := gtk.NewBox(gtk.OrientationHorizontal, 0)
+	root.SetHAlign(gtk.AlignEnd)
+	root.SetVAlign(gtk.AlignFill)
+
 	scroll := gtk.NewScrolledWindow()
 	scroll.SetPolicy(gtk.PolicyNever, gtk.PolicyAutomatic)
 	scroll.AddCSSClass("sidebar-scroll")
+	scroll.SetVExpand(true)
 
-	root := gtk.NewBox(gtk.OrientationVertical, 0)
-	root.AddCSSClass("sidebar-right")
-	root.SetMarginTop(12)
-	root.SetMarginBottom(12)
-	root.SetMarginStart(12)
-	root.SetMarginEnd(12)
+	panel := gtk.NewBox(gtk.OrientationVertical, 0)
+	panel.AddCSSClass("sidebar-right")
+	panel.SetMarginTop(12)
+	panel.SetMarginBottom(12)
+	panel.SetMarginStart(12)
+	panel.SetMarginEnd(12)
+	panel.SetSizeRequest(460, -1)
 
 	// Top group: notifications
-	root.Append(newNotificationList(r.bus))
+	panel.Append(newNotificationList(r.bus))
 
 	// Center group: media controls + calendar
-	root.Append(buildMediaGroup(r.bus, refs.Mpris))
-	root.Append(buildCalendarGroup())
+	panel.Append(buildMediaGroup(r.bus, refs.Mpris))
+	panel.Append(buildCalendarGroup())
 
 	// Quick toggles
-	root.Append(newQuickToggles(r.bus, refs))
+	panel.Append(newQuickToggles(r.bus, refs))
 
 	// Pomodoro timer
-	root.Append(newPomodoroWidget(r.bus, refs))
+	panel.Append(newPomodoroWidget(r.bus, refs))
 
 	// Todo list
-	root.Append(newTodoWidget(r.bus, refs))
+	panel.Append(newTodoWidget(r.bus, refs))
 
 	// Volume mixer
-	root.Append(newVolumeMixerWidget(r.bus, refs))
+	panel.Append(newVolumeMixerWidget(r.bus, refs))
 
 	// WiFi networks
-	root.Append(newWiFiWidget(r.bus, refs))
+	panel.Append(newWiFiWidget(r.bus, refs))
 
 	// Bluetooth devices
-	root.Append(newBluetoothWidget(r.bus, refs))
+	panel.Append(newBluetoothWidget(r.bus, refs))
 
 	// Bottom group: system controls (collapsible)
-	root.Append(buildBottomGroup(r.bus, refs))
+	panel.Append(buildBottomGroup(r.bus, refs))
 
-	scroll.SetChild(root)
-	r.win.SetChild(scroll)
+	scroll.SetChild(panel)
+	root.Append(scroll)
+	r.win.SetChild(root)
 }
 
-// toggle shows or hides the sidebar along with the click catcher.
+// toggle shows or hides the sidebar.
 func (r *Right) toggle() {
-	log.New(os.Stderr, "[sidebar] ", log.Lmsgprefix|log.Ltime).Printf("toggle: visible=%v", r.win.Visible())
+	logger := log.New(os.Stderr, "[sidebar] ", log.Lmsgprefix|log.Ltime)
+	logger.Printf("toggle: visible=%v", r.win.Visible())
 	if r.win.Visible() {
 		r.close()
 	} else {
 		r.win.SetVisible(true)
-		r.clickCatcher.SetVisible(true)
-		log.New(os.Stderr, "[sidebar] ", log.Lmsgprefix|log.Ltime).Printf("opened: win=%v catcher=%v", r.win.Visible(), r.clickCatcher.Visible())
 	}
 }
 
-// close hides both the sidebar and click catcher.
+// close hides the sidebar.
 func (r *Right) close() {
-	log.New(os.Stderr, "[sidebar] ", log.Lmsgprefix|log.Ltime).Printf("close: hiding both windows")
 	r.win.SetVisible(false)
-	r.clickCatcher.SetVisible(false)
 }
 
 // buildBottomGroup creates the collapsible system controls section.
