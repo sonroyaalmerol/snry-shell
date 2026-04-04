@@ -8,7 +8,10 @@ import (
 	"github.com/diamondburned/gotk4/pkg/gdk/v4"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/godbus/dbus/v5"
+	"github.com/sonroyaalmerol/snry-shell/assets"
 	"github.com/sonroyaalmerol/snry-shell/internal/bus"
+	"github.com/sonroyaalmerol/snry-shell/internal/controlsocket"
+	"github.com/sonroyaalmerol/snry-shell/internal/servicerefs"
 	"github.com/sonroyaalmerol/snry-shell/internal/services/audio"
 	"github.com/sonroyaalmerol/snry-shell/internal/services/audiomixer"
 	"github.com/sonroyaalmerol/snry-shell/internal/services/bluetooth"
@@ -25,9 +28,6 @@ import (
 	"github.com/sonroyaalmerol/snry-shell/internal/services/todo"
 	"github.com/sonroyaalmerol/snry-shell/internal/services/upower"
 	"github.com/sonroyaalmerol/snry-shell/internal/services/wallpaper"
-	"github.com/sonroyaalmerol/snry-shell/internal/controlsocket"
-	"github.com/sonroyaalmerol/snry-shell/internal/servicerefs"
-	"github.com/sonroyaalmerol/snry-shell/assets"
 	"github.com/sonroyaalmerol/snry-shell/surfaces/bar"
 	"github.com/sonroyaalmerol/snry-shell/surfaces/cheatsheet"
 	"github.com/sonroyaalmerol/snry-shell/surfaces/clipboard"
@@ -71,15 +71,15 @@ func Run() int {
 	defer cancel()
 
 	refs := &servicerefs.ServiceRefs{
-		Audio:      audio.New(audio.NewRunner(), b),
-		Brightness: brightness.New(brightness.NewRunner(), b),
+		Audio:      audio.NewWithDefaults(b),
+		Brightness: brightness.NewWithDefaults(b),
 		Mpris:      mpris.New(sysConn, b),
 		Bluetooth:  bluetooth.New(sysConn, b),
 		Network:    network.New(sysConn, b),
 		NightMode:  nightmode.New(nightmode.NewRunner(), nightmode.NewKiller(), b),
 		Resources:  resources.New(resources.NewFileReader(), b),
-		AudioMixer: audiomixer.New(audiomixer.NewRunner(), b),
-		Hyprland:   hyprland.NewQuerier(hyprland.NewCommander()),
+		AudioMixer: audiomixer.NewWithDefaults(b),
+		Hyprland:   hyprland.NewQuerierWithDefaults(),
 		Pomodoro:   pomodoro.New(b),
 		Todo:       todo.New(b),
 		SNI:        sni.New(sesConn, b),
@@ -102,7 +102,7 @@ func Run() int {
 	}
 
 	// Clipboard and wallpaper watchers.
-	go serviceclipboard.New(serviceclipboard.NewRunner(), b).Run(ctx)
+	go serviceclipboard.NewWithDefaults(b).Run(ctx)
 	go wallpaper.New(b).Run(ctx)
 
 	// Hyprland event stream.
