@@ -3,6 +3,7 @@ package surfaces
 import (
 	"context"
 	"fmt"
+	"net"
 	"os"
 
 	"github.com/diamondburned/gotk4/pkg/gdk/v4"
@@ -106,7 +107,9 @@ func Run() int {
 	go wallpaper.New(b).Run(ctx)
 
 	// Hyprland event stream.
-	go hyprland.New(hyprland.NewSocketReader(nil), b).Run(ctx)
+	if conn, err := net.Dial("unix", hyprland.SocketPath()); err == nil {
+		go hyprland.New(hyprland.NewSocketReader(conn), b).Run(ctx)
+	}
 
 	// UPower battery monitoring.
 	if sysConn != nil {

@@ -24,7 +24,9 @@ type socketReader struct {
 
 // NewSocketReader wraps any io.Reader (real socket or test buffer) as an EventReader.
 func NewSocketReader(r io.Reader) EventReader {
-	return &socketReader{scanner: bufio.NewScanner(r)}
+	s := bufio.NewScanner(r)
+	s.Buffer(make([]byte, 0, 1024), 1024*1024)
+	return &socketReader{scanner: s}
 }
 
 func (s *socketReader) Read() (string, string, error) {
