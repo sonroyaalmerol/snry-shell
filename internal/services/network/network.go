@@ -188,6 +188,7 @@ func (s *Service) ScanWiFi() ([]state.WiFiNetwork, error) {
 	time.Sleep(3 * time.Second)
 
 	for _, p := range paths {
+		fmt.Fprintf(os.Stderr, "wifi scan: iterating device %s\n", p)
 		devObj := s.conn.Object(nmDest, p)
 
 		// Get all access points.
