@@ -167,6 +167,7 @@ func (s *Service) ScanWiFi() ([]state.WiFiNetwork, error) {
 	if !ok {
 		return nil, nil
 	}
+	fmt.Fprintf(os.Stderr, "wifi scan: found %d devices\n", len(paths))
 
 	seen := make(map[string]bool)
 
@@ -195,6 +196,7 @@ func (s *Service) ScanWiFi() ([]state.WiFiNetwork, error) {
 		if !ok {
 			continue
 		}
+		fmt.Fprintf(os.Stderr, "wifi scan: device %s has %d APs\n", p, len(apPaths))
 
 		for _, apPath := range apPaths {
 			apObj := s.conn.Object(nmDest, apPath)
