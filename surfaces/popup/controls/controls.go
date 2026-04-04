@@ -44,6 +44,7 @@ func New(app *gtk.Application, b *bus.Bus, refs *servicerefs.ServiceRefs, trigge
 	// Click background to close.
 	clickGesture := gtk.NewGestureClick()
 	clickGesture.SetButton(1)
+	clickGesture.SetPropagationLimit(gtk.LimitNone)
 	clickGesture.ConnectReleased(func(_ int, _ float64, _ float64) {
 		c.Close()
 	})

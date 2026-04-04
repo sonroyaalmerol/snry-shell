@@ -42,6 +42,7 @@ func New(app *gtk.Application, b *bus.Bus, refs *servicerefs.ServiceRefs, trigge
 
 	clickGesture := gtk.NewGestureClick()
 	clickGesture.SetButton(1)
+	clickGesture.SetPropagationLimit(gtk.LimitNone)
 	clickGesture.ConnectReleased(func(_ int, _ float64, _ float64) {
 		cm.Close()
 	})
