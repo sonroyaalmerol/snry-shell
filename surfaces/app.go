@@ -161,9 +161,11 @@ func Run() int {
 	})
 
 	// Control socket for --toggle-* commands from CLI.
-	if err := controlsocket.Start(b); err != nil {
+	sockLn, err := controlsocket.Start(b)
+	if err != nil {
 		fmt.Fprintf(os.Stderr, "control socket: %v\n", err)
 	}
+	defer controlsocket.Close(sockLn)
 
 	return app.Run(os.Args)
 }
