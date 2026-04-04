@@ -160,6 +160,13 @@
     outline: none;
 }
 
+.search-results {
+    background-color: @col_surface_container;
+    border-radius: 16px;
+    padding: 4px 0;
+    margin-top: 8px;
+}
+
 .search-result-row {
     border-radius: 12px;
     padding: 8px 12px;
@@ -238,6 +245,15 @@
 
 .notification-card.urgent {
     background-color: @col_error_container;
+}
+
+.notification-card.urgency-low {
+    background-color: alpha(@col_surface_container_high, 0.6);
+}
+
+.notification-card.urgency-critical {
+    background-color: @col_error_container;
+    border: 1px solid alpha(@col_error, 0.5);
 }
 
 .notification-app-name {
@@ -344,6 +360,14 @@ scale.osd-slider slider {
     border: 1px solid alpha(@col_outline_variant, 0.5);
     padding: 24px 32px;
     min-width: 480px;
+}
+
+.cheatsheet-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: @col_on_surface;
+    font-family: "Google Sans Flex", sans-serif;
+    margin-bottom: 8px;
 }
 
 .cheatsheet-section-title {
@@ -1236,6 +1260,20 @@ scale.settings-scale slider {
 .todo-add-btn:hover {
     background-color: @col_primary_container;
     color: @col_on_primary_container;
+}
+
+.todo-check {
+    background-color: transparent;
+    border: 2px solid @col_outline_variant;
+    border-radius: 6px;
+    min-width: 20px;
+    min-height: 20px;
+}
+
+.todo-check:checked {
+    background-color: @col_primary;
+    border-color: @col_primary;
+    color: @col_on_primary;
 }
 
 .todo-list {

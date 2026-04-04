@@ -66,7 +66,7 @@ func New(app *gtk.Application, b *bus.Bus) *Cheatsheet {
 
 func (cs *Cheatsheet) build() {
 	outer := gtk.NewBox(gtk.OrientationVertical, 0)
-	outer.AddCSSClass("cheatsheet-overlay")
+	outer.AddCSSClass("cheatsheet")
 	outer.SetHAlign(gtk.AlignCenter)
 	outer.SetVAlign(gtk.AlignCenter)
 
@@ -86,11 +86,11 @@ func (cs *Cheatsheet) build() {
 	grid.SetRowSpacing(4)
 	for i, kb := range defaultKeybinds {
 		keys := gtk.NewLabel(kb.Keys)
-		keys.AddCSSClass("cheatsheet-keys")
+		keys.AddCSSClass("cheatsheet-key")
 		keys.SetHAlign(gtk.AlignEnd)
 
 		desc := gtk.NewLabel(kb.Description)
-		desc.AddCSSClass("cheatsheet-desc")
+		desc.AddCSSClass("cheatsheet-description")
 		desc.SetHAlign(gtk.AlignStart)
 
 		grid.Attach(keys, 0, i, 1, 1)
