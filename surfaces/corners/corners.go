@@ -46,7 +46,7 @@ func New(app *gtk.Application, b *bus.Bus) {
 
 	actions := map[CornerPosition]string{
 		TopLeft:     "toggle-overview",
-		TopRight:    "toggle-sidebar",
+		TopRight:    "toggle-notif-center",
 		BottomLeft:  "toggle-session",
 		BottomRight: "toggle-media-overlay",
 	}

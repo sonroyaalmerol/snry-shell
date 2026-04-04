@@ -1,4 +1,4 @@
-package sidebar
+package widgets
 
 import (
 	"context"
@@ -32,7 +32,7 @@ type mediaControls struct {
 	changeHandle glib.SignalHandle
 }
 
-func buildMediaGroup(b *bus.Bus, mprisSvc *mpris.Service) gtk.Widgetter {
+func BuildMediaGroup(b *bus.Bus, mprisSvc *mpris.Service) gtk.Widgetter {
 	mc := &mediaControls{mprisSvc: mprisSvc, bus: b}
 
 	mc.revealer = gtk.NewRevealer()

@@ -1,4 +1,4 @@
-package sidebar
+package widgets
 
 import (
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
@@ -10,7 +10,7 @@ import (
 )
 
 // newWiFiWidget creates a WiFi network list widget.
-func newWiFiWidget(b *bus.Bus, refs *servicerefs.ServiceRefs) gtk.Widgetter {
+func NewWiFiWidget(b *bus.Bus, refs *servicerefs.ServiceRefs) gtk.Widgetter {
 	box := gtk.NewBox(gtk.OrientationVertical, 8)
 	box.AddCSSClass("wifi-widget")
 

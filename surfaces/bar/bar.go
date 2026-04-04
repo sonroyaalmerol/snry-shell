@@ -51,13 +51,13 @@ func (b *Bar) buildCenter(refs *servicerefs.ServiceRefs) gtk.Widgetter {
 	box.SetVAlign(gtk.AlignCenter)
 
 	// Status indicators group (resources, volume, brightness, battery, keyboard).
-	statusGroup := clickableBarGroup(newStatusWidgetGroup(b.bus, refs), b.bus)
+	statusGroup := clickableBarGroup(newStatusWidgetGroup(b.bus, refs), b.bus, "toggle-controls")
 
 	// Workspaces group (not clickable — has its own interactive buttons).
 	wsGroup := barGroup(newWorkspacesWidget(b.bus, refs.Hyprland))
 
 	// Clock + media group.
-	clockGroup := clickableBarGroup(newClockGroup(b.bus), b.bus)
+	clockGroup := clickableBarGroup(newClockGroup(b.bus), b.bus, "toggle-calendar-media")
 
 	box.Append(statusGroup)
 	box.Append(barSeparator())
@@ -80,7 +80,10 @@ func newClockGroup(b *bus.Bus) gtk.Widgetter {
 func (b *Bar) buildRight(refs *servicerefs.ServiceRefs) gtk.Widgetter {
 	box := gtk.NewBox(gtk.OrientationHorizontal, 6)
 	box.SetVAlign(gtk.AlignCenter)
-	box.Append(newIndicatorPill(b.bus, refs))
+
+	// Wrap indicator pill in a clickable bar-group.
+	pillBox := clickableBarGroup(newIndicatorPill(b.bus, refs), b.bus, "toggle-notif-center")
+	box.Append(pillBox)
 	box.Append(newTrayWidget(b.bus))
 	return box
 }

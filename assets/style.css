@@ -86,20 +86,6 @@
     padding: 0 6px;
 }
 
-/* Left sidebar toggle button */
-.bar-sidebar-btn {
-    background-color: transparent;
-    border-radius: var(--radius-md);
-    min-width: 28px;
-    min-height: 28px;
-    margin: 0 4px 0 0;
-    transition: background-color 150ms var(--ease-standard-decel);
-}
-
-.bar-sidebar-btn:hover {
-    background-color: alpha(@col_on_surface, 0.08);
-}
-
 /* Bar group container — rounded rect wrapping widgets */
 .bar-group {
     background-color: @col_surface_container;
@@ -371,30 +357,36 @@
     background-color: transparent;
 }
 
-.sidebar-right {
+/* ── Popup dialogs ──────────────────────────────────────────────────────────── */
+
+.popup-overlay {
+    background-color: transparent;
+}
+
+.popup-panel {
     background-color: @col_surface;
-    border-radius: var(--radius-xl) 0 0 var(--radius-xl);
+    border-radius: var(--radius-xl);
     padding: 12px 8px;
     border: 1px solid alpha(@col_outline, 0.15);
 }
 
-.sidebar-scroll {
+.popup-scroll {
     background-color: transparent;
 }
 
-.sidebar-scroll > scrollbar {
+.popup-scroll > scrollbar {
     background-color: transparent;
     opacity: 0;
 }
 
-.sidebar-scroll > scrollbar slider {
+.popup-scroll > scrollbar slider {
     background-color: alpha(@col_on_surface, 0.2);
     border-radius: var(--radius-pill);
     min-width: 4px;
 }
 
-.sidebar-scroll > scrollbar.hovering,
-.sidebar-scroll > scrollbar.sliding {
+.popup-scroll > scrollbar.hovering,
+.popup-scroll > scrollbar.sliding {
     opacity: 1;
 }
 
@@ -618,7 +610,7 @@ scale.osd-slider slider {
     padding: 0 4px;
 }
 
-/* ── Media controls (sidebar) ────────────────────────────────────────────────── */
+/* ── Media controls ────────────────────────────────────────────────── */
 
 .media-controls {
     background-color: @col_surface_container;
@@ -941,7 +933,7 @@ scale.system-slider slider {
     -gtk-icon-transform: rotate(180deg);
 }
 
-/* ── Quick toggles (sidebar) ────────────────────────────────────────────────── */
+/* ── Quick toggles ────────────────────────────────────────────────── */
 
 .quick-toggles {
     padding: 4px 0;
@@ -990,7 +982,7 @@ scale.system-slider slider {
     color: @col_on_secondary_container;
 }
 
-/* ── Pomodoro widget (sidebar) ──────────────────────────────────────────────── */
+/* ── Pomodoro widget ──────────────────────────────────────────────── */
 
 .pomodoro-widget {
     background-color: @col_surface_container;
@@ -1043,7 +1035,7 @@ scale.system-slider slider {
     font-size: 20px;
 }
 
-/* ── Todo widget (sidebar) ──────────────────────────────────────────────────── */
+/* ── Todo widget ──────────────────────────────────────────────────── */
 
 .todo-widget {
     background-color: @col_surface_container;
@@ -1157,7 +1149,7 @@ scale.system-slider slider {
     color: @col_error;
 }
 
-/* ── Volume mixer (sidebar) ─────────────────────────────────────────────────── */
+/* ── Volume mixer ─────────────────────────────────────────────────── */
 
 .volume-mixer {
     background-color: @col_surface_container;
@@ -1222,7 +1214,7 @@ scale.mixer-slider slider {
     background-color: alpha(@col_on_surface, 0.08);
 }
 
-/* ── WiFi widget (sidebar) ─────────────────────────────────────────────────── */
+/* ── WiFi widget ─────────────────────────────────────────────────── */
 
 .wifi-widget {
     background-color: @col_surface_container;
@@ -1302,7 +1294,7 @@ scale.mixer-slider slider {
     background-color: alpha(@col_primary, 0.12);
 }
 
-/* ── Bluetooth widget (sidebar) ─────────────────────────────────────────────── */
+/* ── Bluetooth widget ─────────────────────────────────────────────── */
 
 .bt-widget {
     background-color: @col_surface_container;

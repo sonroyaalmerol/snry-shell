@@ -21,8 +21,9 @@ func barGroup(child gtk.Widgetter) gtk.Widgetter {
 	return box
 }
 
-// clickableBarGroup wraps a widget like barGroup but adds a click gesture to toggle the sidebar.
-func clickableBarGroup(child gtk.Widgetter, b *bus.Bus) gtk.Widgetter {
+// clickableBarGroup wraps a widget like barGroup but adds a click gesture
+// that publishes the given action string to TopicSystemControls.
+func clickableBarGroup(child gtk.Widgetter, b *bus.Bus, action string) gtk.Widgetter {
 	box := gtk.NewBox(gtk.OrientationHorizontal, 0)
 	box.AddCSSClass("bar-group")
 	box.AddCSSClass("bar-group-clickable")
@@ -32,7 +33,7 @@ func clickableBarGroup(child gtk.Widgetter, b *bus.Bus) gtk.Widgetter {
 	click := gtk.NewGestureClick()
 	click.SetButton(1)
 	click.ConnectReleased(func(_ int, _ float64, _ float64) {
-		b.Publish(bus.TopicSystemControls, "toggle-sidebar")
+		b.Publish(bus.TopicSystemControls, action)
 	})
 	box.AddController(click)
 

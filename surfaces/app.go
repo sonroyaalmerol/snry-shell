@@ -47,11 +47,13 @@ import (
 	"github.com/sonroyaalmerol/snry-shell/surfaces/osk"
 	"github.com/sonroyaalmerol/snry-shell/surfaces/overview"
 	"github.com/sonroyaalmerol/snry-shell/surfaces/polkit"
+	"github.com/sonroyaalmerol/snry-shell/surfaces/popup/calendarmedia"
+	"github.com/sonroyaalmerol/snry-shell/surfaces/popup/controls"
+	"github.com/sonroyaalmerol/snry-shell/surfaces/popup/notifcenter"
 	"github.com/sonroyaalmerol/snry-shell/surfaces/recorder"
 	"github.com/sonroyaalmerol/snry-shell/surfaces/regionselector"
 	"github.com/sonroyaalmerol/snry-shell/surfaces/session"
 	"github.com/sonroyaalmerol/snry-shell/surfaces/settings"
-	"github.com/sonroyaalmerol/snry-shell/surfaces/sidebar"
 	"github.com/sonroyaalmerol/snry-shell/surfaces/wallpaperpicker"
 )
 
@@ -165,7 +167,9 @@ func Run() int {
 
 		bar.New(app, b, refs)
 		overview.New(app, b, refs.Hyprland)
-		sidebar.NewRight(app, b, refs)
+		controls.New(app, b, refs)
+		calendarmedia.New(app, b, refs)
+		notifcenter.New(app, b, refs)
 		dock.New(app, b)
 		osd.New(app, b)
 		session.New(app, b)

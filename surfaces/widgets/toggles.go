@@ -1,4 +1,4 @@
-package sidebar
+package widgets
 
 import (
 	"os/exec"
@@ -11,7 +11,7 @@ import (
 )
 
 // newQuickToggles creates the Android-style quick toggle grid.
-func newQuickToggles(b *bus.Bus, refs *servicerefs.ServiceRefs) gtk.Widgetter {
+func NewQuickToggles(b *bus.Bus, refs *servicerefs.ServiceRefs) gtk.Widgetter {
 	box := gtk.NewBox(gtk.OrientationVertical, 8)
 	box.AddCSSClass("quick-toggles")
 

@@ -1,4 +1,4 @@
-package sidebar
+package widgets
 
 import (
 	"fmt"
@@ -18,7 +18,7 @@ type notificationList struct {
 	count  int
 }
 
-func newNotificationList(b *bus.Bus) gtk.Widgetter {
+func NewNotificationList(b *bus.Bus) gtk.Widgetter {
 	nl := &notificationList{
 		scroll: gtk.NewScrolledWindow(),
 		box:    gtk.NewBox(gtk.OrientationVertical, 4),

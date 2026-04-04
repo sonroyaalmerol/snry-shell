@@ -1,4 +1,4 @@
-package sidebar
+package widgets
 
 import (
 	"fmt"
@@ -8,7 +8,7 @@ import (
 	"github.com/sonroyaalmerol/snry-shell/internal/calendar"
 )
 
-func buildCalendarGroup() gtk.Widgetter {
+func BuildCalendarGroup() gtk.Widgetter {
 	box := gtk.NewBox(gtk.OrientationVertical, 0)
 	box.AddCSSClass("calendar-group")
 
