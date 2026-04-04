@@ -210,6 +210,15 @@ func (s *Service) ScanWiFi() ([]state.WiFiNetwork, error) {
 	for _, p := range paths {
 		devObj := s.conn.Object(nmDest, p)
 
+		// Debug: dump all properties on the wireless interface.
+		var allProps map[string]dbus.Variant
+		err := devObj.Call("org.freedesktop.DBus.Properties.GetAll", 0, nmDeviceWireless).Store(&allProps)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "wifi scan: GetAll %s error: %v\n", p, err)
+		} else {
+			fmt.Fprintf(os.Stderr, "wifi scan: %s wireless props: %+v\n", p, allProps)
+		}
+
 		apsV, err := devObj.GetProperty(nmDeviceWireless + ".AllAccessPoints")
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "wifi scan: AllAccessPoints error on %s: %v\n", p, err)
