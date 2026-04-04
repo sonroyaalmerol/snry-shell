@@ -70,8 +70,8 @@ func (r *Right) build(refs *servicerefs.ServiceRefs) {
 
 	panel := gtk.NewBox(gtk.OrientationVertical, 0)
 	panel.AddCSSClass("sidebar-right")
-	panel.SetMarginTop(52)   // 40px bar + 12px padding
-	panel.SetMarginBottom(70) // 58px dock + 12px padding
+	panel.SetMarginTop(layershell.BarExclusiveZone + 12)
+	panel.SetMarginBottom(layershell.DockExclusiveZone + 12)
 	panel.SetMarginStart(12)
 	panel.SetMarginEnd(12)
 	panel.SetSizeRequest(460, -1)

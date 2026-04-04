@@ -21,7 +21,7 @@ func New(app *gtk.Application, b *bus.Bus, refs *servicerefs.ServiceRefs) *Bar {
 		Layer:         layershell.LayerTop,
 		Anchors:       layershell.TopEdgeAnchors(),
 		KeyboardMode:  layershell.KeyboardModeOnDemand,
-		ExclusiveZone: 40,
+		ExclusiveZone: layershell.BarExclusiveZone,
 		Namespace:     "snry-bar",
 	})
 

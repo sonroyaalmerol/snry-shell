@@ -20,7 +20,7 @@ func New(app *gtk.Application, b *bus.Bus) *Dock {
 		Layer:         layershell.LayerTop,
 		Anchors:       layershell.BottomEdgeAnchors(),
 		KeyboardMode:  layershell.KeyboardModeOnDemand,
-		ExclusiveZone: 58,
+		ExclusiveZone: layershell.DockExclusiveZone,
 		Namespace:     "snry-dock",
 	})
 
