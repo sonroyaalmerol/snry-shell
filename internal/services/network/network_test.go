@@ -94,7 +94,7 @@ func TestNetworkConnectedState(t *testing.T) {
 	nmKey := "org.freedesktop.NetworkManager/org/freedesktop/NetworkManager"
 	fake.objects[nmKey] = &fakeBusObject{
 		properties: map[string]dbus.Variant{
-			"org.freedesktop.NetworkManager.Connectivity": dbus.MakeVariant(uint32(70)),
+			"org.freedesktop.NetworkManager.State":          dbus.MakeVariant(uint32(70)),
 			"org.freedesktop.NetworkManager.Devices":      dbus.MakeVariant([]dbus.ObjectPath{}),
 		},
 	}
@@ -105,7 +105,7 @@ func TestNetworkConnectedState(t *testing.T) {
 	svc.Run(ctx) //nolint:errcheck
 
 	if !got.Connected {
-		t.Fatal("expected Connected=true when connectivity=70")
+		t.Fatal("expected Connected=true when state=70")
 	}
 }
 
@@ -120,7 +120,7 @@ func TestNetworkDisconnectedState(t *testing.T) {
 	nmKey := "org.freedesktop.NetworkManager/org/freedesktop/NetworkManager"
 	fake.objects[nmKey] = &fakeBusObject{
 		properties: map[string]dbus.Variant{
-			"org.freedesktop.NetworkManager.Connectivity": dbus.MakeVariant(uint32(20)),
+			"org.freedesktop.NetworkManager.State":          dbus.MakeVariant(uint32(30)),
 			"org.freedesktop.NetworkManager.Devices":      dbus.MakeVariant([]dbus.ObjectPath{}),
 		},
 	}
@@ -131,6 +131,6 @@ func TestNetworkDisconnectedState(t *testing.T) {
 	svc.Run(ctx) //nolint:errcheck
 
 	if got.Connected {
-		t.Fatal("expected Connected=false when connectivity=20")
+		t.Fatal("expected Connected=false when state=30")
 	}
 }

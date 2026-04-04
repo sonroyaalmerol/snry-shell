@@ -9,30 +9,80 @@ import (
 	"github.com/sonroyaalmerol/snry-shell/internal/state"
 )
 
-// newWiFiWidget creates a WiFi network list widget.
+// NewWiFiWidget creates an Android 16-style WiFi panel with toggle, collapsible
+// sections, and confirmation dialogs.
 func NewWiFiWidget(b *bus.Bus, refs *servicerefs.ServiceRefs) gtk.Widgetter {
-	box := gtk.NewBox(gtk.OrientationVertical, 8)
-	box.AddCSSClass("wifi-widget")
+	box := gtk.NewBox(gtk.OrientationVertical, 0)
+	box.AddCSSClass("conn-widget")
 
-	header := gtk.NewBox(gtk.OrientationHorizontal, 8)
-	headerLabel := gtk.NewLabel("WiFi Networks")
-	headerLabel.AddCSSClass("notif-group-header")
-	headerLabel.SetHExpand(true)
+	// Header row: label + switch.
+	header := gtk.NewBox(gtk.OrientationHorizontal, 12)
+	header.AddCSSClass("conn-header")
 
-	scanBtn := gtkutil.MaterialButtonWithClass("refresh", "wifi-scan-btn")
+	icon := gtkutil.MaterialIcon("wifi")
+	icon.AddCSSClass("conn-header-icon")
+
+	label := gtk.NewLabel("Wi-Fi")
+	label.AddCSSClass("conn-header-label")
+	label.SetHExpand(true)
+
+	sw := gtk.NewSwitch()
+	sw.AddCSSClass("conn-switch")
+
+	header.Append(icon)
+	header.Append(label)
+	header.Append(sw)
+	box.Append(header)
+
+	// Networks list (collapsible).
+	listBox := gtk.NewBox(gtk.OrientationVertical, 0)
+	listBox.AddCSSClass("conn-list")
+
+	revealer := gtk.NewRevealer()
+	revealer.SetTransitionType(gtk.RevealerTransitionTypeSlideDown)
+	revealer.SetTransitionDuration(250)
+	revealer.SetRevealChild(true)
+	revealer.SetChild(listBox)
+
+	box.Append(revealer)
+
+	// Section header.
+	sectionHeader := gtkutil.SectionHeader("Available networks", 0, revealer, func() {
+		if refs.Network != nil {
+			go refs.Network.ScanWiFi()
+		}
+	})
+	box.Append(sectionHeader)
+
+	// Scan button.
+	scanBtn := gtkutil.MaterialButtonWithClass("refresh", "conn-scan-btn")
 	scanBtn.ConnectClicked(func() {
 		if refs.Network != nil {
 			go refs.Network.ScanWiFi()
 		}
 	})
+	scanBtnWrapper := gtk.NewBox(gtk.OrientationHorizontal, 0)
+	scanBtnWrapper.SetHAlign(gtk.AlignEnd)
+	scanBtnWrapper.Append(scanBtn)
+	box.Append(scanBtnWrapper)
 
-	header.Append(headerLabel)
-	header.Append(scanBtn)
-	box.Append(header)
+	// Switch toggles WiFi on/off.
+	if refs.Network != nil {
+		sw.ConnectStateSet(func(val bool) bool {
+			go refs.Network.SetWiFi(val)
+			return true
+		})
 
-	listBox := gtk.NewListBox()
-	listBox.AddCSSClass("wifi-list")
-	listBox.SetSelectionMode(gtk.SelectionNone)
+		b.Subscribe(bus.TopicNetwork, func(e bus.Event) {
+			ns, ok := e.Data.(state.NetworkState)
+			if !ok {
+				return
+			}
+			glib.IdleAdd(func() {
+				sw.SetActive(ns.WirelessEnabled)
+			})
+		})
+	}
 
 	// Scan on creation.
 	if refs.Network != nil {
@@ -48,63 +98,68 @@ func NewWiFiWidget(b *bus.Bus, refs *servicerefs.ServiceRefs) gtk.Widgetter {
 			gtkutil.ClearChildren(&listBox.Widget, listBox.Remove)
 
 			for _, net := range networks {
-				row := newWiFiRow(b, refs, net)
+				row := newWiFiRow(refs, net)
 				listBox.Append(row)
 			}
+
+			gtkutil.UpdateSectionHeader(sectionHeader, len(networks))
 		})
 	})
 
-	box.Append(listBox)
 	return box
 }
 
-func newWiFiRow(b *bus.Bus, refs *servicerefs.ServiceRefs, net state.WiFiNetwork) gtk.Widgetter {
-	row := gtk.NewBox(gtk.OrientationHorizontal, 8)
-	row.AddCSSClass("wifi-row")
-
-	icon := gtk.NewLabel("wifi")
-	icon.AddCSSClass("material-icon")
-	icon.AddCSSClass("wifi-icon")
+func newWiFiRow(refs *servicerefs.ServiceRefs, net state.WiFiNetwork) gtk.Widgetter {
+	row := gtk.NewBox(gtk.OrientationHorizontal, 12)
+	row.AddCSSClass("conn-row")
 	if net.Connected {
-		row.AddCSSClass("wifi-connected")
+		row.AddCSSClass("conn-row-connected")
 	}
+
+	signalIcon := gtkutil.MaterialIcon(signalStrengthIcon(net.Signal))
+	signalIcon.AddCSSClass("conn-row-icon")
 
 	ssidLabel := gtk.NewLabel(net.SSID)
-	ssidLabel.AddCSSClass("wifi-ssid")
-	ssidLabel.SetHExpand(true)
-	ssidLabel.SetHAlign(gtk.AlignStart)
+	ssidLabel.AddCSSClass("conn-row-label")
 
-	signalLabel := gtk.NewLabel(signalStrengthIcon(net.Signal))
-	signalLabel.AddCSSClass("material-icon")
-	signalLabel.AddCSSClass("wifi-signal")
+	meta := gtk.NewBox(gtk.OrientationHorizontal, 4)
+	meta.AddCSSClass("conn-row-meta")
 
-	securityLabel := gtk.NewLabel("")
 	if net.Security != "" {
-		securityLabel.SetText("lock")
+		secIcon := gtkutil.MaterialIcon("lock")
+		secIcon.AddCSSClass("conn-row-meta-icon")
+		meta.Append(secIcon)
 	}
-	securityLabel.AddCSSClass("material-icon")
-	securityLabel.AddCSSClass("wifi-security")
 
-	statusLabel := gtk.NewLabel("")
 	if net.Connected {
-		statusLabel.SetText("Connected")
-		statusLabel.AddCSSClass("wifi-status-connected")
+		check := gtkutil.MaterialIcon("check_circle")
+		check.AddCSSClass("conn-row-connected-icon")
+		meta.Append(check)
 	}
 
-	row.Append(icon)
+	row.Append(signalIcon)
 	row.Append(ssidLabel)
-	row.Append(signalLabel)
-	row.Append(securityLabel)
-	row.Append(statusLabel)
+	row.Append(meta)
 
-	if !net.Connected && refs.Network != nil {
-		connectBtn := gtkutil.MaterialButtonWithClass("login", "wifi-connect-btn")
-
+	if refs.Network != nil {
 		ssid := net.SSID
-		connectBtn.ConnectClicked(func() {
-			go refs.Network.ConnectWiFi(ssid)
+		connected := net.Connected
+		click := gtk.NewGestureClick()
+		click.SetButton(1)
+		click.ConnectReleased(func(_ int, _ float64, _ float64) {
+			if connected {
+				return
+			}
+			gtkutil.ConfirmDialog(
+				"Connect to network",
+				ssid,
+				"Connect",
+				func() {
+					go refs.Network.ConnectWiFi(ssid)
+				},
+			)
 		})
-		row.Append(connectBtn)
+		row.AddController(click)
 	}
 
 	return row

@@ -9,120 +9,190 @@ import (
 	"github.com/sonroyaalmerol/snry-shell/internal/state"
 )
 
-// newBluetoothWidget creates a Bluetooth device list widget.
+// NewBluetoothWidget creates an Android 16-style Bluetooth panel with toggle,
+// paired/available sections, and confirmation dialogs.
 func NewBluetoothWidget(b *bus.Bus, refs *servicerefs.ServiceRefs) gtk.Widgetter {
-	box := gtk.NewBox(gtk.OrientationVertical, 8)
-	box.AddCSSClass("bt-widget")
+	box := gtk.NewBox(gtk.OrientationVertical, 0)
+	box.AddCSSClass("conn-widget")
 
-	header := gtk.NewBox(gtk.OrientationHorizontal, 8)
-	headerLabel := gtk.NewLabel("Bluetooth Devices")
-	headerLabel.AddCSSClass("notif-group-header")
-	headerLabel.SetHExpand(true)
+	// Header row: label + switch.
+	header := gtk.NewBox(gtk.OrientationHorizontal, 12)
+	header.AddCSSClass("conn-header")
 
-	scanBtn := gtkutil.MaterialButtonWithClass("search", "bt-scan-btn")
-	scanBtn.ConnectClicked(func() {
+	icon := gtkutil.MaterialIcon("bluetooth")
+	icon.AddCSSClass("conn-header-icon")
+
+	label := gtk.NewLabel("Bluetooth")
+	label.AddCSSClass("conn-header-label")
+	label.SetHExpand(true)
+
+	sw := gtk.NewSwitch()
+	sw.AddCSSClass("conn-switch")
+
+	header.Append(icon)
+	header.Append(label)
+	header.Append(sw)
+	box.Append(header)
+
+	// Paired devices section.
+	pairedListBox := gtk.NewBox(gtk.OrientationVertical, 0)
+	pairedListBox.AddCSSClass("conn-list")
+	pairedRevealer := gtk.NewRevealer()
+	pairedRevealer.SetTransitionType(gtk.RevealerTransitionTypeSlideDown)
+	pairedRevealer.SetTransitionDuration(250)
+	pairedRevealer.SetRevealChild(true)
+	pairedRevealer.SetChild(pairedListBox)
+	box.Append(pairedRevealer)
+
+	pairedHeader := gtkutil.SectionHeader("Paired devices", 0, pairedRevealer, nil)
+	box.Append(pairedHeader)
+
+	// Available devices section.
+	availableListBox := gtk.NewBox(gtk.OrientationVertical, 0)
+	availableListBox.AddCSSClass("conn-list")
+	availableRevealer := gtk.NewRevealer()
+	availableRevealer.SetTransitionType(gtk.RevealerTransitionTypeSlideDown)
+	availableRevealer.SetTransitionDuration(250)
+	availableRevealer.SetRevealChild(true)
+	availableRevealer.SetChild(availableListBox)
+	box.Append(availableRevealer)
+
+	scanAction := func() {
 		if refs.Bluetooth != nil {
 			go func() {
 				_ = refs.Bluetooth.StartScan()
 				_, _ = refs.Bluetooth.GetDevices()
 			}()
 		}
-	})
+	}
+	availableHeader := gtkutil.SectionHeader("Available devices", 0, availableRevealer, scanAction)
+	box.Append(availableHeader)
 
-	header.Append(headerLabel)
-	header.Append(scanBtn)
-	box.Append(header)
+	// Scan button.
+	scanBtn := gtkutil.MaterialButtonWithClass("search", "conn-scan-btn")
+	scanBtn.ConnectClicked(scanAction)
+	scanBtnWrapper := gtk.NewBox(gtk.OrientationHorizontal, 0)
+	scanBtnWrapper.SetHAlign(gtk.AlignEnd)
+	scanBtnWrapper.Append(scanBtn)
+	box.Append(scanBtnWrapper)
 
-	listBox := gtk.NewListBox()
-	listBox.AddCSSClass("bt-list")
-	listBox.SetSelectionMode(gtk.SelectionNone)
-
+	// Switch toggles Bluetooth on/off.
 	if refs.Bluetooth != nil {
-		go func() {
-			_ = refs.Bluetooth.StartScan()
-			_, _ = refs.Bluetooth.GetDevices()
-		}()
+		sw.ConnectStateSet(func(val bool) bool {
+			go refs.Bluetooth.SetPowered(val)
+			return true
+		})
+
+		b.Subscribe(bus.TopicBluetooth, func(e bus.Event) {
+			bs, ok := e.Data.(state.BluetoothState)
+			if !ok {
+				return
+			}
+			glib.IdleAdd(func() {
+				sw.SetActive(bs.Powered)
+			})
+		})
+
+		// Initial scan.
+		go scanAction()
 	}
 
+	// Subscribe to device list updates.
 	b.Subscribe(bus.TopicBluetoothDevices, func(e bus.Event) {
 		devices, ok := e.Data.([]state.BluetoothDevice)
 		if !ok {
 			return
 		}
 		glib.IdleAdd(func() {
-			gtkutil.ClearChildren(&listBox.Widget, listBox.Remove)
+			gtkutil.ClearChildren(&pairedListBox.Widget, pairedListBox.Remove)
+			gtkutil.ClearChildren(&availableListBox.Widget, availableListBox.Remove)
+
+			pairedCount := 0
+			availableCount := 0
 
 			for _, dev := range devices {
-				row := newBTDeviceRow(refs, dev)
-				listBox.Append(row)
+				if dev.Paired {
+					pairedCount++
+					row := newBTDeviceRow(refs, dev)
+					pairedListBox.Append(row)
+				} else {
+					availableCount++
+					row := newBTDeviceRow(refs, dev)
+					availableListBox.Append(row)
+				}
 			}
+
+			gtkutil.UpdateSectionHeader(pairedHeader, pairedCount)
+			gtkutil.UpdateSectionHeader(availableHeader, availableCount)
 		})
 	})
 
-	box.Append(listBox)
 	return box
 }
 
 func newBTDeviceRow(refs *servicerefs.ServiceRefs, dev state.BluetoothDevice) gtk.Widgetter {
-	row := gtk.NewBox(gtk.OrientationHorizontal, 8)
-	row.AddCSSClass("bt-device-row")
-
+	row := gtk.NewBox(gtk.OrientationHorizontal, 12)
+	row.AddCSSClass("conn-row")
 	if dev.Connected {
-		row.AddCSSClass("bt-connected")
+		row.AddCSSClass("conn-row-connected")
 	}
 
-	icon := gtk.NewLabel("bluetooth")
-	icon.AddCSSClass("material-icon")
-	icon.AddCSSClass("bt-device-icon")
+	devIcon := gtkutil.MaterialIcon("bluetooth")
+	devIcon.AddCSSClass("conn-row-icon")
 
-	nameLabel := gtk.NewLabel(dev.Name)
-	if nameLabel.Text() == "" {
-		nameLabel.SetText(dev.Address)
+	name := dev.Name
+	if name == "" {
+		name = dev.Address
 	}
-	nameLabel.AddCSSClass("bt-device-name")
-	nameLabel.SetHExpand(true)
-	nameLabel.SetHAlign(gtk.AlignStart)
+	nameLabel := gtk.NewLabel(name)
+	nameLabel.AddCSSClass("conn-row-label")
 
-	statusLabel := gtk.NewLabel("")
+	meta := gtk.NewBox(gtk.OrientationHorizontal, 4)
+	meta.AddCSSClass("conn-row-meta")
+
 	if dev.Connected {
-		statusLabel.SetText("Connected")
+		statusLabel := gtk.NewLabel("Connected")
+		statusLabel.AddCSSClass("conn-row-status")
+		meta.Append(statusLabel)
 	} else if dev.Paired {
-		statusLabel.SetText("Paired")
+		statusLabel := gtk.NewLabel("Paired")
+		statusLabel.AddCSSClass("conn-row-status")
+		meta.Append(statusLabel)
 	}
-	statusLabel.AddCSSClass("bt-device-status")
 
-	row.Append(icon)
+	row.Append(devIcon)
 	row.Append(nameLabel)
-	row.Append(statusLabel)
+	row.Append(meta)
 
 	if refs.Bluetooth != nil {
-		actionBtn := gtkutil.MaterialButton("")
-		actionBtn.AddCSSClass("bt-action-btn")
-
-		var icon string
-		switch {
-		case dev.Connected:
-			icon = "disconnect"
-			addr := dev.Address
-			actionBtn.ConnectClicked(func() {
-				go refs.Bluetooth.DisconnectDevice(addr)
-			})
-		case dev.Paired:
-			icon = "connect"
-			addr := dev.Address
-			actionBtn.ConnectClicked(func() {
-				go refs.Bluetooth.ConnectDevice(addr)
-			})
-		default:
-			icon = "add"
-			addr := dev.Address
-			actionBtn.ConnectClicked(func() {
-				go refs.Bluetooth.PairDevice(addr)
-			})
-		}
-		actionBtn.Child().(*gtk.Label).SetText(icon)
-
-		row.Append(actionBtn)
+		click := gtk.NewGestureClick()
+		click.SetButton(1)
+		click.ConnectReleased(func(_ int, _ float64, _ float64) {
+			switch {
+			case dev.Connected:
+				gtkutil.ConfirmDialog(
+					"Disconnect device",
+					name,
+					"Disconnect",
+					func() { go refs.Bluetooth.DisconnectDevice(dev.Address) },
+				)
+			case dev.Paired:
+				gtkutil.ConfirmDialog(
+					"Connect to device",
+					name,
+					"Connect",
+					func() { go refs.Bluetooth.ConnectDevice(dev.Address) },
+				)
+			default:
+				gtkutil.ConfirmDialog(
+					"Pair with device",
+					name,
+					"Pair",
+					func() { go refs.Bluetooth.PairDevice(dev.Address) },
+				)
+			}
+		})
+		row.AddController(click)
 	}
 
 	return row
