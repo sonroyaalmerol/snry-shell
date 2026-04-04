@@ -20,7 +20,7 @@ func New(app *gtk.Application, b *bus.Bus) *Dock {
 		Layer:         layershell.LayerTop,
 		Anchors:       layershell.BottomEdgeAnchors(),
 		KeyboardMode:  layershell.KeyboardModeOnDemand,
-		ExclusiveZone: 64,
+		ExclusiveZone: 58,
 		Namespace:     "snry-dock",
 	})
 
@@ -31,7 +31,7 @@ func New(app *gtk.Application, b *bus.Bus) *Dock {
 }
 
 func (d *Dock) build() {
-	box := gtk.NewBox(gtk.OrientationHorizontal, 8)
+	box := gtk.NewBox(gtk.OrientationHorizontal, 3)
 	box.AddCSSClass("dock")
 	box.SetHAlign(gtk.AlignCenter)
 
@@ -40,7 +40,7 @@ func (d *Dock) build() {
 	for _, app := range pinned {
 		icon := gtk.NewImage()
 		icon.SetFromIconName(app.Icon)
-		icon.SetPixelSize(40)
+		icon.SetPixelSize(35)
 
 		btn := gtk.NewButton()
 		btn.AddCSSClass("dock-btn")

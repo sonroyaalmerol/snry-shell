@@ -35,27 +35,56 @@ func (b *Bar) build(refs *servicerefs.ServiceRefs) {
 	root := gtk.NewCenterBox()
 	root.AddCSSClass("bar")
 	root.SetStartWidget(b.buildLeft())
-	root.SetCenterWidget(b.buildCenter())
+	root.SetCenterWidget(b.buildCenter(refs))
 	root.SetEndWidget(b.buildRight(refs))
 	b.win.SetChild(root)
 }
 
+// Left: sidebar button + active window title (fills remaining space).
 func (b *Bar) buildLeft() gtk.Widgetter {
-	box := gtk.NewBox(gtk.OrientationHorizontal, 4)
+	box := gtk.NewBox(gtk.OrientationHorizontal, 6)
 	box.SetVAlign(gtk.AlignCenter)
-	box.Append(newWorkspacesWidget(b.bus))
-	box.Append(newUnreadWidget(b.bus))
+	box.Append(newLeftSidebarButton(b.bus))
 	box.Append(newWindowTitleWidget(b.bus))
 	return box
 }
 
-func (b *Bar) buildCenter() gtk.Widgetter {
+// Center: [Resources+Media group] | [Workspaces group] | [Clock+Status group].
+func (b *Bar) buildCenter(refs *servicerefs.ServiceRefs) gtk.Widgetter {
 	box := gtk.NewBox(gtk.OrientationHorizontal, 0)
 	box.SetVAlign(gtk.AlignCenter)
-	box.Append(newTrayWidget(b.bus))
+
+	// Status indicators group (resources, volume, brightness, battery, keyboard).
+	statusGroup := barGroup(newStatusWidgetGroup(b.bus, refs))
+
+	// Workspaces group.
+	wsGroup := barGroup(newWorkspacesWidget(b.bus, refs.Hyprland))
+
+	// Clock + media group.
+	clockGroup := barGroup(newClockGroup(b.bus))
+
+	box.Append(statusGroup)
+	box.Append(barSeparator())
+	box.Append(wsGroup)
+	box.Append(barSeparator())
+	box.Append(clockGroup)
+
 	return box
 }
 
+func newClockGroup(b *bus.Bus) gtk.Widgetter {
+	box := gtk.NewBox(gtk.OrientationHorizontal, 4)
+	box.SetVAlign(gtk.AlignCenter)
+	box.Append(newMediaWidget(b))
+	box.Append(newClockWidget())
+	return box
+}
+
+// Right: indicator pill + system tray.
 func (b *Bar) buildRight(refs *servicerefs.ServiceRefs) gtk.Widgetter {
-	return newIndicatorsWidget(b.bus, refs)
+	box := gtk.NewBox(gtk.OrientationHorizontal, 6)
+	box.SetVAlign(gtk.AlignCenter)
+	box.Append(newIndicatorPill(b.bus, refs))
+	box.Append(newTrayWidget(b.bus))
+	return box
 }

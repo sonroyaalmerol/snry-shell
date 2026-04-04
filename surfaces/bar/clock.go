@@ -8,20 +8,22 @@ import (
 )
 
 func newClockWidget() gtk.Widgetter {
-	box := gtk.NewBox(gtk.OrientationVertical, 0)
+	box := gtk.NewBox(gtk.OrientationHorizontal, 4)
 	box.AddCSSClass("bar-clock-box")
 	box.SetHAlign(gtk.AlignCenter)
 	box.SetVAlign(gtk.AlignCenter)
 
 	timeLabel := gtk.NewLabel("")
 	timeLabel.AddCSSClass("bar-clock")
-	timeLabel.SetHAlign(gtk.AlignCenter)
+
+	sepLabel := gtk.NewLabel("·")
+	sepLabel.AddCSSClass("bar-clock-sep")
 
 	dateLabel := gtk.NewLabel("")
 	dateLabel.AddCSSClass("bar-date")
-	dateLabel.SetHAlign(gtk.AlignCenter)
 
 	box.Append(timeLabel)
+	box.Append(sepLabel)
 	box.Append(dateLabel)
 
 	update := func() {

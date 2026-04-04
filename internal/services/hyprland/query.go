@@ -3,6 +3,7 @@ package hyprland
 import (
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/sonroyaalmerol/snry-shell/internal/services/runner"
@@ -96,5 +97,11 @@ func (q *Querier) FocusWindow(address string) error {
 // SwitchXkbLayout cycles to the next keyboard layout.
 func (q *Querier) SwitchXkbLayout() error {
 	_, err := q.cmd.Run("dispatch", "switchxkblayout", "next")
+	return err
+}
+
+// SwitchWorkspace switches to the given workspace ID.
+func (q *Querier) SwitchWorkspace(id int) error {
+	_, err := q.cmd.Run("dispatch", "workspace", strconv.Itoa(id))
 	return err
 }

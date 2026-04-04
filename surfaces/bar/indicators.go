@@ -2,37 +2,112 @@ package bar
 
 import (
 	"fmt"
+	"sync/atomic"
 
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/sonroyaalmerol/snry-shell/internal/bus"
+	"github.com/sonroyaalmerol/snry-shell/internal/services/hyprland"
 	"github.com/sonroyaalmerol/snry-shell/internal/servicerefs"
 	"github.com/sonroyaalmerol/snry-shell/internal/state"
 )
 
-// newIndicatorsWidget returns the right-zone box: media | indicators | clock.
-func newIndicatorsWidget(b *bus.Bus, refs *servicerefs.ServiceRefs) gtk.Widgetter {
-	box := gtk.NewBox(gtk.OrientationHorizontal, 4)
+// barGroup wraps a widget in a rounded container matching illogical-impulse BarGroup.
+func barGroup(child gtk.Widgetter) gtk.Widgetter {
+	box := gtk.NewBox(gtk.OrientationHorizontal, 0)
+	box.AddCSSClass("bar-group")
+	box.SetVAlign(gtk.AlignCenter)
+	box.Append(child)
+	return box
+}
+
+// barSeparator returns a thin vertical divider.
+func barSeparator() gtk.Widgetter {
+	sep := gtk.NewLabel("")
+	sep.AddCSSClass("bar-separator")
+	return sep
+}
+
+// newLeftSidebarButton creates the left sidebar toggle button.
+func newLeftSidebarButton(b *bus.Bus) gtk.Widgetter {
+	btn := gtk.NewButton()
+	btn.AddCSSClass("bar-sidebar-btn")
+	icon := materialIcon("menu")
+	btn.SetChild(icon)
+	btn.SetTooltipText("Toggle sidebar")
+	btn.ConnectClicked(func() {
+		b.Publish(bus.TopicSystemControls, "toggle-sidebar")
+	})
+	return btn
+}
+
+// newIndicatorPill creates the grouped indicator pill (notifications, wifi, bluetooth).
+func newIndicatorPill(b *bus.Bus, refs *servicerefs.ServiceRefs) gtk.Widgetter {
+	box := gtk.NewBox(gtk.OrientationHorizontal, 0)
+	box.AddCSSClass("indicator-pill")
 	box.SetVAlign(gtk.AlignCenter)
 
-	box.Append(newMediaWidget(b))
-	box.Append(newResourceIndicator(b))
-	box.Append(newStatusIndicator(newBrightnessIndicator(b)))
-	box.Append(newStatusIndicator(newVolumeIndicator(b)))
-	box.Append(newStatusIndicator(newNetworkIndicator(b)))
-	box.Append(newBatteryIndicator(b)) // battery wraps its own revealer
-	box.Append(newKeyboardIndicator(b, refs.Hyprland))
-	box.Append(newClockWidget())
+	// Notification count.
+	var count atomic.Int32
+	notiIcon := materialIcon("notifications")
+	notiIcon.AddCSSClass("indicator-icon")
+	box.Append(notiIcon)
+
+	b.Subscribe(bus.TopicNotification, func(e bus.Event) {
+		if e.Data == nil {
+			count.Add(-1)
+		} else if _, ok := e.Data.(state.Notification); ok {
+			count.Add(1)
+		}
+		c := int(count.Load())
+		glib.IdleAdd(func() {
+			if c > 0 {
+				if c > 99 {
+					c = 99
+				}
+				notiIcon.SetText(fmt.Sprintf("notifications_active (%d)", c))
+			} else {
+				notiIcon.SetText("notifications")
+			}
+		})
+	})
+
+	// Network icon.
+	netIcon := materialIcon("wifi_off")
+	netIcon.AddCSSClass("indicator-icon")
+	box.Append(netIcon)
+
+	b.Subscribe(bus.TopicNetwork, func(e bus.Event) {
+		ns := e.Data.(state.NetworkState)
+		glib.IdleAdd(func() {
+			if ns.Connected {
+				netIcon.SetText("wifi")
+			} else {
+				netIcon.SetText("wifi_off")
+			}
+		})
+	})
+
+	// Bluetooth icon.
+	btIcon := materialIcon("bluetooth")
+	btIcon.AddCSSClass("indicator-icon")
+	btIcon.SetVisible(refs.Bluetooth != nil)
+	box.Append(btIcon)
 
 	return box
 }
 
-// newStatusIndicator wraps a widget in a box with the status-indicator CSS class.
-func newStatusIndicator(inner gtk.Widgetter) gtk.Widgetter {
-	box := gtk.NewBox(gtk.OrientationHorizontal, 0)
-	box.AddCSSClass("status-indicator")
+// newStatusWidgetGroup returns the grouped status indicators (resources, volume, brightness, battery, keyboard).
+func newStatusWidgetGroup(b *bus.Bus, refs *servicerefs.ServiceRefs) gtk.Widgetter {
+	box := gtk.NewBox(gtk.OrientationHorizontal, 4)
 	box.SetVAlign(gtk.AlignCenter)
-	box.Append(inner)
+
+	box.Append(newResourceIndicator(b))
+	box.Append(newVolumeIndicator(b))
+	box.Append(newBrightnessIndicator(b))
+	box.Append(newBatteryIndicator(b))
+	box.Append(newKeyboardIndicator(b, refs.Hyprland))
+
 	return box
 }
 
@@ -46,7 +121,7 @@ func materialIcon(name string) *gtk.Label {
 func newVolumeIndicator(b *bus.Bus) gtk.Widgetter {
 	icon := materialIcon("volume_up")
 	valueLabel := gtk.NewLabel("--")
-	valueLabel.SetCSSClasses([]string{"bar-date"})
+	valueLabel.AddCSSClass("indicator-value")
 
 	box := gtk.NewBox(gtk.OrientationHorizontal, 2)
 	box.SetVAlign(gtk.AlignCenter)
@@ -73,7 +148,7 @@ func newVolumeIndicator(b *bus.Bus) gtk.Widgetter {
 func newBrightnessIndicator(b *bus.Bus) gtk.Widgetter {
 	icon := materialIcon("brightness_medium")
 	valueLabel := gtk.NewLabel("--")
-	valueLabel.SetCSSClasses([]string{"bar-date"})
+	valueLabel.AddCSSClass("indicator-value")
 
 	box := gtk.NewBox(gtk.OrientationHorizontal, 2)
 	box.SetVAlign(gtk.AlignCenter)
@@ -93,24 +168,6 @@ func newBrightnessIndicator(b *bus.Bus) gtk.Widgetter {
 	return box
 }
 
-func newNetworkIndicator(b *bus.Bus) gtk.Widgetter {
-	icon := materialIcon("wifi_off")
-
-	b.Subscribe(bus.TopicNetwork, func(e bus.Event) {
-		ns := e.Data.(state.NetworkState)
-		glib.IdleAdd(func() {
-			if ns.Connected {
-				icon.SetText("wifi")
-				icon.SetTooltipText(ns.SSID)
-			} else {
-				icon.SetText("wifi_off")
-				icon.SetTooltipText("Disconnected")
-			}
-		})
-	})
-	return icon
-}
-
 func newBatteryIndicator(b *bus.Bus) gtk.Widgetter {
 	revealer := gtk.NewRevealer()
 	revealer.SetTransitionType(gtk.RevealerTransitionTypeSlideLeft)
@@ -118,10 +175,9 @@ func newBatteryIndicator(b *bus.Bus) gtk.Widgetter {
 
 	icon := materialIcon("battery_full")
 	valueLabel := gtk.NewLabel("")
-	valueLabel.SetCSSClasses([]string{"bar-date"})
+	valueLabel.AddCSSClass("indicator-value")
 
 	box := gtk.NewBox(gtk.OrientationHorizontal, 2)
-	box.AddCSSClass("status-indicator")
 	box.SetVAlign(gtk.AlignCenter)
 	box.Append(icon)
 	box.Append(valueLabel)
@@ -154,4 +210,37 @@ func batteryIcon(pct float64, charging bool) string {
 	default:
 		return "battery_alert"
 	}
+}
+
+func newKeyboardIndicator(b *bus.Bus, querier *hyprland.Querier) gtk.Widgetter {
+	icon := materialIcon("language")
+	icon.AddCSSClass("indicator-icon")
+
+	label := gtk.NewLabel("")
+	label.AddCSSClass("indicator-value")
+
+	box := gtk.NewBox(gtk.OrientationHorizontal, 2)
+	box.SetVAlign(gtk.AlignCenter)
+	box.Append(icon)
+	box.Append(label)
+
+	b.Subscribe(bus.TopicKeyboard, func(e bus.Event) {
+		layout := e.Data.(string)
+		glib.IdleAdd(func() { label.SetText(layout) })
+	})
+
+	if querier != nil {
+		if layout, err := querier.ActiveKeymap(); err == nil {
+			label.SetText(layout)
+		}
+
+		clickGesture := gtk.NewGestureClick()
+		clickGesture.SetButton(1)
+		clickGesture.ConnectReleased(func(_ int, _ float64, _ float64) {
+			_ = querier.SwitchXkbLayout()
+		})
+		box.AddController(clickGesture)
+	}
+
+	return box
 }
