@@ -7,6 +7,7 @@ import (
 
 	"github.com/godbus/dbus/v5"
 	"github.com/sonroyaalmerol/snry-shell/internal/bus"
+	"github.com/sonroyaalmerol/snry-shell/internal/dbusutil"
 	"github.com/sonroyaalmerol/snry-shell/internal/state"
 )
 
@@ -16,31 +17,17 @@ const (
 	propertiesIface = "org.freedesktop.DBus.Properties"
 )
 
-// DBusConn abstracts the dbus connection for testability.
-type DBusConn interface {
-	Signal(ch chan<- *dbus.Signal)
-	BusObject() dbus.BusObject
-	Object(dest string, path dbus.ObjectPath) dbus.BusObject
-}
-
-type realConn struct{ conn *dbus.Conn }
-
-func (r *realConn) Signal(ch chan<- *dbus.Signal)                           { r.conn.Signal(ch) }
-func (r *realConn) BusObject() dbus.BusObject                             { return r.conn.BusObject() }
-func (r *realConn) Object(dest string, path dbus.ObjectPath) dbus.BusObject { return r.conn.Object(dest, path) }
-
-// Service watches for MPRIS-compatible players via DBus signals.
 type Service struct {
-	conn          DBusConn
+	conn          dbusutil.DBusConn
 	bus           *bus.Bus
-	playerNameMap map[string]string // unique bus name → well-known name
+	playerNameMap map[string]string
 }
 
 func New(conn *dbus.Conn, b *bus.Bus) *Service {
-	return &Service{conn: &realConn{conn: conn}, bus: b, playerNameMap: make(map[string]string)}
+	return &Service{conn: dbusutil.NewRealConn(conn), bus: b, playerNameMap: make(map[string]string)}
 }
 
-func NewWithConn(conn DBusConn, b *bus.Bus) *Service {
+func NewWithConn(conn dbusutil.DBusConn, b *bus.Bus) *Service {
 	return &Service{conn: conn, bus: b, playerNameMap: make(map[string]string)}
 }
 

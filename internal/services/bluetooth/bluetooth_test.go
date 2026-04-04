@@ -17,7 +17,7 @@ type fakeBusObject struct {
 
 var _ dbus.BusObject = (*fakeBusObject)(nil)
 
-func (f *fakeBusObject) Call(string, dbus.Flags, ...any) *dbus.Call          { return &dbus.Call{} }
+func (f *fakeBusObject) Call(string, dbus.Flags, ...any) *dbus.Call { return &dbus.Call{} }
 func (f *fakeBusObject) CallWithContext(context.Context, string, dbus.Flags, ...any) *dbus.Call {
 	return &dbus.Call{}
 }
@@ -34,10 +34,10 @@ func (f *fakeBusObject) GetProperty(p string) (dbus.Variant, error) {
 	}
 	return v, nil
 }
-func (f *fakeBusObject) StoreProperty(string, any) error  { return nil }
+func (f *fakeBusObject) StoreProperty(string, any) error   { return nil }
 func (f *fakeBusObject) SetProperty(p string, v any) error { return nil }
-func (f *fakeBusObject) Destination() string                { return "" }
-func (f *fakeBusObject) Path() dbus.ObjectPath              { return "/" }
+func (f *fakeBusObject) Destination() string               { return "" }
+func (f *fakeBusObject) Path() dbus.ObjectPath             { return "/" }
 func (f *fakeBusObject) AddMatchSignal(string, string, ...dbus.MatchOption) *dbus.Call {
 	return &dbus.Call{}
 }
@@ -50,8 +50,9 @@ type fakeDBusConn struct {
 }
 
 func (f *fakeDBusConn) Object(string, dbus.ObjectPath) dbus.BusObject { return f.obj }
-func (f *fakeDBusConn) Signal(chan<- *dbus.Signal)                     {}
-func (f *fakeDBusConn) AddMatchSignal(...dbus.MatchOption) error       { return nil }
+func (f *fakeDBusConn) Signal(chan<- *dbus.Signal)                    {}
+func (f *fakeDBusConn) AddMatchSignal(...dbus.MatchOption) error      { return nil }
+func (f *fakeDBusConn) BusObject() dbus.BusObject                     { return f.obj }
 
 func TestBluetoothPollPublishes(t *testing.T) {
 	b := bus.New()
@@ -68,7 +69,7 @@ func TestBluetoothPollPublishes(t *testing.T) {
 
 	svc := bluetooth.NewWithConn(conn, b)
 	ctx, cancel := context.WithCancel(context.Background())
-	cancel() // immediate cancel — poll runs once then exits
+	cancel()     // immediate cancel — poll runs once then exits
 	svc.Run(ctx) //nolint:errcheck
 
 	select {

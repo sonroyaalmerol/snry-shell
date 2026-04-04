@@ -37,10 +37,10 @@ func (f *fakeBusObject) GetProperty(prop string) (dbus.Variant, error) {
 	}
 	return v, nil
 }
-func (f *fakeBusObject) StoreProperty(p string, value any) error    { return nil }
-func (f *fakeBusObject) SetProperty(p string, v any) error          { return nil }
-func (f *fakeBusObject) Destination() string                         { return "" }
-func (f *fakeBusObject) Path() dbus.ObjectPath                       { return "/" }
+func (f *fakeBusObject) StoreProperty(p string, value any) error { return nil }
+func (f *fakeBusObject) SetProperty(p string, v any) error       { return nil }
+func (f *fakeBusObject) Destination() string                     { return "" }
+func (f *fakeBusObject) Path() dbus.ObjectPath                   { return "/" }
 func (f *fakeBusObject) AddMatchSignal(iface, member string, opts ...dbus.MatchOption) *dbus.Call {
 	return &dbus.Call{}
 }
@@ -80,6 +80,8 @@ func (f *fakeDBusConn) Signal(ch chan<- *dbus.Signal) {
 func (f *fakeDBusConn) BusObject() dbus.BusObject {
 	return &fakeBusObject{properties: map[string]dbus.Variant{}}
 }
+
+func (f *fakeDBusConn) AddMatchSignal(opts ...dbus.MatchOption) error { return nil }
 
 func TestNetworkConnectedState(t *testing.T) {
 	b := bus.New()

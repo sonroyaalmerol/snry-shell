@@ -6,6 +6,7 @@ import (
 
 	"github.com/godbus/dbus/v5"
 	"github.com/sonroyaalmerol/snry-shell/internal/bus"
+	"github.com/sonroyaalmerol/snry-shell/internal/dbusutil"
 	"github.com/sonroyaalmerol/snry-shell/internal/state"
 )
 
@@ -18,39 +19,22 @@ const (
 	nmPropertiesIface = "org.freedesktop.DBus.Properties"
 )
 
-// NMState values from NetworkManager spec.
 const (
 	nmStateConnectedGlobal = uint32(70)
 	nmStateConnectedSite   = uint32(60)
 	nmStateConnectedLocal  = uint32(50)
 )
 
-// DBusObjecter can retrieve a DBus object by destination and path.
-type DBusObjecter interface {
-	Object(dest string, path dbus.ObjectPath) dbus.BusObject
-	Signal(ch chan<- *dbus.Signal)
-	BusObject() dbus.BusObject
-}
-
-type realConn struct{ conn *dbus.Conn }
-
-func (r *realConn) Object(dest string, path dbus.ObjectPath) dbus.BusObject {
-	return r.conn.Object(dest, path)
-}
-func (r *realConn) Signal(ch chan<- *dbus.Signal) { r.conn.Signal(ch) }
-func (r *realConn) BusObject() dbus.BusObject     { return r.conn.BusObject() }
-
-// Service watches NetworkManager for connectivity and SSID changes.
 type Service struct {
-	conn DBusObjecter
+	conn dbusutil.DBusConn
 	bus  *bus.Bus
 }
 
 func New(conn *dbus.Conn, b *bus.Bus) *Service {
-	return &Service{conn: &realConn{conn: conn}, bus: b}
+	return &Service{conn: dbusutil.NewRealConn(conn), bus: b}
 }
 
-func NewWithConn(conn DBusObjecter, b *bus.Bus) *Service {
+func NewWithConn(conn dbusutil.DBusConn, b *bus.Bus) *Service {
 	return &Service{conn: conn, bus: b}
 }
 
@@ -223,9 +207,9 @@ func (s *Service) ScanWiFi() ([]state.WiFiNetwork, error) {
 			}
 
 			networks = append(networks, state.WiFiNetwork{
-				SSID:       ssid,
-				Signal:     int(strength),
-				Security:   security,
+				SSID:      ssid,
+				Signal:    int(strength),
+				Security:  security,
 				Connected: ssid == currentSSID,
 			})
 		}

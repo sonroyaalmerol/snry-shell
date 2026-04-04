@@ -6,46 +6,29 @@ import (
 
 	"github.com/godbus/dbus/v5"
 	"github.com/sonroyaalmerol/snry-shell/internal/bus"
+	"github.com/sonroyaalmerol/snry-shell/internal/dbusutil"
 	"github.com/sonroyaalmerol/snry-shell/internal/state"
 )
 
 const (
-	upowerDest       = "org.freedesktop.UPower"
-	upowerPath       = "/org/freedesktop/UPower"
-	upowerIface      = "org.freedesktop.UPower"
-	upowerDeviceIface = "org.freedesktop.UPower.Device"
-	// UPower device type 2 = Battery
-	upowerTypeBattery = uint32(2)
-	// UPower state 1 = Charging
+	upowerDest          = "org.freedesktop.UPower"
+	upowerPath          = "/org/freedesktop/UPower"
+	upowerIface         = "org.freedesktop.UPower"
+	upowerDeviceIface   = "org.freedesktop.UPower.Device"
+	upowerTypeBattery   = uint32(2)
 	upowerStateCharging = uint32(1)
 )
 
-// DBusObjecter abstracts the dbus connection for testability.
-type DBusObjecter interface {
-	Object(dest string, path dbus.ObjectPath) dbus.BusObject
-	Signal(ch chan<- *dbus.Signal)
-	BusObject() dbus.BusObject
-}
-
-type realConn struct{ conn *dbus.Conn }
-
-func (r *realConn) Object(dest string, path dbus.ObjectPath) dbus.BusObject {
-	return r.conn.Object(dest, path)
-}
-func (r *realConn) Signal(ch chan<- *dbus.Signal) { r.conn.Signal(ch) }
-func (r *realConn) BusObject() dbus.BusObject     { return r.conn.BusObject() }
-
-// Service watches UPower for battery state changes.
 type Service struct {
-	conn DBusObjecter
+	conn dbusutil.DBusConn
 	bus  *bus.Bus
 }
 
 func New(conn *dbus.Conn, b *bus.Bus) *Service {
-	return &Service{conn: &realConn{conn: conn}, bus: b}
+	return &Service{conn: dbusutil.NewRealConn(conn), bus: b}
 }
 
-func NewWithConn(conn DBusObjecter, b *bus.Bus) *Service {
+func NewWithConn(conn dbusutil.DBusConn, b *bus.Bus) *Service {
 	return &Service{conn: conn, bus: b}
 }
 

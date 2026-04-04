@@ -8,54 +8,36 @@ import (
 
 	"github.com/godbus/dbus/v5"
 	"github.com/sonroyaalmerol/snry-shell/internal/bus"
+	"github.com/sonroyaalmerol/snry-shell/internal/dbusutil"
 )
 
 const (
-	watcherDest = "org.kde.StatusNotifierWatcher"
-	watcherPath = "/StatusNotifierWatcher"
+	watcherDest  = "org.kde.StatusNotifierWatcher"
+	watcherPath  = "/StatusNotifierWatcher"
 	watcherIface = "org.kde.StatusNotifierWatcher"
-	itemIface   = "org.kde.StatusNotifierItem"
-	hostIface   = "org.kde.StatusNotifierHost"
+	itemIface    = "org.kde.StatusNotifierItem"
+	hostIface    = "org.kde.StatusNotifierHost"
 )
 
-// DBusConn abstracts the DBus connection for testability.
-type DBusConn interface {
-	Object(dest string, p dbus.ObjectPath) dbus.BusObject
-	Signal(ch chan<- *dbus.Signal)
-	AddMatchSignal(opts ...dbus.MatchOption) error
-}
-
-type realConn struct{ conn *dbus.Conn }
-
-func (r *realConn) Object(dest string, p dbus.ObjectPath) dbus.BusObject {
-	return r.conn.Object(dest, p)
-}
-func (r *realConn) Signal(ch chan<- *dbus.Signal) { r.conn.Signal(ch) }
-func (r *realConn) AddMatchSignal(opts ...dbus.MatchOption) error {
-	return r.conn.AddMatchSignal(opts...)
-}
-
-// TrayItem represents a single status notifier tray item.
 type TrayItem struct {
-	BusName string
-	Path    dbus.ObjectPath
-	Title   string
+	BusName  string
+	Path     dbus.ObjectPath
+	Title    string
 	IconName string
-	Status  string // "Active", "Passive", "NeedsAttention"
-	ID      string
+	Status   string
+	ID       string
 }
 
-// Service watches for StatusNotifierItem registration and tracks items.
 type Service struct {
-	mu     sync.RWMutex
-	conn   DBusConn
-	bus    *bus.Bus
-	items  map[string]*TrayItem // key = busName + path
+	mu    sync.RWMutex
+	conn  dbusutil.DBusConn
+	bus   *bus.Bus
+	items map[string]*TrayItem
 }
 
 func New(conn *dbus.Conn, b *bus.Bus) *Service {
 	return &Service{
-		conn:  &realConn{conn: conn},
+		conn:  dbusutil.NewRealConn(conn),
 		bus:   b,
 		items: make(map[string]*TrayItem),
 	}

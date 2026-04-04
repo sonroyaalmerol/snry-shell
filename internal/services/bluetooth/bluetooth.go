@@ -6,6 +6,7 @@ import (
 
 	"github.com/godbus/dbus/v5"
 	"github.com/sonroyaalmerol/snry-shell/internal/bus"
+	"github.com/sonroyaalmerol/snry-shell/internal/dbusutil"
 	"github.com/sonroyaalmerol/snry-shell/internal/state"
 )
 
@@ -15,34 +16,16 @@ const (
 	bluezIface   = "org.bluez.Adapter1"
 )
 
-// DBusConn abstracts the dbus connection for testability.
-type DBusConn interface {
-	Object(dest string, path dbus.ObjectPath) dbus.BusObject
-	Signal(ch chan<- *dbus.Signal)
-	AddMatchSignal(opts ...dbus.MatchOption) error
-}
-
-type realConn struct{ conn *dbus.Conn }
-
-func (r *realConn) Object(dest string, path dbus.ObjectPath) dbus.BusObject {
-	return r.conn.Object(dest, path)
-}
-func (r *realConn) Signal(ch chan<- *dbus.Signal) { r.conn.Signal(ch) }
-func (r *realConn) AddMatchSignal(opts ...dbus.MatchOption) error {
-	return r.conn.AddMatchSignal(opts...)
-}
-
-// Service watches the Bluez adapter and publishes BluetoothState events.
 type Service struct {
-	conn DBusConn
+	conn dbusutil.DBusConn
 	bus  *bus.Bus
 }
 
 func New(conn *dbus.Conn, b *bus.Bus) *Service {
-	return &Service{conn: &realConn{conn: conn}, bus: b}
+	return &Service{conn: dbusutil.NewRealConn(conn), bus: b}
 }
 
-func NewWithConn(conn DBusConn, b *bus.Bus) *Service {
+func NewWithConn(conn dbusutil.DBusConn, b *bus.Bus) *Service {
 	return &Service{conn: conn, bus: b}
 }
 

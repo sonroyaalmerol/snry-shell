@@ -31,8 +31,9 @@ func (f *fakeDBusConn) Signal(ch chan<- *dbus.Signal) {
 	}()
 }
 
-func (f *fakeDBusConn) BusObject() dbus.BusObject        { return nil }
+func (f *fakeDBusConn) BusObject() dbus.BusObject                     { return nil }
 func (f *fakeDBusConn) Object(string, dbus.ObjectPath) dbus.BusObject { return nil }
+func (f *fakeDBusConn) AddMatchSignal(opts ...dbus.MatchOption) error { return nil }
 
 // fakeBusObject wraps BusObject calls so Signal() doesn't nil-panic in tests.
 type noopBusObject struct{}
@@ -50,10 +51,10 @@ func (n noopBusObject) GoWithContext(ctx context.Context, method string, flags d
 	return &dbus.Call{}
 }
 func (n noopBusObject) GetProperty(p string) (dbus.Variant, error) { return dbus.Variant{}, nil }
-func (n noopBusObject) StoreProperty(p string, value any) error     { return nil }
-func (n noopBusObject) SetProperty(p string, v any) error           { return nil }
-func (n noopBusObject) Destination() string                          { return "" }
-func (n noopBusObject) Path() dbus.ObjectPath                        { return "/" }
+func (n noopBusObject) StoreProperty(p string, value any) error    { return nil }
+func (n noopBusObject) SetProperty(p string, v any) error          { return nil }
+func (n noopBusObject) Destination() string                        { return "" }
+func (n noopBusObject) Path() dbus.ObjectPath                      { return "/" }
 func (n noopBusObject) AddMatchSignal(iface, member string, opts ...dbus.MatchOption) *dbus.Call {
 	return &dbus.Call{}
 }
