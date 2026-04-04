@@ -2,11 +2,11 @@
 package settings
 
 import (
-	"github.com/diamondburned/gotk4/pkg/gdk/v4"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/sonroyaalmerol/snry-shell/internal/bus"
 	"github.com/sonroyaalmerol/snry-shell/internal/layershell"
 	appsettings "github.com/sonroyaalmerol/snry-shell/internal/settings"
+	"github.com/sonroyaalmerol/snry-shell/internal/surfaceutil"
 )
 
 // Settings is a settings panel overlay.
@@ -17,42 +17,22 @@ type Settings struct {
 }
 
 func New(app *gtk.Application, b *bus.Bus) *Settings {
-	win := gtk.NewApplicationWindow(app)
-	win.SetDecorated(false)
-	win.SetName("snry-settings")
-
-	layershell.InitForWindow(win)
-	layershell.SetLayer(win, layershell.LayerOverlay)
-	layershell.SetAnchor(win, layershell.EdgeTop, true)
-	layershell.SetAnchor(win, layershell.EdgeBottom, true)
-	layershell.SetAnchor(win, layershell.EdgeLeft, true)
-	layershell.SetAnchor(win, layershell.EdgeRight, true)
-	layershell.SetKeyboardMode(win, layershell.KeyboardModeExclusive)
-	layershell.SetExclusiveZone(win, -1)
-	layershell.SetNamespace(win, "snry-settings")
+	win := layershell.NewWindow(app, layershell.WindowConfig{
+		Name:          "snry-settings",
+		Layer:         layershell.LayerOverlay,
+		Anchors:       layershell.FullscreenAnchors(),
+		KeyboardMode:  layershell.KeyboardModeExclusive,
+		ExclusiveZone: -1,
+		Namespace:     "snry-settings",
+	})
 
 	cfg, _ := appsettings.Load()
 	s := &Settings{win: win, bus: b, cfg: cfg}
 	s.build()
 
-	b.Subscribe(bus.TopicSystemControls, func(e bus.Event) {
-		if e.Data == "toggle-settings" {
-			win.SetVisible(!win.Visible())
-			if win.Visible() {
-				win.GrabFocus()
-			}
-		}
-	})
+	surfaceutil.AddToggleOnWithFocus(b, win, "toggle-settings")
 
-	keyCtrl := gtk.NewEventControllerKey()
-	keyCtrl.ConnectKeyPressed(func(keyval, keycode uint, _ gdk.ModifierType) bool {
-		if keyval == 0xff1b { // Escape
-			win.SetVisible(false)
-			return true
-		}
-		return false
-	})
-	win.AddController(keyCtrl)
+	surfaceutil.AddEscapeToClose(win)
 	win.SetVisible(false)
 	return s
 }

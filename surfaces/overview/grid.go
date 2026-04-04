@@ -3,6 +3,7 @@ package overview
 import (
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/sonroyaalmerol/snry-shell/internal/bus"
+	"github.com/sonroyaalmerol/snry-shell/internal/gtkutil"
 	"github.com/sonroyaalmerol/snry-shell/internal/services/hyprland"
 )
 
@@ -41,13 +42,7 @@ func (g *gridWidget) refresh() {
 		return
 	}
 
-	// Remove old children.
-	child := g.flow.FirstChild()
-	for child != nil {
-		next := child.(*gtk.Widget).NextSibling()
-		g.flow.Remove(child)
-		child = next
-	}
+	gtkutil.ClearChildren(&g.flow.Widget)
 
 	// Group clients by workspace.
 	wsClients := make(map[int][]hyprland.HyprClient)

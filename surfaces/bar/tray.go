@@ -4,6 +4,7 @@ import (
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/sonroyaalmerol/snry-shell/internal/bus"
+	"github.com/sonroyaalmerol/snry-shell/internal/gtkutil"
 	"github.com/sonroyaalmerol/snry-shell/internal/services/sni"
 )
 
@@ -18,12 +19,7 @@ func newTrayWidget(b *bus.Bus) gtk.Widgetter {
 			return
 		}
 		glib.IdleAdd(func() {
-			child := box.FirstChild()
-			for child != nil {
-				next := child.(*gtk.Widget).NextSibling()
-				box.Remove(child)
-				child = next
-			}
+			gtkutil.ClearChildren(&box.Widget)
 
 			for _, item := range items {
 				btn := newTrayItemBtn(b, item)

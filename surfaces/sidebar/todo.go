@@ -4,6 +4,7 @@ import (
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/sonroyaalmerol/snry-shell/internal/bus"
+	"github.com/sonroyaalmerol/snry-shell/internal/gtkutil"
 	"github.com/sonroyaalmerol/snry-shell/internal/servicerefs"
 	"github.com/sonroyaalmerol/snry-shell/internal/state"
 )
@@ -19,11 +20,7 @@ func newTodoWidget(b *bus.Bus, refs *servicerefs.ServiceRefs) gtk.Widgetter {
 	headerLabel.SetHExpand(true)
 	header.Append(headerLabel)
 
-	clearBtn := gtk.NewButton()
-	clearBtn.AddCSSClass("todo-clear-btn")
-	clearLabel := gtk.NewLabel("delete_sweep")
-	clearLabel.AddCSSClass("material-icon")
-	clearBtn.SetChild(clearLabel)
+	clearBtn := gtkutil.MaterialButtonWithClass("delete_sweep", "todo-clear-btn")
 	clearBtn.ConnectClicked(func() {
 		if refs.Todo != nil {
 			refs.Todo.Clear()
@@ -41,11 +38,7 @@ func newTodoWidget(b *bus.Bus, refs *servicerefs.ServiceRefs) gtk.Widgetter {
 	entry.SetPlaceholderText("Add task...")
 	entry.SetHExpand(true)
 
-	addBtn := gtk.NewButton()
-	addBtn.AddCSSClass("todo-add-btn")
-	addIcon := gtk.NewLabel("add")
-	addIcon.AddCSSClass("material-icon")
-	addBtn.SetChild(addIcon)
+	addBtn := gtkutil.MaterialButtonWithClass("add", "todo-add-btn")
 
 	activate := func() {
 		text := entry.Text()
@@ -76,12 +69,7 @@ func newTodoWidget(b *bus.Bus, refs *servicerefs.ServiceRefs) gtk.Widgetter {
 			return
 		}
 		glib.IdleAdd(func() {
-			child := listBox.FirstChild()
-			for child != nil {
-				next := child.(*gtk.Widget).NextSibling()
-				listBox.Remove(child)
-				child = next
-			}
+			gtkutil.ClearChildren(&listBox.Widget)
 
 			for _, item := range items {
 				row := newTodoItemRow(refs, item)
@@ -117,11 +105,7 @@ func newTodoItemRow(refs *servicerefs.ServiceRefs, item state.TodoItem) gtk.Widg
 		}
 	})
 
-	delBtn := gtk.NewButton()
-	delBtn.AddCSSClass("todo-del-btn")
-	delIcon := gtk.NewLabel("close")
-	delIcon.AddCSSClass("material-icon")
-	delBtn.SetChild(delIcon)
+	delBtn := gtkutil.MaterialButtonWithClass("close", "todo-del-btn")
 	delBtn.ConnectClicked(func() {
 		if refs.Todo != nil {
 			refs.Todo.Remove(id)

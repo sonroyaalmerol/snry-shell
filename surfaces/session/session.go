@@ -7,11 +7,11 @@ import (
 	"os/exec"
 	"time"
 
-	"github.com/diamondburned/gotk4/pkg/gdk/v4"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
-	"github.com/sonroyaalmerol/snry-shell/internal/layershell"
 	"github.com/sonroyaalmerol/snry-shell/internal/bus"
+	"github.com/sonroyaalmerol/snry-shell/internal/layershell"
 	"github.com/sonroyaalmerol/snry-shell/internal/state"
+	"github.com/sonroyaalmerol/snry-shell/internal/surfaceutil"
 )
 
 // Session is a power menu overlay.
@@ -21,40 +21,20 @@ type Session struct {
 }
 
 func New(app *gtk.Application, b *bus.Bus) *Session {
-	win := gtk.NewApplicationWindow(app)
-	win.SetDecorated(false)
-	win.SetName("snry-session")
-
-	layershell.InitForWindow(win)
-	layershell.SetLayer(win, layershell.LayerOverlay)
-	layershell.SetAnchor(win, layershell.EdgeTop, true)
-	layershell.SetAnchor(win, layershell.EdgeBottom, true)
-	layershell.SetAnchor(win, layershell.EdgeLeft, true)
-	layershell.SetAnchor(win, layershell.EdgeRight, true)
-	layershell.SetKeyboardMode(win, layershell.KeyboardModeExclusive)
-	layershell.SetNamespace(win, "snry-session")
+	win := layershell.NewWindow(app, layershell.WindowConfig{
+		Name:         "snry-session",
+		Layer:        layershell.LayerOverlay,
+		Anchors:      layershell.FullscreenAnchors(),
+		KeyboardMode: layershell.KeyboardModeExclusive,
+		Namespace:    "snry-session",
+	})
 
 	s := &Session{win: win, bus: b}
 	s.build()
 
-	b.Subscribe(bus.TopicSystemControls, func(e bus.Event) {
-		if e.Data == "toggle-session" {
-			win.SetVisible(!win.Visible())
-			if win.Visible() {
-				win.GrabFocus()
-			}
-		}
-	})
+	surfaceutil.AddToggleOnWithFocus(b, win, "toggle-session")
 
-	keyCtrl := gtk.NewEventControllerKey()
-	keyCtrl.ConnectKeyPressed(func(keyval, keycode uint, _ gdk.ModifierType) bool {
-		if keyval == 0xff1b { // Escape
-			win.SetVisible(false)
-			return true
-		}
-		return false
-	})
-	win.AddController(keyCtrl)
+	surfaceutil.AddEscapeToClose(win)
 	win.SetVisible(false)
 	return s
 }

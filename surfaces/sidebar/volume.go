@@ -6,6 +6,7 @@ import (
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/sonroyaalmerol/snry-shell/internal/bus"
+	"github.com/sonroyaalmerol/snry-shell/internal/gtkutil"
 	"github.com/sonroyaalmerol/snry-shell/internal/servicerefs"
 	"github.com/sonroyaalmerol/snry-shell/internal/state"
 )
@@ -30,12 +31,7 @@ func newVolumeMixerWidget(b *bus.Bus, refs *servicerefs.ServiceRefs) gtk.Widgett
 			return
 		}
 		glib.IdleAdd(func() {
-			child := listBox.FirstChild()
-			for child != nil {
-				next := child.(*gtk.Widget).NextSibling()
-				listBox.Remove(child)
-				child = next
-			}
+			gtkutil.ClearChildren(&listBox.Widget)
 
 			for _, app := range ms.Apps {
 				row := newMixerRow(refs, app)

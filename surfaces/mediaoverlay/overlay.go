@@ -3,15 +3,15 @@ package mediaoverlay
 
 import (
 	"context"
-	"fmt"
-	"time"
 
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
-	"github.com/sonroyaalmerol/snry-shell/internal/layershell"
 	"github.com/sonroyaalmerol/snry-shell/internal/bus"
+	"github.com/sonroyaalmerol/snry-shell/internal/gtkutil"
+	"github.com/sonroyaalmerol/snry-shell/internal/layershell"
 	"github.com/sonroyaalmerol/snry-shell/internal/services/mpris"
 	"github.com/sonroyaalmerol/snry-shell/internal/state"
+	"github.com/sonroyaalmerol/snry-shell/internal/surfaceutil"
 )
 
 // MediaOverlay is a floating music player popup.
@@ -34,29 +34,21 @@ type MediaOverlay struct {
 }
 
 func New(app *gtk.Application, b *bus.Bus, mprisSvc *mpris.Service) *MediaOverlay {
-	win := gtk.NewApplicationWindow(app)
-	win.SetDecorated(false)
-	win.SetName("snry-media-overlay")
-
-	layershell.InitForWindow(win)
-	layershell.SetLayer(win, layershell.LayerTop)
-	layershell.SetAnchor(win, layershell.EdgeTop, true)
-	layershell.SetAnchor(win, layershell.EdgeRight, true)
-	layershell.SetMargin(win, layershell.EdgeTop, 44)
-	layershell.SetMargin(win, layershell.EdgeRight, 8)
-	layershell.SetKeyboardMode(win, layershell.KeyboardModeNone)
-	layershell.SetExclusiveZone(win, -1)
-	layershell.SetNamespace(win, "snry-media-overlay")
+	win := layershell.NewWindow(app, layershell.WindowConfig{
+		Name:          "snry-media-overlay",
+		Layer:         layershell.LayerTop,
+		Anchors:       map[layershell.Edge]bool{layershell.EdgeTop: true, layershell.EdgeRight: true},
+		Margins:       map[layershell.Edge]int{layershell.EdgeTop: 44, layershell.EdgeRight: 8},
+		KeyboardMode:  layershell.KeyboardModeNone,
+		ExclusiveZone: -1,
+		Namespace:     "snry-media-overlay",
+	})
 
 	mo := &MediaOverlay{win: win, bus: b, mprisSvc: mprisSvc}
 	mo.build()
 
 	// Toggle on SystemControls "toggle-media-overlay".
-	b.Subscribe(bus.TopicSystemControls, func(e bus.Event) {
-		if e.Data == "toggle-media-overlay" {
-			glib.IdleAdd(func() { win.SetVisible(!win.Visible()) })
-		}
-	})
+	surfaceutil.AddToggleOn(b, win, "toggle-media-overlay")
 
 	win.SetVisible(false)
 	return mo
@@ -115,18 +107,19 @@ func (mo *MediaOverlay) build() {
 	controls.SetHAlign(gtk.AlignCenter)
 	controls.SetMarginTop(4)
 
-	mo.prevBtn = materialBtn("skip_previous")
+	mo.prevBtn = gtkutil.MaterialButton("skip_previous")
+	mo.prevBtn.AddCSSClass("media-btn")
 	mo.prevBtn.ConnectClicked(func() {
 		go mo.mprisSvc.Previous(mo.player.PlayerName)
 	})
 
-	mo.playBtn = materialBtn("play_arrow")
-	mo.playBtn.AddCSSClass("play-pause")
+	mo.playBtn = gtkutil.MaterialButtonWithClass("play_arrow", "media-btn", "play-pause")
 	mo.playBtn.ConnectClicked(func() {
 		go mo.mprisSvc.PlayPause(mo.player.PlayerName)
 	})
 
-	mo.nextBtn = materialBtn("skip_next")
+	mo.nextBtn = gtkutil.MaterialButton("skip_next")
+	mo.nextBtn.AddCSSClass("media-btn")
 	mo.nextBtn.ConnectClicked(func() {
 		go mo.mprisSvc.Next(mo.player.PlayerName)
 	})
@@ -160,7 +153,7 @@ func (mo *MediaOverlay) updatePlayer(mp state.MediaPlayer) {
 	}
 	mo.title.SetText(mp.Title)
 	mo.artist.SetText(mp.Artist)
-	mo.durLabel.SetText(formatTime(mp.Duration))
+	mo.durLabel.SetText(surfaceutil.FormatTime(mp.Duration))
 
 	if mp.Duration > 0 {
 		mo.scale.SetRange(0, mp.Duration)
@@ -181,8 +174,8 @@ func (mo *MediaOverlay) updatePlayer(mp state.MediaPlayer) {
 }
 
 func (mo *MediaOverlay) updatePosition(pos, dur float64) {
-	mo.posLabel.SetText(formatTime(pos))
-	mo.durLabel.SetText(formatTime(dur))
+	mo.posLabel.SetText(surfaceutil.FormatTime(pos))
+	mo.durLabel.SetText(surfaceutil.FormatTime(dur))
 	// Block signals to prevent feedback loop.
 	mo.scale.HandlerBlock(mo.changeHandle)
 	mo.scale.SetValue(pos)
@@ -217,20 +210,4 @@ func (mo *MediaOverlay) startTicker(playing bool) {
 			}
 		}
 	}()
-}
-
-func materialBtn(icon string) *gtk.Button {
-	btn := gtk.NewButton()
-	btn.AddCSSClass("media-btn")
-	label := gtk.NewLabel(icon)
-	label.AddCSSClass("material-icon")
-	btn.SetChild(label)
-	return btn
-}
-
-func formatTime(seconds float64) string {
-	s := int(seconds)
-	min := s / 60
-	sec := s % 60
-	return fmt.Sprintf("%d:%02d", min, sec)
 }

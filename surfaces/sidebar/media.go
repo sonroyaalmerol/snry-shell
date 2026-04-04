@@ -2,14 +2,15 @@ package sidebar
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/sonroyaalmerol/snry-shell/internal/bus"
+	"github.com/sonroyaalmerol/snry-shell/internal/gtkutil"
 	"github.com/sonroyaalmerol/snry-shell/internal/services/mpris"
 	"github.com/sonroyaalmerol/snry-shell/internal/state"
+	"github.com/sonroyaalmerol/snry-shell/internal/surfaceutil"
 )
 
 type mediaControls struct {
@@ -84,9 +85,9 @@ func buildMediaGroup(b *bus.Bus, mprisSvc *mpris.Service) gtk.Widgetter {
 	controls.SetHAlign(gtk.AlignCenter)
 	controls.SetMarginTop(4)
 
-	mc.prevBtn = sidebarMaterialBtn("skip_previous")
+	mc.prevBtn = gtkutil.MaterialButtonWithClass("skip_previous", "media-btn")
 	mc.playBtn = mediaPlayBtn()
-	mc.nextBtn = sidebarMaterialBtn("skip_next")
+	mc.nextBtn = gtkutil.MaterialButtonWithClass("skip_next", "media-btn")
 
 	mc.prevBtn.ConnectClicked(func() {
 		go mc.mprisSvc.Previous(mc.player.PlayerName)
@@ -127,7 +128,7 @@ func (mc *mediaControls) updatePlayer(mp state.MediaPlayer) {
 	}
 	mc.title.SetText(mp.Title)
 	mc.artist.SetText(mp.Artist)
-	mc.durLabel.SetText(formatTime(mp.Duration))
+	mc.durLabel.SetText(surfaceutil.FormatTime(mp.Duration))
 
 	if mp.Duration > 0 {
 		mc.scale.SetRange(0, mp.Duration)
@@ -146,8 +147,8 @@ func (mc *mediaControls) updatePlayer(mp state.MediaPlayer) {
 }
 
 func (mc *mediaControls) updatePosition(pos, dur float64) {
-	mc.posLabel.SetText(formatTime(pos))
-	mc.durLabel.SetText(formatTime(dur))
+	mc.posLabel.SetText(surfaceutil.FormatTime(pos))
+	mc.durLabel.SetText(surfaceutil.FormatTime(dur))
 	mc.scale.HandlerBlock(mc.changeHandle)
 	mc.scale.SetValue(pos)
 	mc.scale.HandlerUnblock(mc.changeHandle)
@@ -184,25 +185,5 @@ func (mc *mediaControls) startTicker(playing bool) {
 }
 
 func mediaPlayBtn() *gtk.Button {
-	btn := gtk.NewButton()
-	btn.AddCSSClass("media-btn")
-	btn.AddCSSClass("play-pause")
-	label := gtk.NewLabel("play_arrow")
-	label.AddCSSClass("material-icon")
-	btn.SetChild(label)
-	return btn
-}
-
-func sidebarMaterialBtn(icon string) *gtk.Button {
-	btn := gtk.NewButton()
-	btn.AddCSSClass("media-btn")
-	label := gtk.NewLabel(icon)
-	label.AddCSSClass("material-icon")
-	btn.SetChild(label)
-	return btn
-}
-
-func formatTime(seconds float64) string {
-	s := int(seconds)
-	return fmt.Sprintf("%d:%02d", s/60, s%60)
+	return gtkutil.MaterialButtonWithClass("play_arrow", "media-btn", "play-pause")
 }

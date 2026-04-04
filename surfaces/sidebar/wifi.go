@@ -4,6 +4,7 @@ import (
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/sonroyaalmerol/snry-shell/internal/bus"
+	"github.com/sonroyaalmerol/snry-shell/internal/gtkutil"
 	"github.com/sonroyaalmerol/snry-shell/internal/servicerefs"
 	"github.com/sonroyaalmerol/snry-shell/internal/state"
 )
@@ -18,11 +19,7 @@ func newWiFiWidget(b *bus.Bus, refs *servicerefs.ServiceRefs) gtk.Widgetter {
 	headerLabel.AddCSSClass("notif-group-header")
 	headerLabel.SetHExpand(true)
 
-	scanBtn := gtk.NewButton()
-	scanBtn.AddCSSClass("wifi-scan-btn")
-	scanIcon := gtk.NewLabel("refresh")
-	scanIcon.AddCSSClass("material-icon")
-	scanBtn.SetChild(scanIcon)
+	scanBtn := gtkutil.MaterialButtonWithClass("refresh", "wifi-scan-btn")
 	scanBtn.ConnectClicked(func() {
 		if refs.Network != nil {
 			go refs.Network.ScanWiFi()
@@ -48,13 +45,7 @@ func newWiFiWidget(b *bus.Bus, refs *servicerefs.ServiceRefs) gtk.Widgetter {
 			return
 		}
 		glib.IdleAdd(func() {
-			// Remove old children.
-			child := listBox.FirstChild()
-			for child != nil {
-				next := child.(*gtk.Widget).NextSibling()
-				listBox.Remove(child)
-				child = next
-			}
+			gtkutil.ClearChildren(&listBox.Widget)
 
 			for _, net := range networks {
 				row := newWiFiRow(b, refs, net)
@@ -107,11 +98,7 @@ func newWiFiRow(b *bus.Bus, refs *servicerefs.ServiceRefs, net state.WiFiNetwork
 	row.Append(statusLabel)
 
 	if !net.Connected && refs.Network != nil {
-		connectBtn := gtk.NewButton()
-		connectBtn.AddCSSClass("wifi-connect-btn")
-		connectLabel := gtk.NewLabel("login")
-		connectLabel.AddCSSClass("material-icon")
-		connectBtn.SetChild(connectLabel)
+		connectBtn := gtkutil.MaterialButtonWithClass("login", "wifi-connect-btn")
 
 		ssid := net.SSID
 		connectBtn.ConnectClicked(func() {

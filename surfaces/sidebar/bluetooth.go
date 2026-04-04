@@ -4,6 +4,7 @@ import (
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/sonroyaalmerol/snry-shell/internal/bus"
+	"github.com/sonroyaalmerol/snry-shell/internal/gtkutil"
 	"github.com/sonroyaalmerol/snry-shell/internal/servicerefs"
 	"github.com/sonroyaalmerol/snry-shell/internal/state"
 )
@@ -18,11 +19,7 @@ func newBluetoothWidget(b *bus.Bus, refs *servicerefs.ServiceRefs) gtk.Widgetter
 	headerLabel.AddCSSClass("notif-group-header")
 	headerLabel.SetHExpand(true)
 
-	scanBtn := gtk.NewButton()
-	scanBtn.AddCSSClass("bt-scan-btn")
-	scanIcon := gtk.NewLabel("search")
-	scanIcon.AddCSSClass("material-icon")
-	scanBtn.SetChild(scanIcon)
+	scanBtn := gtkutil.MaterialButtonWithClass("search", "bt-scan-btn")
 	scanBtn.ConnectClicked(func() {
 		if refs.Bluetooth != nil {
 			go func() {
@@ -53,12 +50,7 @@ func newBluetoothWidget(b *bus.Bus, refs *servicerefs.ServiceRefs) gtk.Widgetter
 			return
 		}
 		glib.IdleAdd(func() {
-			child := listBox.FirstChild()
-			for child != nil {
-				next := child.(*gtk.Widget).NextSibling()
-				listBox.Remove(child)
-				child = next
-			}
+			gtkutil.ClearChildren(&listBox.Widget)
 
 			for _, dev := range devices {
 				row := newBTDeviceRow(refs, dev)
@@ -108,25 +100,19 @@ func newBTDeviceRow(refs *servicerefs.ServiceRefs, dev state.BluetoothDevice) gt
 		actionBtn.AddCSSClass("bt-action-btn")
 
 		if dev.Connected {
-			btnLabel := gtk.NewLabel("disconnect")
-			btnLabel.AddCSSClass("material-icon")
-			actionBtn.SetChild(btnLabel)
+			actionBtn.SetChild(gtkutil.MaterialButton("disconnect").Child())
 			addr := dev.Address
 			actionBtn.ConnectClicked(func() {
 				go refs.Bluetooth.DisconnectDevice(addr)
 			})
 		} else if dev.Paired {
-			btnLabel := gtk.NewLabel("connect")
-			btnLabel.AddCSSClass("material-icon")
-			actionBtn.SetChild(btnLabel)
+			actionBtn.SetChild(gtkutil.MaterialButton("connect").Child())
 			addr := dev.Address
 			actionBtn.ConnectClicked(func() {
 				go refs.Bluetooth.ConnectDevice(addr)
 			})
 		} else {
-			btnLabel := gtk.NewLabel("add")
-			btnLabel.AddCSSClass("material-icon")
-			actionBtn.SetChild(btnLabel)
+			actionBtn.SetChild(gtkutil.MaterialButton("add").Child())
 			addr := dev.Address
 			actionBtn.ConnectClicked(func() {
 				go refs.Bluetooth.PairDevice(addr)

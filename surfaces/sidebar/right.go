@@ -3,11 +3,11 @@
 package sidebar
 
 import (
-	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/sonroyaalmerol/snry-shell/internal/bus"
 	"github.com/sonroyaalmerol/snry-shell/internal/layershell"
 	"github.com/sonroyaalmerol/snry-shell/internal/servicerefs"
+	"github.com/sonroyaalmerol/snry-shell/internal/surfaceutil"
 )
 
 // Right is the right-edge sidebar showing notifications, media, calendar, and controls.
@@ -18,28 +18,19 @@ type Right struct {
 
 // NewRight creates the right sidebar.
 func NewRight(app *gtk.Application, b *bus.Bus, refs *servicerefs.ServiceRefs) *Right {
-	win := gtk.NewApplicationWindow(app)
-	win.SetDecorated(false)
-	win.SetName("snry-sidebar-right")
-
-	layershell.InitForWindow(win)
-	layershell.SetLayer(win, layershell.LayerOverlay)
-	layershell.SetAnchor(win, layershell.EdgeTop, true)
-	layershell.SetAnchor(win, layershell.EdgeBottom, true)
-	layershell.SetAnchor(win, layershell.EdgeRight, true)
-	layershell.SetKeyboardMode(win, layershell.KeyboardModeOnDemand)
-	layershell.SetExclusiveZone(win, 0)
-	layershell.SetNamespace(win, "snry-sidebar-right")
+	win := layershell.NewWindow(app, layershell.WindowConfig{
+		Name:         "snry-sidebar-right",
+		Layer:        layershell.LayerOverlay,
+		Anchors:      layershell.RightEdgeAnchors(),
+		KeyboardMode: layershell.KeyboardModeOnDemand,
+		Namespace:    "snry-sidebar-right",
+	})
 
 	r := &Right{win: win, bus: b}
 	r.build(refs)
 	win.SetVisible(false)
 
-	b.Subscribe(bus.TopicSystemControls, func(e bus.Event) {
-		if e.Data == "toggle-sidebar" {
-			glib.IdleAdd(func() { win.SetVisible(!win.Visible()) })
-		}
-	})
+	surfaceutil.AddToggleOn(b, win, "toggle-sidebar")
 
 	return r
 }

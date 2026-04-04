@@ -5,37 +5,33 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/diamondburned/gotk4/pkg/gdk/v4"
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
-	"github.com/sonroyaalmerol/snry-shell/internal/layershell"
 	"github.com/sonroyaalmerol/snry-shell/internal/bus"
+	"github.com/sonroyaalmerol/snry-shell/internal/gtkutil"
+	"github.com/sonroyaalmerol/snry-shell/internal/layershell"
+	"github.com/sonroyaalmerol/snry-shell/internal/surfaceutil"
 )
 
 const notesPath = ".local/share/snry-shell/notes.txt"
 
 // Overlay is a centered floating notes overlay.
 type Overlay struct {
-	win   *gtk.ApplicationWindow
-	buf   *gtk.TextBuffer
-	bus   *bus.Bus
-	path  string
+	win  *gtk.ApplicationWindow
+	buf  *gtk.TextBuffer
+	bus  *bus.Bus
+	path string
 }
 
 func New(app *gtk.Application, b *bus.Bus) *Overlay {
-	win := gtk.NewApplicationWindow(app)
-	win.SetDecorated(false)
-	win.SetName("snry-notes")
-
-	layershell.InitForWindow(win)
-	layershell.SetLayer(win, layershell.LayerOverlay)
-	layershell.SetAnchor(win, layershell.EdgeTop, true)
-	layershell.SetAnchor(win, layershell.EdgeBottom, true)
-	layershell.SetAnchor(win, layershell.EdgeLeft, true)
-	layershell.SetAnchor(win, layershell.EdgeRight, true)
-	layershell.SetKeyboardMode(win, layershell.KeyboardModeExclusive)
-	layershell.SetExclusiveZone(win, -1)
-	layershell.SetNamespace(win, "snry-notes")
+	win := layershell.NewWindow(app, layershell.WindowConfig{
+		Name:          "snry-notes",
+		Layer:         layershell.LayerOverlay,
+		Anchors:       layershell.FullscreenAnchors(),
+		KeyboardMode:  layershell.KeyboardModeExclusive,
+		ExclusiveZone: -1,
+		Namespace:     "snry-notes",
+	})
 
 	root := gtk.NewBox(gtk.OrientationVertical, 0)
 	root.AddCSSClass("notes-overlay")
@@ -50,18 +46,10 @@ func New(app *gtk.Application, b *bus.Bus) *Overlay {
 	title.SetHExpand(true)
 	title.SetHAlign(gtk.AlignStart)
 
-	clearBtn := gtk.NewButton()
-	clearBtn.AddCSSClass("notes-action-btn")
-	clearIcon := gtk.NewLabel("delete")
-	clearIcon.AddCSSClass("material-icon")
-	clearBtn.SetChild(clearIcon)
+	clearBtn := gtkutil.MaterialButtonWithClass("delete", "notes-action-btn")
 	clearBtn.SetTooltipText("Clear")
 
-	saveBtn := gtk.NewButton()
-	saveBtn.AddCSSClass("notes-action-btn")
-	saveIcon := gtk.NewLabel("save")
-	saveIcon.AddCSSClass("material-icon")
-	saveBtn.SetChild(saveIcon)
+	saveBtn := gtkutil.MaterialButtonWithClass("save", "notes-action-btn")
 	saveBtn.SetTooltipText("Save")
 
 	toolbar.Append(title)
@@ -112,16 +100,7 @@ func New(app *gtk.Application, b *bus.Bus) *Overlay {
 		}
 	})
 
-	keyCtrl := gtk.NewEventControllerKey()
-	keyCtrl.ConnectKeyPressed(func(keyval, keycode uint, state gdk.ModifierType) bool {
-		if keyval == 0xff1b {
-			p.save()
-			win.SetVisible(false)
-			return true
-		}
-		return false
-	})
-	win.AddController(keyCtrl)
+	surfaceutil.AddEscapeToCloseWithCallback(win, p.save)
 	win.SetVisible(false)
 	return p
 }

@@ -7,11 +7,10 @@ import (
 	"os/exec"
 	"path/filepath"
 
-	"github.com/diamondburned/gotk4/pkg/gdk/v4"
-	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
-	"github.com/sonroyaalmerol/snry-shell/internal/layershell"
 	"github.com/sonroyaalmerol/snry-shell/internal/bus"
+	"github.com/sonroyaalmerol/snry-shell/internal/layershell"
+	"github.com/sonroyaalmerol/snry-shell/internal/surfaceutil"
 )
 
 // WallpaperPicker is a full-screen overlay for browsing and selecting wallpapers.
@@ -21,18 +20,13 @@ type WallpaperPicker struct {
 }
 
 func New(app *gtk.Application, b *bus.Bus) *WallpaperPicker {
-	win := gtk.NewApplicationWindow(app)
-	win.SetDecorated(false)
-	win.SetName("snry-wallpaper-picker")
-
-	layershell.InitForWindow(win)
-	layershell.SetLayer(win, layershell.LayerOverlay)
-	layershell.SetAnchor(win, layershell.EdgeTop, true)
-	layershell.SetAnchor(win, layershell.EdgeBottom, true)
-	layershell.SetAnchor(win, layershell.EdgeLeft, true)
-	layershell.SetAnchor(win, layershell.EdgeRight, true)
-	layershell.SetKeyboardMode(win, layershell.KeyboardModeExclusive)
-	layershell.SetNamespace(win, "snry-wallpaper-picker")
+	win := layershell.NewWindow(app, layershell.WindowConfig{
+		Name:         "snry-wallpaper-picker",
+		Layer:        layershell.LayerOverlay,
+		Anchors:      layershell.FullscreenAnchors(),
+		KeyboardMode: layershell.KeyboardModeExclusive,
+		Namespace:    "snry-wallpaper-picker",
+	})
 
 	root := gtk.NewBox(gtk.OrientationVertical, 0)
 	root.AddCSSClass("wallpaper-picker")
@@ -66,15 +60,7 @@ func New(app *gtk.Application, b *bus.Bus) *WallpaperPicker {
 	})
 
 	// Escape to close.
-	keyCtrl := gtk.NewEventControllerKey()
-	keyCtrl.ConnectKeyPressed(func(keyval, keycode uint, state gdk.ModifierType) bool {
-		if keyval == 0xff1b { // Escape
-			win.SetVisible(false)
-			return true
-		}
-		return false
-	})
-	win.AddController(keyCtrl)
+	surfaceutil.AddEscapeToClose(win)
 	win.SetVisible(false)
 	return wp
 }

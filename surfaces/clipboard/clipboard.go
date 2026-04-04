@@ -5,11 +5,12 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/diamondburned/gotk4/pkg/gdk/v4"
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
-	"github.com/sonroyaalmerol/snry-shell/internal/layershell"
 	"github.com/sonroyaalmerol/snry-shell/internal/bus"
+	"github.com/sonroyaalmerol/snry-shell/internal/gtkutil"
+	"github.com/sonroyaalmerol/snry-shell/internal/layershell"
+	"github.com/sonroyaalmerol/snry-shell/internal/surfaceutil"
 )
 
 // Panel is a clipboard history overlay anchored to the top-right.
@@ -21,19 +22,15 @@ type Panel struct {
 }
 
 func New(app *gtk.Application, b *bus.Bus) *Panel {
-	win := gtk.NewApplicationWindow(app)
-	win.SetDecorated(false)
-	win.SetName("snry-clipboard")
-
-	layershell.InitForWindow(win)
-	layershell.SetLayer(win, layershell.LayerOverlay)
-	layershell.SetAnchor(win, layershell.EdgeTop, true)
-	layershell.SetAnchor(win, layershell.EdgeRight, true)
-	layershell.SetMargin(win, layershell.EdgeTop, 48)
-	layershell.SetMargin(win, layershell.EdgeRight, 8)
-	layershell.SetKeyboardMode(win, layershell.KeyboardModeOnDemand)
-	layershell.SetExclusiveZone(win, -1)
-	layershell.SetNamespace(win, "snry-clipboard")
+	win := layershell.NewWindow(app, layershell.WindowConfig{
+		Name:          "snry-clipboard",
+		Layer:         layershell.LayerOverlay,
+		Anchors:       map[layershell.Edge]bool{layershell.EdgeTop: true, layershell.EdgeRight: true},
+		Margins:       map[layershell.Edge]int{layershell.EdgeTop: 48, layershell.EdgeRight: 8},
+		KeyboardMode:  layershell.KeyboardModeOnDemand,
+		ExclusiveZone: -1,
+		Namespace:     "snry-clipboard",
+	})
 
 	p := &Panel{win: win, bus: b}
 
@@ -52,11 +49,7 @@ func New(app *gtk.Application, b *bus.Bus) *Panel {
 		p.refresh(p.search.Text())
 	})
 
-	clearBtn := gtk.NewButton()
-	clearBtn.AddCSSClass("clipboard-clear-btn")
-	clearIcon := gtk.NewLabel("delete_sweep")
-	clearIcon.AddCSSClass("material-icon")
-	clearBtn.SetChild(clearIcon)
+	clearBtn := gtkutil.MaterialButtonWithClass("delete_sweep", "clipboard-clear-btn")
 	clearBtn.SetTooltipText("Clear all")
 	clearBtn.ConnectClicked(func() {
 		go func() { _ = exec.Command("cliphist", "wipe").Run() }()
@@ -93,15 +86,7 @@ func New(app *gtk.Application, b *bus.Bus) *Panel {
 		}
 	})
 
-	keyCtrl := gtk.NewEventControllerKey()
-	keyCtrl.ConnectKeyPressed(func(keyval, keycode uint, state gdk.ModifierType) bool {
-		if keyval == 0xff1b {
-			win.SetVisible(false)
-			return true
-		}
-		return false
-	})
-	win.AddController(keyCtrl)
+	surfaceutil.AddEscapeToClose(win)
 	win.SetVisible(false)
 	return p
 }
@@ -114,15 +99,7 @@ func (p *Panel) refresh(filter string) {
 		}
 		lines := strings.Split(strings.TrimSpace(string(out)), "\n")
 		glib.IdleAdd(func() {
-			// Remove old children by collecting first.
-			var children []gtk.Widgetter
-			for child := p.list.FirstChild(); child != nil; {
-				children = append(children, child)
-				child = child.(*gtk.Widget).NextSibling()
-			}
-			for _, c := range children {
-				p.list.Remove(c)
-			}
+			gtkutil.ClearChildren(&p.list.Widget)
 
 			for _, line := range lines {
 				if line == "" {
