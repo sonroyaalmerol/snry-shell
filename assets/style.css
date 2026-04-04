@@ -54,7 +54,7 @@
 
 /* Left zone */
 .workspaces {
-    margin-end: 6px;
+    margin-right: 6px;
 }
 
 .workspace-pill {
@@ -110,7 +110,7 @@
 
 /* Right zone — status indicators */
 .indicators {
-    margin-start: 2px;
+    margin-left: 2px;
 }
 
 .status-indicator {
@@ -130,8 +130,7 @@
     border-radius: 9999px;
     padding: 2px 12px;
     font-size: 12px;
-    max-width: 200px;
-    margin-end: 6px;
+    margin-right: 6px;
 }
 
 /* ── Overview ────────────────────────────────────────────────────────────────── */
@@ -302,7 +301,7 @@
     font-family: "Material Symbols Rounded";
     font-size: 24px;
     color: @col_on_surface;
-    margin-end: 12px;
+    margin-right: 12px;
 }
 
 scale.osd-slider trough {
@@ -406,7 +405,6 @@ scale.osd-slider slider {
     padding: 12px 16px;
     margin-bottom: 6px;
     min-width: 320px;
-    max-width: 400px;
     box-shadow: 0 4px 12px alpha(#000000, 0.25);
 }
 
@@ -605,7 +603,6 @@ scale.media-progress slider {
     font-size: 11px;
     color: @col_on_surface_variant;
     font-family: "Google Sans Flex", sans-serif;
-    text-align: center;
 }
 
 .cal-grid {
@@ -700,7 +697,7 @@ scale.media-progress slider {
     font-family: "Material Symbols Rounded";
     font-size: 18px;
     color: @col_on_surface;
-    margin-end: 4px;
+    margin-right: 4px;
 }
 
 .control-label {
@@ -1689,8 +1686,6 @@ scale.mixer-slider slider {
 
 .emoji-grid {
     padding: 8px;
-    row-spacing: 2px;
-    column-spacing: 2px;
 }
 
 .emoji-category-header {

@@ -56,12 +56,11 @@ const (
 )
 
 func WindowPtr(w any) *C.GtkWindow {
-	type native interface {
-		native() uintptr
+	type nativeGetter interface {
+		Native() uintptr
 	}
-	if n, ok := w.(native); ok {
-		p := n.native()
-		return (*C.GtkWindow)(unsafe.Pointer(p))
+	if n, ok := w.(nativeGetter); ok {
+		return (*C.GtkWindow)(unsafe.Pointer(n.Native()))
 	}
 	return nil
 }
