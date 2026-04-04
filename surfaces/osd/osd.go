@@ -15,11 +15,12 @@ const dismissDelay = 1500 * time.Millisecond
 
 // OSD is a floating on-screen display for volume and brightness.
 type OSD struct {
-	win   *gtk.ApplicationWindow
-	icon  *gtk.Label
-	scale *gtk.Scale
-	timer *time.Timer
-	bus   *bus.Bus
+	win       *gtk.ApplicationWindow
+	icon      *gtk.Label
+	scale     *gtk.Scale
+	timer     *time.Timer
+	bus       *bus.Bus
+	lastAudio state.AudioSink
 }
 
 // New creates the OSD window (hidden by default) and wires bus subscriptions.
@@ -39,6 +40,10 @@ func New(app *gtk.Application, b *bus.Bus) *OSD {
 
 	b.Subscribe(bus.TopicAudio, func(e bus.Event) {
 		sink := e.Data.(state.AudioSink)
+		if sink == o.lastAudio {
+			return
+		}
+		o.lastAudio = sink
 		vol := sink.Volume
 		if sink.Muted {
 			vol = 0

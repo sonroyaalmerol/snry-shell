@@ -26,7 +26,7 @@ func NewWithDefaults(b *bus.Bus) *Service {
 }
 
 func (s *Service) Run(ctx context.Context) error {
-	return runner.PollLoop(ctx, 500*time.Millisecond, s.poll)
+	return runner.PollLoop(ctx, 200*time.Millisecond, s.poll)
 }
 
 func (s *Service) poll() {

@@ -53,8 +53,8 @@ func (b *Bar) buildCenter(refs *servicerefs.ServiceRefs) gtk.Widgetter {
 	// Status indicators group (resources, volume, brightness, battery, keyboard).
 	statusGroup := clickableBarGroup(newStatusWidgetGroup(b.bus, refs), b.bus)
 
-	// Workspaces group.
-	wsGroup := clickableBarGroup(newWorkspacesWidget(b.bus, refs.Hyprland), b.bus)
+	// Workspaces group (not clickable — has its own interactive buttons).
+	wsGroup := barGroup(newWorkspacesWidget(b.bus, refs.Hyprland))
 
 	// Clock + media group.
 	clockGroup := clickableBarGroup(newClockGroup(b.bus), b.bus)
