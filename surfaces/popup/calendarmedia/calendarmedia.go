@@ -1,9 +1,6 @@
 package calendarmedia
 
 import (
-	"fmt"
-	"os"
-
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/sonroyaalmerol/snry-shell/internal/bus"
@@ -100,9 +97,6 @@ func (cm *CalendarMedia) positionUnderTrigger() {
 	triggerW := surfaceutil.WidgetWidth(cm.trigger)
 	popupW := panelWidth + panelMargin*2
 	monW := surfaceutil.MonitorWidth()
-
-	fmt.Fprintf(os.Stderr, "calmedia: triggerX=%d triggerW=%d popupW=%d monW=%d\n",
-		triggerX, triggerW, popupW, monW)
 
 	desiredLeft := triggerX + triggerW/2 - popupW/2
 	if monW > 0 {

@@ -65,9 +65,10 @@ func NewQuickToggles(b *bus.Bus, refs *servicerefs.ServiceRefs) gtk.Widgetter {
 		},
 		// ── Display ──
 		{
-			icon:  "nightlight",
-			label: "Night Light",
-			topic: bus.TopicNightMode,
+			icon:     "nightlight",
+			label:    "Night Light",
+			topic:    bus.TopicNightMode,
+			requires: "hyprsunset",
 			toggle: func(_ bool) {
 				if refs.NightMode != nil {
 					refs.NightMode.Toggle()
@@ -75,9 +76,9 @@ func NewQuickToggles(b *bus.Bus, refs *servicerefs.ServiceRefs) gtk.Widgetter {
 			},
 		},
 		{
-			icon:  "visibility",
+			icon:     "visibility",
 			label:    "Anti-Flash",
-				requires: "hyprctl",
+			requires: "hyprctl",
 			toggle: func(active bool) {
 				val := "0"
 				if active {
@@ -88,26 +89,19 @@ func NewQuickToggles(b *bus.Bus, refs *servicerefs.ServiceRefs) gtk.Widgetter {
 		},
 		// ── Audio ──
 		{
-			icon:  "mic",
+			icon:     "mic",
 			label:    "Mic Mute",
-				requires: "wpctl",
+			requires: "wpctl",
 			toggle: func(_ bool) {
 				go func() { _ = exec.Command("wpctl", "set-mute", "@DEFAULT_SOURCE@", "toggle").Run() }()
 			},
 		},
 		{
-			icon:  "equalizer",
+			icon:     "equalizer",
 			label:    "EasyEffects",
-				requires: "easyeffects",
+			requires: "easyeffects",
 			toggle: func(_ bool) {
 				go func() { _ = exec.Command("easyeffects", "-t").Run() }()
-			},
-		},
-		{
-			icon:  "music_note",
-			label: "Volume Mixer",
-			toggle: func(_ bool) {
-				b.Publish(bus.TopicSystemControls, "open-volume-mixer")
 			},
 		},
 		// ── System ──
@@ -120,9 +114,9 @@ func NewQuickToggles(b *bus.Bus, refs *servicerefs.ServiceRefs) gtk.Widgetter {
 			},
 		},
 		{
-			icon:  "keep_public",
+			icon:     "keep_public",
 			label:    "Idle Off",
-				requires: "hyprctl",
+			requires: "hyprctl",
 			toggle: func(active bool) {
 				action := "close"
 				if active {
@@ -132,17 +126,17 @@ func NewQuickToggles(b *bus.Bus, refs *servicerefs.ServiceRefs) gtk.Widgetter {
 			},
 		},
 		{
-			icon:  "sports_esports",
+			icon:     "sports_esports",
 			label:    "GameMode",
-				requires: "gamemoderectl",
+			requires: "gamemoderectl",
 			toggle: func(_ bool) {
 				go func() { _ = exec.Command("gamemoderectl", "-t").Run() }()
 			},
 		},
 		{
-			icon:  "speed",
+			icon:     "speed",
 			label:    "Performance",
-				requires: "powerprofilesctl",
+			requires: "powerprofilesctl",
 			toggle: func(active bool) {
 				profile := "balanced"
 				if active {
@@ -160,21 +154,11 @@ func NewQuickToggles(b *bus.Bus, refs *servicerefs.ServiceRefs) gtk.Widgetter {
 			},
 		},
 		{
-			icon:  "colorize",
+			icon:     "colorize",
 			label:    "Color Pick",
-				requires: "hyprpicker",
+			requires: "hyprpicker",
 			toggle: func(_ bool) {
 				go func() { _ = exec.Command("hyprpicker").Run() }()
-			},
-		},
-		{
-			icon:  "wifi",
-			label: "WiFi Networks",
-			toggle: func(_ bool) {
-				if refs.Network != nil {
-					go refs.Network.ScanWiFi()
-				}
-				b.Publish(bus.TopicSystemControls, "open-wifi-picker")
 			},
 		},
 	}

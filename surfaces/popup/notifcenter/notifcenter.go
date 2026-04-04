@@ -1,9 +1,6 @@
 package notifcenter
 
 import (
-	"fmt"
-	"os"
-
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/sonroyaalmerol/snry-shell/internal/bus"
@@ -22,6 +19,7 @@ const (
 type NotifCenter struct {
 	win     *gtk.ApplicationWindow
 	bus     *bus.Bus
+	refs    *servicerefs.ServiceRefs
 	trigger gtk.Widgetter
 	root    *gtk.Box
 }
@@ -37,7 +35,7 @@ func New(app *gtk.Application, b *bus.Bus, refs *servicerefs.ServiceRefs, trigge
 		Namespace:     "snry-notif-center",
 	})
 
-	nc := &NotifCenter{win: win, bus: b, trigger: trigger}
+	nc := &NotifCenter{win: win, bus: b, refs: refs, trigger: trigger}
 	nc.build(refs)
 	win.SetVisible(false)
 
@@ -101,9 +99,6 @@ func (nc *NotifCenter) positionUnderTrigger() {
 	popupW := panelWidth + panelMargin*2
 	monW := surfaceutil.MonitorWidth()
 
-	fmt.Fprintf(os.Stderr, "notifcenter: triggerX=%d triggerW=%d popupW=%d monW=%d\n",
-		triggerX, triggerW, popupW, monW)
-
 	desiredLeft := triggerX + triggerW/2 - popupW/2
 	if monW > 0 {
 		if desiredLeft < panelMargin {
@@ -122,6 +117,9 @@ func (nc *NotifCenter) Toggle() {
 		nc.win.SetVisible(false)
 	} else {
 		nc.positionUnderTrigger()
+		if nc.refs.Network != nil {
+			go nc.refs.Network.ScanWiFi()
+		}
 		nc.win.SetVisible(true)
 	}
 }
