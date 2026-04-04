@@ -9,11 +9,11 @@ import (
 	"time"
 
 	"github.com/diamondburned/gotk4/pkg/cairo"
-	"github.com/diamondburned/gotk4/pkg/gdk/v4"
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/sonroyaalmerol/snry-shell/internal/bus"
 	"github.com/sonroyaalmerol/snry-shell/internal/layershell"
+	"github.com/sonroyaalmerol/snry-shell/internal/surfaceutil"
 )
 
 type RegionSelector struct {
@@ -25,19 +25,14 @@ type RegionSelector struct {
 }
 
 func New(app *gtk.Application, b *bus.Bus) *RegionSelector {
-	win := gtk.NewApplicationWindow(app)
-	win.SetDecorated(false)
-	win.SetName("snry-region-selector")
-
-	layershell.InitForWindow(win)
-	layershell.SetLayer(win, layershell.LayerOverlay)
-	layershell.SetAnchor(win, layershell.EdgeTop, true)
-	layershell.SetAnchor(win, layershell.EdgeBottom, true)
-	layershell.SetAnchor(win, layershell.EdgeLeft, true)
-	layershell.SetAnchor(win, layershell.EdgeRight, true)
-	layershell.SetKeyboardMode(win, layershell.KeyboardModeNone)
-	layershell.SetExclusiveZone(win, -1)
-	layershell.SetNamespace(win, "snry-region-selector")
+	win := layershell.NewWindow(app, layershell.WindowConfig{
+		Name:          "snry-region-selector",
+		Layer:         layershell.LayerOverlay,
+		Anchors:       layershell.FullscreenAnchors(),
+		KeyboardMode:  layershell.KeyboardModeNone,
+		ExclusiveZone: -1,
+		Namespace:     "snry-region-selector",
+	})
 
 	rs := &RegionSelector{win: win, bus: b}
 
@@ -107,15 +102,7 @@ func New(app *gtk.Application, b *bus.Bus) *RegionSelector {
 	})
 
 	// Escape to cancel.
-	keyCtrl := gtk.NewEventControllerKey()
-	keyCtrl.ConnectKeyPressed(func(keyval, keycode uint, _ gdk.ModifierType) bool {
-		if keyval == 0xff1b {
-			win.SetVisible(false)
-			return true
-		}
-		return false
-	})
-	win.AddController(keyCtrl)
+	surfaceutil.AddEscapeToClose(win)
 
 	win.SetVisible(false)
 	return rs

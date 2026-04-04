@@ -8,6 +8,7 @@ import (
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/sonroyaalmerol/snry-shell/internal/bus"
 	"github.com/sonroyaalmerol/snry-shell/internal/layershell"
+	"github.com/sonroyaalmerol/snry-shell/internal/surfaceutil"
 )
 
 // Crosshair is a transparent full-screen overlay drawing a crosshair at center.
@@ -17,19 +18,14 @@ type Crosshair struct {
 }
 
 func New(app *gtk.Application, b *bus.Bus) *Crosshair {
-	win := gtk.NewApplicationWindow(app)
-	win.SetDecorated(false)
-	win.SetName("snry-crosshair")
-
-	layershell.InitForWindow(win)
-	layershell.SetLayer(win, layershell.LayerOverlay)
-	layershell.SetAnchor(win, layershell.EdgeTop, true)
-	layershell.SetAnchor(win, layershell.EdgeBottom, true)
-	layershell.SetAnchor(win, layershell.EdgeLeft, true)
-	layershell.SetAnchor(win, layershell.EdgeRight, true)
-	layershell.SetKeyboardMode(win, layershell.KeyboardModeNone)
-	layershell.SetExclusiveZone(win, -1)
-	layershell.SetNamespace(win, "snry-crosshair")
+	win := layershell.NewWindow(app, layershell.WindowConfig{
+		Name:          "snry-crosshair",
+		Layer:         layershell.LayerOverlay,
+		Anchors:       layershell.FullscreenAnchors(),
+		KeyboardMode:  layershell.KeyboardModeNone,
+		ExclusiveZone: -1,
+		Namespace:     "snry-crosshair",
+	})
 
 	area := gtk.NewDrawingArea()
 	area.AddCSSClass("crosshair-overlay")
@@ -63,11 +59,7 @@ func New(app *gtk.Application, b *bus.Bus) *Crosshair {
 
 	c := &Crosshair{win: win, bus: b}
 
-	b.Subscribe(bus.TopicSystemControls, func(e bus.Event) {
-		if e.Data == "toggle-crosshair" {
-			win.SetVisible(!win.Visible())
-		}
-	})
+	surfaceutil.AddToggleOn(b, win, "toggle-crosshair")
 
 	win.SetVisible(false)
 	return c

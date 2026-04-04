@@ -2,10 +2,10 @@
 package imageviewer
 
 import (
-	"github.com/diamondburned/gotk4/pkg/gdk/v4"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
-	"github.com/sonroyaalmerol/snry-shell/internal/layershell"
 	"github.com/sonroyaalmerol/snry-shell/internal/bus"
+	"github.com/sonroyaalmerol/snry-shell/internal/layershell"
+	"github.com/sonroyaalmerol/snry-shell/internal/surfaceutil"
 )
 
 // Viewer is a centered overlay that displays a single image.
@@ -15,19 +15,14 @@ type Viewer struct {
 }
 
 func New(app *gtk.Application, b *bus.Bus) *Viewer {
-	win := gtk.NewApplicationWindow(app)
-	win.SetDecorated(false)
-	win.SetName("snry-image-viewer")
-
-	layershell.InitForWindow(win)
-	layershell.SetLayer(win, layershell.LayerOverlay)
-	layershell.SetAnchor(win, layershell.EdgeTop, true)
-	layershell.SetAnchor(win, layershell.EdgeBottom, true)
-	layershell.SetAnchor(win, layershell.EdgeLeft, true)
-	layershell.SetAnchor(win, layershell.EdgeRight, true)
-	layershell.SetKeyboardMode(win, layershell.KeyboardModeOnDemand)
-	layershell.SetExclusiveZone(win, -1)
-	layershell.SetNamespace(win, "snry-image-viewer")
+	win := layershell.NewWindow(app, layershell.WindowConfig{
+		Name:          "snry-image-viewer",
+		Layer:         layershell.LayerOverlay,
+		Anchors:       layershell.FullscreenAnchors(),
+		KeyboardMode:  layershell.KeyboardModeOnDemand,
+		ExclusiveZone: -1,
+		Namespace:     "snry-image-viewer",
+	})
 
 	v := &Viewer{win: win, bus: b}
 
@@ -45,15 +40,7 @@ func New(app *gtk.Application, b *bus.Bus) *Viewer {
 	})
 	win.AddController(gesture)
 
-	keyCtrl := gtk.NewEventControllerKey()
-	keyCtrl.ConnectKeyPressed(func(keyval, keycode uint, state gdk.ModifierType) bool {
-		if keyval == 0xff1b {
-			win.SetVisible(false)
-			return true
-		}
-		return false
-	})
-	win.AddController(keyCtrl)
+	surfaceutil.AddEscapeToClose(win)
 	win.SetVisible(false)
 	return v
 }

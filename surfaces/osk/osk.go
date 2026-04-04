@@ -8,6 +8,7 @@ import (
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/sonroyaalmerol/snry-shell/internal/bus"
 	"github.com/sonroyaalmerol/snry-shell/internal/layershell"
+	"github.com/sonroyaalmerol/snry-shell/internal/surfaceutil"
 )
 
 type OSK struct {
@@ -16,28 +17,20 @@ type OSK struct {
 }
 
 func New(app *gtk.Application, b *bus.Bus) *OSK {
-	win := gtk.NewApplicationWindow(app)
-	win.SetDecorated(false)
-	win.SetName("snry-osk")
-
-	layershell.InitForWindow(win)
-	layershell.SetLayer(win, layershell.LayerOverlay)
-	layershell.SetAnchor(win, layershell.EdgeBottom, true)
-	layershell.SetAnchor(win, layershell.EdgeLeft, true)
-	layershell.SetAnchor(win, layershell.EdgeRight, true)
-	layershell.SetKeyboardMode(win, layershell.KeyboardModeNone)
-	layershell.SetExclusiveZone(win, -1)
-	layershell.SetNamespace(win, "snry-osk")
+	win := layershell.NewWindow(app, layershell.WindowConfig{
+		Name:          "snry-osk",
+		Layer:         layershell.LayerOverlay,
+		Anchors:       layershell.BottomEdgeAnchors(),
+		KeyboardMode:  layershell.KeyboardModeNone,
+		ExclusiveZone: -1,
+		Namespace:     "snry-osk",
+	})
 
 	osk := &OSK{win: win, bus: b}
 	osk.build()
 	win.SetVisible(false)
 
-	b.Subscribe(bus.TopicSystemControls, func(e bus.Event) {
-		if e.Data == "toggle-osk" {
-			glib.IdleAdd(func() { win.SetVisible(!win.Visible()) })
-		}
-	})
+	surfaceutil.AddToggleOn(b, win, "toggle-osk")
 
 	return osk
 }

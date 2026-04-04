@@ -9,36 +9,34 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/diamondburned/gotk4/pkg/gdk/v4"
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
-	"github.com/sonroyaalmerol/snry-shell/internal/layershell"
 	"github.com/sonroyaalmerol/snry-shell/internal/bus"
+	"github.com/sonroyaalmerol/snry-shell/internal/layershell"
+	"github.com/sonroyaalmerol/snry-shell/internal/surfaceutil"
 )
 
 // Overlay is a small floating pill for screen recording controls.
 type Overlay struct {
-	win      *gtk.ApplicationWindow
+	win       *gtk.ApplicationWindow
 	recordBtn *gtk.Button
-	timerLbl *gtk.Label
+	timerLbl  *gtk.Label
 	recording bool
-	cmd      *exec.Cmd
-	start    time.Time
-	bus      *bus.Bus
+	cmd       *exec.Cmd
+	start     time.Time
+	bus       *bus.Bus
 }
 
 func New(app *gtk.Application, b *bus.Bus) *Overlay {
-	win := gtk.NewApplicationWindow(app)
-	win.SetDecorated(false)
-	win.SetName("snry-recorder")
-
-	layershell.InitForWindow(win)
-	layershell.SetLayer(win, layershell.LayerOverlay)
-	layershell.SetAnchor(win, layershell.EdgeBottom, true)
-	layershell.SetMargin(win, layershell.EdgeBottom, 120)
-	layershell.SetKeyboardMode(win, layershell.KeyboardModeNone)
-	layershell.SetExclusiveZone(win, -1)
-	layershell.SetNamespace(win, "snry-recorder")
+	win := layershell.NewWindow(app, layershell.WindowConfig{
+		Name:          "snry-recorder",
+		Layer:         layershell.LayerOverlay,
+		Anchors:       map[layershell.Edge]bool{layershell.EdgeBottom: true},
+		Margins:       map[layershell.Edge]int{layershell.EdgeBottom: 120},
+		KeyboardMode:  layershell.KeyboardModeNone,
+		ExclusiveZone: -1,
+		Namespace:     "snry-recorder",
+	})
 
 	box := gtk.NewBox(gtk.OrientationHorizontal, 12)
 	box.AddCSSClass("recorder-pill")
@@ -82,18 +80,11 @@ func New(app *gtk.Application, b *bus.Bus) *Overlay {
 		}
 	})
 
-	keyCtrl := gtk.NewEventControllerKey()
-	keyCtrl.ConnectKeyPressed(func(keyval, keycode uint, state gdk.ModifierType) bool {
-		if keyval == 0xff1b {
-			if o.recording {
-				o.stop()
-			}
-			win.SetVisible(false)
-			return true
+	surfaceutil.AddEscapeToCloseWithCallback(win, func() {
+		if o.recording {
+			o.stop()
 		}
-		return false
 	})
-	win.AddController(keyCtrl)
 	win.SetVisible(false)
 	return o
 }

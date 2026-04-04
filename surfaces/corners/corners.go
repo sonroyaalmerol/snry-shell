@@ -59,19 +59,14 @@ func New(app *gtk.Application, b *bus.Bus) {
 	}
 
 	for pos, action := range actions {
-		win := gtk.NewApplicationWindow(app)
-		win.SetDecorated(false)
-		win.SetName("snry-corner")
-
-		layershell.InitForWindow(win)
-		layershell.SetLayer(win, layershell.LayerOverlay)
-		layershell.SetAnchor(win, layershell.EdgeTop, true)
-		layershell.SetAnchor(win, layershell.EdgeBottom, true)
-		layershell.SetAnchor(win, layershell.EdgeLeft, true)
-		layershell.SetAnchor(win, layershell.EdgeRight, true)
-		layershell.SetKeyboardMode(win, layershell.KeyboardModeNone)
-		layershell.SetExclusiveZone(win, -1)
-		layershell.SetNamespace(win, "snry-corner")
+		win := layershell.NewWindow(app, layershell.WindowConfig{
+			Name:          "snry-corner",
+			Layer:         layershell.LayerOverlay,
+			Anchors:       layershell.FullscreenAnchors(),
+			KeyboardMode:  layershell.KeyboardModeNone,
+			ExclusiveZone: -1,
+			Namespace:     "snry-corner",
+		})
 
 		box := gtk.NewBox(gtk.OrientationHorizontal, 0)
 		box.SetSizeRequest(cornerSize, cornerSize)

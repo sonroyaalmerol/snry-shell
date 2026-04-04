@@ -2,11 +2,10 @@
 package cheatsheet
 
 import (
-	"github.com/diamondburned/gotk4/pkg/gdk/v4"
-	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
-	"github.com/sonroyaalmerol/snry-shell/internal/layershell"
 	"github.com/sonroyaalmerol/snry-shell/internal/bus"
+	"github.com/sonroyaalmerol/snry-shell/internal/layershell"
+	"github.com/sonroyaalmerol/snry-shell/internal/surfaceutil"
 )
 
 // Keybind represents a single keyboard shortcut entry.
@@ -38,18 +37,13 @@ type Cheatsheet struct {
 }
 
 func New(app *gtk.Application, b *bus.Bus) *Cheatsheet {
-	win := gtk.NewApplicationWindow(app)
-	win.SetDecorated(false)
-	win.SetName("snry-cheatsheet")
-
-	layershell.InitForWindow(win)
-	layershell.SetLayer(win, layershell.LayerOverlay)
-	layershell.SetAnchor(win, layershell.EdgeTop, true)
-	layershell.SetAnchor(win, layershell.EdgeBottom, true)
-	layershell.SetAnchor(win, layershell.EdgeLeft, true)
-	layershell.SetAnchor(win, layershell.EdgeRight, true)
-	layershell.SetKeyboardMode(win, layershell.KeyboardModeOnDemand)
-	layershell.SetNamespace(win, "snry-cheatsheet")
+	win := layershell.NewWindow(app, layershell.WindowConfig{
+		Name:         "snry-cheatsheet",
+		Layer:        layershell.LayerOverlay,
+		Anchors:      layershell.FullscreenAnchors(),
+		KeyboardMode: layershell.KeyboardModeOnDemand,
+		Namespace:    "snry-cheatsheet",
+	})
 
 	cs := &Cheatsheet{win: win, bus: b}
 	cs.build()
@@ -100,15 +94,7 @@ func (cs *Cheatsheet) build() {
 	outer.Append(card)
 
 	// Close on Escape or click outside the card.
-	keyCtrl := gtk.NewEventControllerKey()
-	keyCtrl.ConnectKeyPressed(func(keyval, keycode uint, state gdk.ModifierType) bool {
-		if keyval == 0xff1b { // GDK_KEY_Escape
-			cs.win.SetVisible(false)
-			return true
-		}
-		return false
-	})
-	cs.win.AddController(keyCtrl)
+	surfaceutil.AddEscapeToClose(cs.win)
 	cs.win.SetChild(outer)
 }
 

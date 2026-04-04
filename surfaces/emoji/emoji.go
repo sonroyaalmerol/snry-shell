@@ -5,11 +5,12 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/diamondburned/gotk4/pkg/gdk/v4"
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
-	"github.com/sonroyaalmerol/snry-shell/internal/layershell"
 	"github.com/sonroyaalmerol/snry-shell/internal/bus"
+	"github.com/sonroyaalmerol/snry-shell/internal/gtkutil"
+	"github.com/sonroyaalmerol/snry-shell/internal/layershell"
+	"github.com/sonroyaalmerol/snry-shell/internal/surfaceutil"
 )
 
 // Picker is a bottom-center emoji picker overlay.
@@ -21,17 +22,15 @@ type Picker struct {
 }
 
 func New(app *gtk.Application, b *bus.Bus) *Picker {
-	win := gtk.NewApplicationWindow(app)
-	win.SetDecorated(false)
-	win.SetName("snry-emoji-picker")
-
-	layershell.InitForWindow(win)
-	layershell.SetLayer(win, layershell.LayerOverlay)
-	layershell.SetAnchor(win, layershell.EdgeBottom, true)
-	layershell.SetMargin(win, layershell.EdgeBottom, 60)
-	layershell.SetKeyboardMode(win, layershell.KeyboardModeOnDemand)
-	layershell.SetExclusiveZone(win, -1)
-	layershell.SetNamespace(win, "snry-emoji-picker")
+	win := layershell.NewWindow(app, layershell.WindowConfig{
+		Name:          "snry-emoji-picker",
+		Layer:         layershell.LayerOverlay,
+		Anchors:       map[layershell.Edge]bool{layershell.EdgeBottom: true},
+		Margins:       map[layershell.Edge]int{layershell.EdgeBottom: 60},
+		KeyboardMode:  layershell.KeyboardModeOnDemand,
+		ExclusiveZone: -1,
+		Namespace:     "snry-emoji-picker",
+	})
 
 	root := gtk.NewBox(gtk.OrientationVertical, 0)
 	root.AddCSSClass("emoji-picker")
@@ -77,15 +76,7 @@ func New(app *gtk.Application, b *bus.Bus) *Picker {
 		}
 	})
 
-	keyCtrl := gtk.NewEventControllerKey()
-	keyCtrl.ConnectKeyPressed(func(keyval, keycode uint, state gdk.ModifierType) bool {
-		if keyval == 0xff1b {
-			win.SetVisible(false)
-			return true
-		}
-		return false
-	})
-	win.AddController(keyCtrl)
+	surfaceutil.AddEscapeToClose(win)
 	win.SetVisible(false)
 	return p
 }
@@ -104,15 +95,7 @@ func emojiButton(parent *gtk.FlowBox, emoji, name string) {
 }
 
 func populateGrid(grid *gtk.FlowBox) {
-	// Remove old children.
-	var children []gtk.Widgetter
-	for child := grid.FirstChild(); child != nil; {
-		children = append(children, child)
-		child = child.(*gtk.Widget).NextSibling()
-	}
-	for _, c := range children {
-		grid.Remove(c)
-	}
+	gtkutil.ClearChildren(&grid.Widget)
 
 	categories := map[string][]struct {
 		e string
