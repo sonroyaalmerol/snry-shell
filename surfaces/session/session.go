@@ -3,6 +3,7 @@
 package session
 
 import (
+	"log"
 	"os/exec"
 	"time"
 
@@ -115,7 +116,6 @@ func (s *Session) buildBtn(a struct {
 
 	inner.Append(icon)
 	inner.Append(label)
-	btn.SetChild(btn.Child()) // empty by default
 	btn.SetChild(inner)
 
 	action := a
@@ -125,7 +125,9 @@ func (s *Session) buildBtn(a struct {
 		s.win.SetVisible(false)
 		go func() {
 			time.Sleep(200 * time.Millisecond)
-			_ = exec.Command(cmd[0], cmd[1:]...).Run()
+			if err := exec.Command(cmd[0], cmd[1:]...).Run(); err != nil {
+				log.Printf("session: %s: %v", cmd[0], err)
+			}
 		}()
 	})
 	return btn

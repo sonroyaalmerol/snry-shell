@@ -200,5 +200,4 @@ func (s *Settings) buildBarPage() gtk.Widgetter {
 
 func (s *Settings) save() {
 	_ = appsettings.Save(s.cfg)
-	s.bus.Publish(bus.TopicSettings, s.cfg)
 }

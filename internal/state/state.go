@@ -14,11 +14,9 @@ type BrightnessState struct { Current int; Max int }
 
 type SystemControls struct { Volume float64; Brightness float64; NetworkEnabled bool; BluetoothEnabled bool; NightModeEnabled bool }
 type BluetoothState struct { Powered bool; Connected bool; DeviceName string }
-type WallpaperEntry struct { Path string; Thumbnail string }
 type SessionAction int
 const (SessionLock SessionAction = iota; SessionSuspend; SessionReboot; SessionShutdown; SessionLogout)
 type LockScreenState struct { Locked bool }
-type SettingsState struct { DarkMode bool; FontScale float64; BarPosition string }
 type MediaTick struct { PlayerName string; Position float64; Duration float64; At time.Time }
 
 type ResourceState struct { CPU float64; RAM float64 }
