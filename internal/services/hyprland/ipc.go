@@ -44,17 +44,18 @@ func (s *socketReader) Read() (string, string, error) {
 
 // Service listens to Hyprland socket2 events and publishes them on the bus.
 type Service struct {
-	reader          EventReader
-	bus             *bus.Bus
-	// occupiedWorkspaces tracks which workspace IDs currently have windows.
-	occupiedWorkspaces map[int]int // wsID → window count
+	reader    EventReader
+	bus       *bus.Bus
+	windows   map[string]int // window address → workspace ID
+	workspaces map[int]int   // wsID → window count
 }
 
 func New(reader EventReader, b *bus.Bus) *Service {
 	return &Service{
-		reader:             reader,
-		bus:                b,
-		occupiedWorkspaces: make(map[int]int),
+		reader:     reader,
+		bus:        b,
+		windows:    make(map[string]int),
+		workspaces: make(map[int]int),
 	}
 }
 
@@ -80,7 +81,7 @@ func (s *Service) handleEvent(event, data string) {
 	switch event {
 	case "workspace", "workspacev2":
 		ws := parseWorkspaceEvent(data)
-		ws.Occupied = s.occupiedWorkspaces[ws.ID] > 0
+		ws.Occupied = s.workspaces[ws.ID] > 0
 		s.bus.Publish(bus.TopicWorkspaces, ws)
 
 	case "activewindow", "activewindowv2":
@@ -90,9 +91,11 @@ func (s *Service) handleEvent(event, data string) {
 		// Format: "windowaddress,workspaceid,class,title"
 		parts := strings.SplitN(data, ",", 4)
 		if len(parts) >= 2 {
+			addr := parts[0]
 			var wsID int
 			fmt.Sscanf(parts[1], "%d", &wsID)
-			s.occupiedWorkspaces[wsID]++
+			s.windows[addr] = wsID
+			s.workspaces[wsID]++
 			s.bus.Publish(bus.TopicWorkspaces, state.Workspace{
 				ID:       wsID,
 				Occupied: true,
@@ -100,18 +103,16 @@ func (s *Service) handleEvent(event, data string) {
 		}
 
 	case "closewindow":
-		// Re-query occupancy after a close — we don't have the workspace here,
-		// so a full workspace refresh will happen on the next workspace event.
-		// Decrement whichever workspace had windows if tracked.
-		for wsID, count := range s.occupiedWorkspaces {
-			if count > 0 {
-				s.occupiedWorkspaces[wsID]--
-				if s.occupiedWorkspaces[wsID] == 0 {
-					s.bus.Publish(bus.TopicWorkspaces, state.Workspace{
-						ID:       wsID,
-						Occupied: false,
-					})
-				}
+		addr := strings.TrimSpace(data)
+		if wsID, ok := s.windows[addr]; ok {
+			delete(s.windows, addr)
+			s.workspaces[wsID]--
+			if s.workspaces[wsID] <= 0 {
+				delete(s.workspaces, wsID)
+				s.bus.Publish(bus.TopicWorkspaces, state.Workspace{
+					ID:       wsID,
+					Occupied: false,
+				})
 			}
 		}
 
@@ -119,9 +120,25 @@ func (s *Service) handleEvent(event, data string) {
 		// Format: "windowaddress,workspaceid"
 		parts := strings.SplitN(data, ",", 2)
 		if len(parts) == 2 {
-			var wsID int
-			fmt.Sscanf(parts[1], "%d", &wsID)
-			s.occupiedWorkspaces[wsID]++
+			addr := parts[0]
+			var destID int
+			fmt.Sscanf(parts[1], "%d", &destID)
+			if srcID, ok := s.windows[addr]; ok {
+				s.workspaces[srcID]--
+				if s.workspaces[srcID] <= 0 {
+					delete(s.workspaces, srcID)
+					s.bus.Publish(bus.TopicWorkspaces, state.Workspace{
+						ID:       srcID,
+						Occupied: false,
+					})
+				}
+			}
+			s.windows[addr] = destID
+			s.workspaces[destID]++
+			s.bus.Publish(bus.TopicWorkspaces, state.Workspace{
+				ID:       destID,
+				Occupied: true,
+			})
 		}
 
 	case "layoutchanged":
