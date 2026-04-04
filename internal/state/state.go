@@ -19,7 +19,6 @@ type SessionAction int
 const (SessionLock SessionAction = iota; SessionSuspend; SessionReboot; SessionShutdown; SessionLogout)
 type LockScreenState struct { Locked bool }
 type SettingsState struct { DarkMode bool; FontScale float64; BarPosition string }
-type SidebarState struct { BottomGroupCollapsed bool }
 type MediaTick struct { PlayerName string; Position float64; Duration float64; At time.Time }
 
 type ResourceState struct { CPU float64; RAM float64 }

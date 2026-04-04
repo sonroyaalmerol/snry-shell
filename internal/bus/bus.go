@@ -25,7 +25,6 @@ const (
 	TopicSessionAction  Topic = "session"
 	TopicScreenLock     Topic = "screenlock"
 	TopicSettings       Topic = "settings"
-	TopicSidebarState   Topic = "sidebarstate"
 
 	TopicResources        Topic = "resources"
 	TopicKeyboard         Topic = "keyboard"

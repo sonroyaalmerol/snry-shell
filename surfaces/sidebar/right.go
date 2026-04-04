@@ -8,7 +8,6 @@ import (
 	"github.com/sonroyaalmerol/snry-shell/internal/bus"
 	"github.com/sonroyaalmerol/snry-shell/internal/layershell"
 	"github.com/sonroyaalmerol/snry-shell/internal/servicerefs"
-	"github.com/sonroyaalmerol/snry-shell/internal/state"
 )
 
 // Right is the right-edge sidebar showing notifications, media, calendar, and controls.
@@ -115,11 +114,7 @@ func buildBottomGroup(b *bus.Bus, refs *servicerefs.ServiceRefs) gtk.Widgetter {
 		} else {
 			chevronLabel.SetText("expand_more")
 		}
-		b.Publish(bus.TopicSidebarState, state.SidebarState{
-			BottomGroupCollapsed: collapsed,
-		})
 	})
-
 	header := gtk.NewBox(gtk.OrientationHorizontal, 0)
 	header.SetHAlign(gtk.AlignFill)
 	label := gtk.NewLabel("Controls")

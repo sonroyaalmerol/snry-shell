@@ -30,6 +30,13 @@ func newNotificationList(b *bus.Bus) gtk.Widgetter {
 	nl.scroll.SetPolicy(gtk.PolicyNever, gtk.PolicyAutomatic)
 
 	b.Subscribe(bus.TopicNotification, func(e bus.Event) {
+		if e.Data == nil {
+			// Dismiss event — remove the most recent notification from sidebar.
+			glib.IdleAdd(func() {
+				nl.removeNewest()
+			})
+			return
+		}
 		n := e.Data.(state.Notification)
 		glib.IdleAdd(func() {
 			nl.prepend(n)
@@ -37,6 +44,16 @@ func newNotificationList(b *bus.Bus) gtk.Widgetter {
 	})
 
 	return nl.scroll
+}
+
+// removeNewest removes the first (newest) notification card from the list.
+func (nl *notificationList) removeNewest() {
+	if first := nl.box.FirstChild(); first != nil {
+		nl.box.Remove(first)
+		if nl.count > 0 {
+			nl.count--
+		}
+	}
 }
 
 func (nl *notificationList) prepend(n state.Notification) {
