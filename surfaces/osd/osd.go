@@ -2,6 +2,8 @@
 package osd
 
 import (
+	"log"
+	"os"
 	"time"
 
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
@@ -38,19 +40,22 @@ func New(app *gtk.Application, b *bus.Bus) *OSD {
 	o := &OSD{win: win, bus: b}
 	o.build()
 
+	osdLogger := log.New(os.Stderr, "[osd] ", log.Lmsgprefix|log.Ltime)
+
 	b.Subscribe(bus.TopicAudio, func(e bus.Event) {
 		sink := e.Data.(state.AudioSink)
 		// Only show OSD when volume or mute state actually changes.
 		if sink.Muted == o.lastAudio.Muted && sink.Volume == o.lastAudio.Volume {
 			return
 		}
+		osdLogger.Printf("audio changed: vol=%.4f muted=%v (last vol=%.4f muted=%v)", sink.Volume, sink.Muted, o.lastAudio.Volume, o.lastAudio.Muted)
 		o.lastAudio = sink
 		vol := sink.Volume
 		if sink.Muted {
 			vol = 0
 		}
 		icon := audioIcon(sink.Volume, sink.Muted)
-		o.show(icon, vol)
+		o.show(osdLogger, icon, vol)
 	})
 
 	b.Subscribe(bus.TopicBrightness, func(e bus.Event) {
@@ -59,7 +64,7 @@ func New(app *gtk.Application, b *bus.Bus) *OSD {
 		if bs.Max > 0 {
 			pct = float64(bs.Current) / float64(bs.Max)
 		}
-		o.show("brightness_medium", pct)
+		o.show(osdLogger, "brightness_medium", pct)
 	})
 
 	win.SetVisible(false)
@@ -90,10 +95,12 @@ func (o *OSD) build() {
 
 // show updates the OSD content and (re)starts the dismiss timer.
 // Safe to call from any goroutine — marshals onto the GTK main thread.
-func (o *OSD) show(iconName string, value float64) {
+func (o *OSD) show(logger *log.Logger, iconName string, value float64) {
 	glib.IdleAdd(func() {
+		logger.Printf("show: icon=%s value=%.4f scale.GetValue()=%.4f", iconName, value, o.scale.Value())
 		o.icon.SetText(iconName)
 		o.scale.SetValue(value)
+		logger.Printf("after SetValue: scale.GetValue()=%.4f", o.scale.Value())
 		o.win.SetVisible(true)
 
 		if o.timer != nil {

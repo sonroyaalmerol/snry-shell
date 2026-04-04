@@ -3,6 +3,9 @@
 package sidebar
 
 import (
+	"log"
+	"os"
+
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/sonroyaalmerol/snry-shell/internal/bus"
 	"github.com/sonroyaalmerol/snry-shell/internal/layershell"
@@ -37,20 +40,27 @@ func NewRight(app *gtk.Application, b *bus.Bus, refs *servicerefs.ServiceRefs) *
 	})
 	clickCatcher.SetVisible(false)
 
+	// The click catcher needs a child widget to receive input events.
+	dummy := gtk.NewBox(gtk.OrientationVertical, 0)
+	clickCatcher.SetChild(dummy)
+
 	r := &Right{win: win, clickCatcher: clickCatcher, bus: b}
 	r.build(refs)
 	win.SetVisible(false)
 
 	// Clicking the catcher dismisses the sidebar.
+	logger := log.New(os.Stderr, "[sidebar] ", log.Lmsgprefix|log.Ltime)
 	clickGesture := gtk.NewGestureClick()
 	clickGesture.SetButton(1)
 	clickGesture.ConnectReleased(func(_ int, _ float64, _ float64) {
+		logger.Printf("click catcher released — closing sidebar")
 		r.close()
 	})
 	clickCatcher.AddController(clickGesture)
 
 	b.Subscribe(bus.TopicSystemControls, func(e bus.Event) {
 		if e.Data == "toggle-sidebar" {
+			logger.Printf("toggle-sidebar received, currently visible=%v", r.win.Visible())
 			r.toggle()
 		}
 	})
@@ -104,16 +114,19 @@ func (r *Right) build(refs *servicerefs.ServiceRefs) {
 
 // toggle shows or hides the sidebar along with the click catcher.
 func (r *Right) toggle() {
+	log.New(os.Stderr, "[sidebar] ", log.Lmsgprefix|log.Ltime).Printf("toggle: visible=%v", r.win.Visible())
 	if r.win.Visible() {
 		r.close()
 	} else {
 		r.win.SetVisible(true)
 		r.clickCatcher.SetVisible(true)
+		log.New(os.Stderr, "[sidebar] ", log.Lmsgprefix|log.Ltime).Printf("opened: win=%v catcher=%v", r.win.Visible(), r.clickCatcher.Visible())
 	}
 }
 
 // close hides both the sidebar and click catcher.
 func (r *Right) close() {
+	log.New(os.Stderr, "[sidebar] ", log.Lmsgprefix|log.Ltime).Printf("close: hiding both windows")
 	r.win.SetVisible(false)
 	r.clickCatcher.SetVisible(false)
 }
