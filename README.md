@@ -25,7 +25,6 @@ snry-shell provides a complete desktop shell UI layer:
 - **Emoji picker** — categorized emoji grid with wl-copy
 - **Notes overlay** — persistent text notes (auto-saved to disk)
 - **Screen recorder** — wf-recorder integration with live timer
-- **FPS limiter** — Hyprland FPS control overlay
 - **Floating image viewer** — click-to-dismiss image display
 - **Polkit agent** — GUI authentication dialog (replaces text-based agent)
 - **On-screen keyboard** — QWERTY layout with key injection via wtype
@@ -50,7 +49,6 @@ surfaces/
   emoji/                        Emoji picker overlay
   notes/                        Notes overlay
   recorder/                     Screen recorder controls
-  fpslimiter/                   FPS limiter overlay
   imageviewer/                  Floating image viewer
   polkit/                       PolicyKit authentication agent
   osd/                          Volume/brightness on-screen display
@@ -119,7 +117,7 @@ yay -S snry-shell-bin
 #### Debian / Ubuntu
 
 ```
-sudo dpkg -i snry-shell_<version>_linux_x86_64.deb
+sudo dpkg -i snry-shell_<version>_linux_amd64.deb
 ```
 
 #### Fedora
@@ -137,13 +135,90 @@ See [Building](#building) below.
 - **Go** 1.26+
 - **Hyprland** compositor
 - **gtk4-layer-shell** development headers
-- **System tools**: pkg-config, swww, matugen, wpctl (wireplumber), grim, wl-copy, wtype, cliphist, hyprpicker, wf-recorder
+- **System tools**: pkgconf, swww, matugen, wpctl (wireplumber), grim, wl-copy, wtype, cliphist, hyprpicker, wf-recorder
+- **Optional**: checkpw (lock screen PAM), polkit-agent-helper-1 (polkit authentication)
 - **Fonts**: Google Sans Flex, Material Symbols Rounded, JetBrains Mono NF
 
 ### Arch Linux
 
+```sh
+# Build dependencies
+sudo pacman -S --needed gtk4 gtk4-layer-shell pkgconf go
+
+# Runtime dependencies (official repos)
+sudo pacman -S --needed wireplumber grim wl-clipboard wtype wf-recorder polkit
+
+# Runtime dependencies (AUR)
+yay -S swww matugen-bin cliphist hyprpicker
+
+# Fonts (AUR)
+yay -S ttf-google-sans ttf-material-symbols-variable-git
 ```
-pacman -S gtk4 gtk4-layer-shell pkg-config sww matugen wireplumber grim wl-clipboard wtype cliphist hyprpicker wf-recorder
+
+### Fedora / RHEL
+
+```sh
+# Enable COPR for gtk4-layer-shell
+sudo dnf copr enable solopash/hyprland
+
+# Build dependencies
+sudo dnf install gtk4-devel gtk4-layer-shell-devel pkgconf go gcc
+
+# Runtime dependencies (official repos)
+sudo dnf install wireplumber grim wl-clipboard wtype wf-recorder
+
+# Runtime dependencies (COPR or build from source)
+yay -S swww matugen hyprpicker cliphist
+
+# polkit
+sudo dnf install polkit
+```
+
+### Debian / Ubuntu
+
+```sh
+# Build dependencies
+sudo apt install libgtk-4-dev libgtk4-layer-shell-dev pkg-config golang gcc
+
+# Runtime dependencies (official repos)
+sudo apt install wireplumber grim wl-clipboard wtype cliphist \
+    hyprpicker wf-recorder checkpw polkitd
+
+# Runtime dependencies (build from source)
+cargo install swww matugen
+
+# Fonts (install manually from Google Fonts / Nerd Fonts)
+```
+
+### openSUSE (Tumbleweed)
+
+```sh
+# Build dependencies
+sudo zypper install gtk4-devel gtk4-layer-shell-devel pkg-config go gcc
+
+# Runtime dependencies (official repos)
+sudo zypper install swww wireplumber grim wl-clipboard wtype cliphist \
+    hyprpicker wf-recorder polkit
+
+# Runtime dependencies (build from source)
+cargo install matugen
+
+# Fonts (install manually from Google Fonts / Nerd Fonts)
+```
+
+### Alpine Linux
+
+```sh
+# Build dependencies
+sudo apk add gtk4.0-dev gtk4-layer-shell-dev pkgconf go gcc musl-dev
+
+# Runtime dependencies (official repos)
+sudo apk add swww wireplumber grim wl-clipboard wtype wf-recorder polkit
+
+# Runtime dependencies (build from source)
+cargo install matugen cliphist hyprpicker
+
+# Fonts (install manually from Google Fonts / Nerd Fonts)
 ```
 
 ## Building
@@ -156,6 +231,12 @@ Or directly:
 
 ```
 go build -o snry-shell ./cmd/snry-shell/
+```
+
+To install to `$GOPATH/bin`:
+
+```
+make install
 ```
 
 ## Running
