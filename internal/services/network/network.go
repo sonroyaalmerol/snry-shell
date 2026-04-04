@@ -42,7 +42,11 @@ func (s *Service) Run(ctx context.Context) error {
 	ch := make(chan *dbus.Signal, 16)
 	s.conn.Signal(ch)
 
-	s.conn.BusObject().Call(
+	busObj := s.conn.BusObject()
+	if busObj == nil {
+		return fmt.Errorf("no D-Bus connection")
+	}
+	busObj.Call(
 		"org.freedesktop.DBus.AddMatch", 0,
 		fmt.Sprintf("type='signal',sender='%s',interface='%s',member='PropertiesChanged'",
 			nmDest, nmPropertiesIface),
@@ -74,6 +78,9 @@ func (s *Service) query() {
 
 func (s *Service) fetchState() (state.NetworkState, error) {
 	nmObj := s.conn.Object(nmDest, nmPath)
+	if nmObj == nil {
+		return state.NetworkState{}, fmt.Errorf("no D-Bus connection")
+	}
 
 	connStateV, err := nmObj.GetProperty(nmIface + ".Connectivity")
 	if err != nil {
@@ -109,6 +116,9 @@ func (s *Service) fetchState() (state.NetworkState, error) {
 // SetWiFi enables or disables the WiFi adapter.
 func (s *Service) SetWiFi(enabled bool) error {
 	nmObj := s.conn.Object(nmDest, nmPath)
+	if nmObj == nil {
+		return fmt.Errorf("no D-Bus connection")
+	}
 	return nmObj.SetProperty(nmIface+".WirelessEnabled", dbus.MakeVariant(enabled))
 }
 
@@ -135,17 +145,25 @@ func (s *Service) getWifiSSID(devicePath dbus.ObjectPath) (string, bool) {
 }
 
 // ScanWiFi requests a WiFi scan and returns available networks.
+// It always publishes to TopicWiFiNetworks so the widget can update.
 func (s *Service) ScanWiFi() ([]state.WiFiNetwork, error) {
-	devicesV, err := s.conn.Object(nmDest, nmPath).GetProperty(nmIface + ".Devices")
+	networks := []state.WiFiNetwork{}
+	defer func() { s.bus.Publish(bus.TopicWiFiNetworks, networks) }()
+
+	nmObj := s.conn.Object(nmDest, nmPath)
+	if nmObj == nil {
+		return nil, fmt.Errorf("no D-Bus connection")
+	}
+
+	devicesV, err := nmObj.GetProperty(nmIface + ".Devices")
 	if err != nil {
-		return nil, err
+		return networks, err
 	}
 	paths, ok := devicesV.Value().([]dbus.ObjectPath)
 	if !ok {
 		return nil, nil
 	}
 
-	var networks []state.WiFiNetwork
 	seen := make(map[string]bool)
 
 	// Get currently connected SSID.
