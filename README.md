@@ -240,8 +240,7 @@ make test
 ## Known Limitations
 
 - Hyprland IPC is required — snry-shell does not work with other compositors.
-- The on-screen keyboard requires `wtype` for key injection.
-- The polkit agent uses direct DBus response (not the setuid polkit-agent-helper-1 PAM flow) — full PAM integration is planned.
+- The on-screen keyboard requires `wtype` for key injection and lacks shift/symbol layers.
 
 ## License
 

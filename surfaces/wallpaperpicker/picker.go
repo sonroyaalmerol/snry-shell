@@ -2,6 +2,7 @@
 package wallpaperpicker
 
 import (
+	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -104,9 +105,10 @@ func (w *WallpaperPicker) load(flow *gtk.FlowBox) {
 				path := p
 				btn.ConnectClicked(func() {
 					go func() {
-						_ = exec.Command("swww", "img", path).Run()
+						if err := exec.Command("swww", "img", path).Run(); err != nil {
+							log.Printf("wallpaper: %v", err)
+						}
 					}()
-					w.win.SetVisible(false)
 				})
 				flow.Append(btn)
 			}

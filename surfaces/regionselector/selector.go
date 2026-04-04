@@ -3,6 +3,7 @@ package regionselector
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"os/exec"
 	"time"
@@ -135,6 +136,8 @@ func (rs *RegionSelector) capture(x1, y1, x2, y2 int) {
 		time.Now().Format("2006-01-02_15-04-05"))
 
 	go func() {
-		_ = exec.Command("sh", "-c", fmt.Sprintf("grim -g '%s' %s && wl-copy < %s", geom, path, path)).Run()
+		if err := exec.Command("sh", "-c", fmt.Sprintf("grim -g '%s' %s && wl-copy < %s", geom, path, path)).Run(); err != nil {
+			log.Printf("screenshot: %v", err)
+		}
 	}()
 }
