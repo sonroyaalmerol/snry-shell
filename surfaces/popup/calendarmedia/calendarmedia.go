@@ -10,14 +10,21 @@ import (
 	"github.com/sonroyaalmerol/snry-shell/surfaces/widgets"
 )
 
+const (
+	panelMargin = 12
+	panelWidth  = 420
+)
+
 // CalendarMedia is a popup dialog showing media controls, calendar, and quick toggles.
 type CalendarMedia struct {
-	win *gtk.ApplicationWindow
-	bus *bus.Bus
+	win     *gtk.ApplicationWindow
+	bus     *bus.Bus
+	trigger gtk.Widgetter
+	root    *gtk.Box
 }
 
-// New creates and hides the calendar/media popup.
-func New(app *gtk.Application, b *bus.Bus, refs *servicerefs.ServiceRefs) *CalendarMedia {
+// New creates and hides the calendar/media popup anchored to the given trigger widget.
+func New(app *gtk.Application, b *bus.Bus, refs *servicerefs.ServiceRefs, trigger gtk.Widgetter) *CalendarMedia {
 	win := layershell.NewWindow(app, layershell.WindowConfig{
 		Name:          "snry-calendar-media",
 		Layer:         layershell.LayerOverlay,
@@ -27,7 +34,7 @@ func New(app *gtk.Application, b *bus.Bus, refs *servicerefs.ServiceRefs) *Calen
 		Namespace:     "snry-calendar-media",
 	})
 
-	cm := &CalendarMedia{win: win, bus: b}
+	cm := &CalendarMedia{win: win, bus: b, trigger: trigger}
 	cm.build(refs)
 	win.SetVisible(false)
 
@@ -58,9 +65,8 @@ func New(app *gtk.Application, b *bus.Bus, refs *servicerefs.ServiceRefs) *Calen
 func (cm *CalendarMedia) build(refs *servicerefs.ServiceRefs) {
 	root := gtk.NewBox(gtk.OrientationHorizontal, 0)
 	root.AddCSSClass("popup-overlay")
-	root.SetHAlign(gtk.AlignEnd)
+	root.SetHAlign(gtk.AlignStart)
 	root.SetVAlign(gtk.AlignStart)
-	root.SetMarginTop(layershell.BarExclusiveZone + 8)
 
 	scroll := gtk.NewScrolledWindow()
 	scroll.SetPolicy(gtk.PolicyNever, gtk.PolicyAutomatic)
@@ -70,9 +76,9 @@ func (cm *CalendarMedia) build(refs *servicerefs.ServiceRefs) {
 
 	panel := gtk.NewBox(gtk.OrientationVertical, 8)
 	panel.AddCSSClass("popup-panel")
-	panel.SetMarginStart(12)
-	panel.SetMarginEnd(12)
-	panel.SetSizeRequest(420, -1)
+	panel.SetMarginStart(panelMargin)
+	panel.SetMarginEnd(panelMargin)
+	panel.SetSizeRequest(panelWidth, -1)
 
 	panel.Append(widgets.BuildMediaGroup(cm.bus, refs.Mpris))
 	panel.Append(widgets.BuildCalendarGroup())
@@ -81,10 +87,38 @@ func (cm *CalendarMedia) build(refs *servicerefs.ServiceRefs) {
 	scroll.SetChild(panel)
 	root.Append(scroll)
 	cm.win.SetChild(root)
+	cm.root = root
+}
+
+func (cm *CalendarMedia) positionUnderTrigger() {
+	monW := surfaceutil.MonitorWidth()
+	if monW <= 0 {
+		return
+	}
+
+	triggerX := surfaceutil.WidgetXRelativeToRoot(cm.trigger)
+	triggerW := surfaceutil.WidgetWidth(cm.trigger)
+	popupW := panelWidth + panelMargin*2
+
+	desiredLeft := triggerX + triggerW/2 - popupW/2
+	if desiredLeft < panelMargin {
+		desiredLeft = panelMargin
+	}
+	if desiredLeft+popupW > monW-panelMargin {
+		desiredLeft = monW - panelMargin - popupW
+	}
+
+	cm.root.SetMarginTop(layershell.BarExclusiveZone + 8)
+	cm.root.SetMarginStart(desiredLeft)
 }
 
 func (cm *CalendarMedia) Toggle() {
-	cm.win.SetVisible(!cm.win.Visible())
+	if cm.win.Visible() {
+		cm.win.SetVisible(false)
+	} else {
+		cm.positionUnderTrigger()
+		cm.win.SetVisible(true)
+	}
 }
 
 func (cm *CalendarMedia) Close() {

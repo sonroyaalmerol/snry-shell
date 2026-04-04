@@ -10,8 +10,11 @@ import (
 
 // Bar is the top-edge status bar surface.
 type Bar struct {
-	win *gtk.ApplicationWindow
-	bus *bus.Bus
+	win         *gtk.ApplicationWindow
+	bus         *bus.Bus
+	StatusGroup gtk.Widgetter
+	ClockGroup  gtk.Widgetter
+	NotifPill   gtk.Widgetter
 }
 
 // New creates and shows the bar window.
@@ -59,6 +62,9 @@ func (b *Bar) buildCenter(refs *servicerefs.ServiceRefs) gtk.Widgetter {
 	// Clock + media group.
 	clockGroup := clickableBarGroup(newClockGroup(b.bus), b.bus, "toggle-calendar-media")
 
+	b.StatusGroup = statusGroup
+	b.ClockGroup = clockGroup
+
 	box.Append(statusGroup)
 	box.Append(barSeparator())
 	box.Append(wsGroup)
@@ -83,6 +89,7 @@ func (b *Bar) buildRight(refs *servicerefs.ServiceRefs) gtk.Widgetter {
 
 	// Wrap indicator pill in a clickable bar-group.
 	pillBox := clickableBarGroup(newIndicatorPill(b.bus, refs), b.bus, "toggle-notif-center")
+	b.NotifPill = pillBox
 	box.Append(pillBox)
 	box.Append(newTrayWidget(b.bus))
 	return box

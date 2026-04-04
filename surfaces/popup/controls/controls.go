@@ -10,14 +10,21 @@ import (
 	"github.com/sonroyaalmerol/snry-shell/surfaces/widgets"
 )
 
+const (
+	panelMargin = 12
+	panelWidth  = 350
+)
+
 // Controls is a popup dialog showing volume, brightness, and wallpaper controls.
 type Controls struct {
-	win *gtk.ApplicationWindow
-	bus *bus.Bus
+	win     *gtk.ApplicationWindow
+	bus     *bus.Bus
+	trigger gtk.Widgetter
+	root    *gtk.Box
 }
 
-// New creates and hides the controls popup.
-func New(app *gtk.Application, b *bus.Bus, refs *servicerefs.ServiceRefs) *Controls {
+// New creates and hides the controls popup anchored to the given trigger widget.
+func New(app *gtk.Application, b *bus.Bus, refs *servicerefs.ServiceRefs, trigger gtk.Widgetter) *Controls {
 	win := layershell.NewWindow(app, layershell.WindowConfig{
 		Name:          "snry-controls",
 		Layer:         layershell.LayerOverlay,
@@ -27,7 +34,7 @@ func New(app *gtk.Application, b *bus.Bus, refs *servicerefs.ServiceRefs) *Contr
 		Namespace:     "snry-controls",
 	})
 
-	c := &Controls{win: win, bus: b}
+	c := &Controls{win: win, bus: b, trigger: trigger}
 	c.build(refs)
 	win.SetVisible(false)
 
@@ -61,7 +68,6 @@ func (c *Controls) build(refs *servicerefs.ServiceRefs) {
 	root.AddCSSClass("popup-overlay")
 	root.SetHAlign(gtk.AlignStart)
 	root.SetVAlign(gtk.AlignStart)
-	root.SetMarginTop(layershell.BarExclusiveZone + 8)
 
 	scroll := gtk.NewScrolledWindow()
 	scroll.SetPolicy(gtk.PolicyNever, gtk.PolicyAutomatic)
@@ -71,18 +77,47 @@ func (c *Controls) build(refs *servicerefs.ServiceRefs) {
 
 	panel := gtk.NewBox(gtk.OrientationVertical, 8)
 	panel.AddCSSClass("popup-panel")
-	panel.SetMarginStart(12)
-	panel.SetMarginEnd(12)
+	panel.SetMarginStart(panelMargin)
+	panel.SetMarginEnd(panelMargin)
+	panel.SetSizeRequest(panelWidth, -1)
 
 	panel.Append(widgets.BuildQuickControls(c.bus, refs))
 
 	scroll.SetChild(panel)
 	root.Append(scroll)
 	c.win.SetChild(root)
+	c.root = root
+}
+
+func (c *Controls) positionUnderTrigger() {
+	monW := surfaceutil.MonitorWidth()
+	if monW <= 0 {
+		return
+	}
+
+	triggerX := surfaceutil.WidgetXRelativeToRoot(c.trigger)
+	triggerW := surfaceutil.WidgetWidth(c.trigger)
+	popupW := panelWidth + panelMargin*2
+
+	desiredLeft := triggerX + triggerW/2 - popupW/2
+	if desiredLeft < panelMargin {
+		desiredLeft = panelMargin
+	}
+	if desiredLeft+popupW > monW-panelMargin {
+		desiredLeft = monW - panelMargin - popupW
+	}
+
+	c.root.SetMarginTop(layershell.BarExclusiveZone + 8)
+	c.root.SetMarginStart(desiredLeft)
 }
 
 func (c *Controls) Toggle() {
-	c.win.SetVisible(!c.win.Visible())
+	if c.win.Visible() {
+		c.win.SetVisible(false)
+	} else {
+		c.positionUnderTrigger()
+		c.win.SetVisible(true)
+	}
 }
 
 func (c *Controls) Close() {

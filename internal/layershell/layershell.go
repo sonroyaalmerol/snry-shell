@@ -165,3 +165,7 @@ func BottomEdgeAnchors() map[Edge]bool {
 func RightEdgeAnchors() map[Edge]bool {
 	return map[Edge]bool{EdgeTop: true, EdgeBottom: true, EdgeRight: true}
 }
+
+func TopLeftAnchors() map[Edge]bool {
+	return map[Edge]bool{EdgeTop: true, EdgeLeft: true}
+}

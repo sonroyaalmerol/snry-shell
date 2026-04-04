@@ -10,14 +10,21 @@ import (
 	"github.com/sonroyaalmerol/snry-shell/surfaces/widgets"
 )
 
+const (
+	panelMargin = 12
+	panelWidth  = 420
+)
+
 // NotifCenter is a popup dialog showing notifications, WiFi, and Bluetooth.
 type NotifCenter struct {
-	win *gtk.ApplicationWindow
-	bus *bus.Bus
+	win     *gtk.ApplicationWindow
+	bus     *bus.Bus
+	trigger gtk.Widgetter
+	root    *gtk.Box
 }
 
-// New creates and hides the notification center popup.
-func New(app *gtk.Application, b *bus.Bus, refs *servicerefs.ServiceRefs) *NotifCenter {
+// New creates and hides the notification center popup anchored to the given trigger widget.
+func New(app *gtk.Application, b *bus.Bus, refs *servicerefs.ServiceRefs, trigger gtk.Widgetter) *NotifCenter {
 	win := layershell.NewWindow(app, layershell.WindowConfig{
 		Name:          "snry-notif-center",
 		Layer:         layershell.LayerOverlay,
@@ -27,7 +34,7 @@ func New(app *gtk.Application, b *bus.Bus, refs *servicerefs.ServiceRefs) *Notif
 		Namespace:     "snry-notif-center",
 	})
 
-	nc := &NotifCenter{win: win, bus: b}
+	nc := &NotifCenter{win: win, bus: b, trigger: trigger}
 	nc.build(refs)
 	win.SetVisible(false)
 
@@ -58,9 +65,8 @@ func New(app *gtk.Application, b *bus.Bus, refs *servicerefs.ServiceRefs) *Notif
 func (nc *NotifCenter) build(refs *servicerefs.ServiceRefs) {
 	root := gtk.NewBox(gtk.OrientationHorizontal, 0)
 	root.AddCSSClass("popup-overlay")
-	root.SetHAlign(gtk.AlignEnd)
+	root.SetHAlign(gtk.AlignStart)
 	root.SetVAlign(gtk.AlignStart)
-	root.SetMarginTop(layershell.BarExclusiveZone + 8)
 
 	scroll := gtk.NewScrolledWindow()
 	scroll.SetPolicy(gtk.PolicyNever, gtk.PolicyAutomatic)
@@ -70,9 +76,9 @@ func (nc *NotifCenter) build(refs *servicerefs.ServiceRefs) {
 
 	panel := gtk.NewBox(gtk.OrientationVertical, 8)
 	panel.AddCSSClass("popup-panel")
-	panel.SetMarginStart(12)
-	panel.SetMarginEnd(12)
-	panel.SetSizeRequest(420, -1)
+	panel.SetMarginStart(panelMargin)
+	panel.SetMarginEnd(panelMargin)
+	panel.SetSizeRequest(panelWidth, -1)
 
 	panel.Append(widgets.NewNotificationList(nc.bus))
 	panel.Append(widgets.NewWiFiWidget(nc.bus, refs))
@@ -81,10 +87,38 @@ func (nc *NotifCenter) build(refs *servicerefs.ServiceRefs) {
 	scroll.SetChild(panel)
 	root.Append(scroll)
 	nc.win.SetChild(root)
+	nc.root = root
+}
+
+func (nc *NotifCenter) positionUnderTrigger() {
+	monW := surfaceutil.MonitorWidth()
+	if monW <= 0 {
+		return
+	}
+
+	triggerX := surfaceutil.WidgetXRelativeToRoot(nc.trigger)
+	triggerW := surfaceutil.WidgetWidth(nc.trigger)
+	popupW := panelWidth + panelMargin*2
+
+	desiredLeft := triggerX + triggerW/2 - popupW/2
+	if desiredLeft < panelMargin {
+		desiredLeft = panelMargin
+	}
+	if desiredLeft+popupW > monW-panelMargin {
+		desiredLeft = monW - panelMargin - popupW
+	}
+
+	nc.root.SetMarginTop(layershell.BarExclusiveZone + 8)
+	nc.root.SetMarginStart(desiredLeft)
 }
 
 func (nc *NotifCenter) Toggle() {
-	nc.win.SetVisible(!nc.win.Visible())
+	if nc.win.Visible() {
+		nc.win.SetVisible(false)
+	} else {
+		nc.positionUnderTrigger()
+		nc.win.SetVisible(true)
+	}
 }
 
 func (nc *NotifCenter) Close() {

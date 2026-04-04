@@ -59,3 +59,65 @@ func FormatTime(seconds float64) string {
 	s := int(seconds)
 	return fmt.Sprintf("%d:%02d", s/60, s%60)
 }
+
+// baseWidgetter accesses the unexported baseWidget method to reach
+// the underlying *gtk.Widget for Allocation/Parent calls.
+type baseWidgetter interface {
+	baseWidget() *gtk.Widget
+}
+
+// asWidget safely extracts the *gtk.Widget from any gtk.Widgetter.
+func asWidget(w gtk.Widgetter) *gtk.Widget {
+	if bw, ok := w.(baseWidgetter); ok {
+		return bw.baseWidget()
+	}
+	return nil
+}
+
+// WidgetXRelativeToRoot walks up the widget hierarchy accumulating x
+// offsets so the result is relative to the root window (i.e. monitor coordinates).
+func WidgetXRelativeToRoot(w gtk.Widgetter) int {
+	x := 0
+	for current := w; current != nil; {
+		widget := asWidget(current)
+		if widget == nil {
+			break
+		}
+		alloc := widget.Allocation()
+		x += int(alloc.X())
+		parent := widget.Parent()
+		if parent == nil {
+			break
+		}
+		current = parent
+	}
+	return x
+}
+
+// WidgetWidth returns the allocation width of a widget.
+func WidgetWidth(w gtk.Widgetter) int {
+	widget := asWidget(w)
+	if widget == nil {
+		return 0
+	}
+	return int(widget.Allocation().Width())
+}
+
+// MonitorWidth returns the width of the primary monitor.
+func MonitorWidth() int {
+	display := gdk.DisplayGetDefault()
+	if display == nil {
+		return 0
+	}
+	monitors := display.Monitors()
+	if monitors.NItems() == 0 {
+		return 0
+	}
+	item := monitors.Item(0)
+	if item == nil {
+		return 0
+	}
+	mon := &gdk.Monitor{Object: item}
+	geom := mon.Geometry()
+	return geom.Width()
+}
