@@ -3,6 +3,7 @@ package network
 import (
 	"context"
 	"fmt"
+	"os"
 
 	"github.com/godbus/dbus/v5"
 	"github.com/sonroyaalmerol/snry-shell/internal/bus"
@@ -152,11 +153,13 @@ func (s *Service) ScanWiFi() ([]state.WiFiNetwork, error) {
 
 	nmObj := s.conn.Object(nmDest, nmPath)
 	if nmObj == nil {
+		fmt.Fprintf(os.Stderr, "wifi scan: no D-Bus connection\n")
 		return nil, fmt.Errorf("no D-Bus connection")
 	}
 
 	devicesV, err := nmObj.GetProperty(nmIface + ".Devices")
 	if err != nil {
+		fmt.Fprintf(os.Stderr, "wifi scan: GetProperty Devices: %v\n", err)
 		return networks, err
 	}
 	paths, ok := devicesV.Value().([]dbus.ObjectPath)
@@ -234,6 +237,7 @@ func (s *Service) ScanWiFi() ([]state.WiFiNetwork, error) {
 	}
 
 	s.bus.Publish(bus.TopicWiFiNetworks, networks)
+	fmt.Fprintf(os.Stderr, "wifi scan: publishing %d networks\n", len(networks))
 	return networks, nil
 }
 

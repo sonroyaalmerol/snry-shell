@@ -1,6 +1,9 @@
 package widgets
 
 import (
+	"fmt"
+	"os"
+
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/sonroyaalmerol/snry-shell/internal/bus"
@@ -41,6 +44,7 @@ func NewWiFiWidget(b *bus.Bus, refs *servicerefs.ServiceRefs) gtk.Widgetter {
 
 	b.Subscribe(bus.TopicWiFiNetworks, func(e bus.Event) {
 		networks, ok := e.Data.([]state.WiFiNetwork)
+		fmt.Fprintf(os.Stderr, "wifi widget: received event, ok=%v, count=%d\n", ok, len(networks))
 		if !ok {
 			return
 		}
