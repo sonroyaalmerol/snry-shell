@@ -2,6 +2,7 @@ package surfaceutil
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/diamondburned/gotk4/pkg/gdk/v4"
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
@@ -71,6 +72,7 @@ func asWidget(w gtk.Widgetter) *gtk.Widget {
 	if bw, ok := w.(baseWidgetter); ok {
 		return bw.baseWidget()
 	}
+	fmt.Fprintf(os.Stderr, "asWidget: type assertion failed for %T\n", w)
 	return nil
 }
 
@@ -78,18 +80,22 @@ func asWidget(w gtk.Widgetter) *gtk.Widget {
 // offsets so the result is relative to the root window (i.e. monitor coordinates).
 func WidgetXRelativeToRoot(w gtk.Widgetter) int {
 	x := 0
+	steps := 0
 	for current := w; current != nil; {
 		widget := asWidget(current)
 		if widget == nil {
 			break
 		}
 		alloc := widget.Allocation()
+		fmt.Fprintf(os.Stderr, "wxr step %d: type=%T alloc={x:%.0f y:%.0f w:%.0f h:%.0f}\n",
+			steps, current, alloc.X(), alloc.Y(), alloc.Width(), alloc.Height())
 		x += int(alloc.X())
 		parent := widget.Parent()
 		if parent == nil {
 			break
 		}
 		current = parent
+		steps++
 	}
 	return x
 }
@@ -100,7 +106,10 @@ func WidgetWidth(w gtk.Widgetter) int {
 	if widget == nil {
 		return 0
 	}
-	return int(widget.Allocation().Width())
+	alloc := widget.Allocation()
+	fmt.Fprintf(os.Stderr, "ww: type=%T alloc={x:%.0f y:%.0f w:%.0f h:%.0f}\n",
+		w, alloc.X(), alloc.Y(), alloc.Width(), alloc.Height())
+	return int(alloc.Width())
 }
 
 // MonitorWidth returns the width of the primary monitor.
