@@ -26,6 +26,11 @@ func newKeyboardIndicator(b *bus.Bus, querier *hyprland.Querier) gtk.Widgetter {
 		glib.IdleAdd(func() { label.SetText(layout) })
 	})
 
+	// Set initial layout from current Hyprland state.
+	if layout, err := querier.ActiveKeymap(); err == nil {
+		label.SetText(layout)
+	}
+
 	// Click to cycle layout.
 	clickGesture := gtk.NewGestureClick()
 	clickGesture.SetButton(1)

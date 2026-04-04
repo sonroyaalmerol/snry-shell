@@ -123,6 +123,9 @@ func (s *Service) handleEvent(event, data string) {
 			fmt.Sscanf(parts[1], "%d", &wsID)
 			s.occupiedWorkspaces[wsID]++
 		}
+
+	case "layoutchanged":
+		s.bus.Publish(bus.TopicKeyboard, data)
 	}
 }
 

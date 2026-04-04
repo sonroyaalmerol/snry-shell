@@ -28,10 +28,17 @@ func newQuickToggles(b *bus.Bus, refs *servicerefs.ServiceRefs) gtk.Widgetter {
 	grid.SetSelectionMode(gtk.SelectionNone)
 
 	type toggleDef struct {
-		icon   string
-		label  string
-		topic  bus.Topic
-		toggle func(active bool)
+		icon     string
+		label    string
+		topic    bus.Topic
+		requires string // binary name; empty string means no external dep
+		toggle   func(active bool)
+	}
+
+	// binInPath checks whether a command is available on $PATH.
+	binInPath := func(name string) bool {
+		_, err := exec.LookPath(name)
+		return err == nil
 	}
 
 	toggles := []toggleDef{
@@ -69,7 +76,8 @@ func newQuickToggles(b *bus.Bus, refs *servicerefs.ServiceRefs) gtk.Widgetter {
 		},
 		{
 			icon:  "visibility",
-			label: "Anti-Flash",
+			label:    "Anti-Flash",
+				requires: "hyprctl",
 			toggle: func(active bool) {
 				val := "0"
 				if active {
@@ -81,14 +89,16 @@ func newQuickToggles(b *bus.Bus, refs *servicerefs.ServiceRefs) gtk.Widgetter {
 		// ── Audio ──
 		{
 			icon:  "mic",
-			label: "Mic Mute",
+			label:    "Mic Mute",
+				requires: "wpctl",
 			toggle: func(_ bool) {
 				go func() { _ = exec.Command("wpctl", "set-mute", "@DEFAULT_SOURCE@", "toggle").Run() }()
 			},
 		},
 		{
 			icon:  "equalizer",
-			label: "EasyEffects",
+			label:    "EasyEffects",
+				requires: "easyeffects",
 			toggle: func(_ bool) {
 				go func() { _ = exec.Command("easyeffects", "-t").Run() }()
 			},
@@ -111,7 +121,8 @@ func newQuickToggles(b *bus.Bus, refs *servicerefs.ServiceRefs) gtk.Widgetter {
 		},
 		{
 			icon:  "keep_public",
-			label: "Idle Off",
+			label:    "Idle Off",
+				requires: "hyprctl",
 			toggle: func(active bool) {
 				action := "close"
 				if active {
@@ -122,14 +133,16 @@ func newQuickToggles(b *bus.Bus, refs *servicerefs.ServiceRefs) gtk.Widgetter {
 		},
 		{
 			icon:  "sports_esports",
-			label: "GameMode",
+			label:    "GameMode",
+				requires: "gamemoderectl",
 			toggle: func(_ bool) {
 				go func() { _ = exec.Command("gamemoderectl", "-t").Run() }()
 			},
 		},
 		{
 			icon:  "speed",
-			label: "Performance",
+			label:    "Performance",
+				requires: "powerprofilesctl",
 			toggle: func(active bool) {
 				profile := "balanced"
 				if active {
@@ -148,7 +161,8 @@ func newQuickToggles(b *bus.Bus, refs *servicerefs.ServiceRefs) gtk.Widgetter {
 		},
 		{
 			icon:  "colorize",
-			label: "Color Pick",
+			label:    "Color Pick",
+				requires: "hyprpicker",
 			toggle: func(_ bool) {
 				go func() { _ = exec.Command("hyprpicker").Run() }()
 			},
@@ -166,6 +180,10 @@ func newQuickToggles(b *bus.Bus, refs *servicerefs.ServiceRefs) gtk.Widgetter {
 	}
 
 	for _, t := range toggles {
+		// Skip toggles whose external dependency is not installed.
+		if t.requires != "" && !binInPath(t.requires) {
+			continue
+		}
 		toggle := t
 		btn := gtk.NewToggleButton()
 		btn.AddCSSClass("quick-toggle")

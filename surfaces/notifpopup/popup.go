@@ -4,6 +4,8 @@ package notifpopup
 import (
 	"time"
 
+	"sync"
+
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/sonroyaalmerol/snry-shell/internal/layershell"
@@ -13,9 +15,11 @@ import (
 
 // NotifPopup shows floating notification toasts at the top-right.
 type NotifPopup struct {
-	win *gtk.ApplicationWindow
-	bus *bus.Bus
-	box *gtk.Box
+	win  *gtk.ApplicationWindow
+	bus  *bus.Bus
+	box  *gtk.Box
+	dnd  bool
+	dndMu sync.RWMutex
 }
 
 func New(app *gtk.Application, b *bus.Bus) *NotifPopup {
@@ -44,8 +48,23 @@ func New(app *gtk.Application, b *bus.Bus) *NotifPopup {
 		if e.Data == nil {
 			return // dismiss event, ignore in popup
 		}
+		p.dndMu.RLock()
+		active := p.dnd
+		p.dndMu.RUnlock()
+		if active {
+			return
+		}
 		n := e.Data.(state.Notification)
 		glib.IdleAdd(func() { p.AddToast(n) })
+	})
+
+	// Track DND state — suppress toasts when active.
+	b.Subscribe(bus.TopicDND, func(e bus.Event) {
+		if active, ok := e.Data.(bool); ok {
+			p.dndMu.Lock()
+			p.dnd = active
+			p.dndMu.Unlock()
+		}
 	})
 
 	win.SetVisible(false)

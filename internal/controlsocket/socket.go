@@ -10,28 +10,36 @@ import (
 	"github.com/sonroyaalmerol/snry-shell/internal/bus"
 )
 
-const socketPath = "/tmp/snry-shell.sock"
+const DefaultPath = "/tmp/snry-shell.sock"
 
-// Start creates a Unix domain socket listener and dispatches incoming
-// commands to bus.TopicSystemControls. It runs in the background.
-func Start(b *bus.Bus) error {
-	os.Remove(socketPath)
+// Start creates a Unix domain socket listener on the default path and
+// dispatches incoming commands to bus.TopicSystemControls. It runs in the
+// background. Call Close when the application exits to clean up the socket file.
+func Start(b *bus.Bus) (*net.UnixListener, error) {
+	return StartAt(b, DefaultPath)
+}
 
-	ln, err := net.Listen("unix", socketPath)
+// StartAt is like Start but uses the given socket path.
+func StartAt(b *bus.Bus, path string) (*net.UnixListener, error) {
+	os.Remove(path)
+
+	ln, err := net.Listen("unix", path)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	go func() {
-		for {
-			conn, err := ln.Accept()
-			if err != nil {
-				continue
-			}
-			go handleConn(conn, b)
+	go accept(ln, b)
+	return ln.(*net.UnixListener), nil
+}
+
+func accept(ln net.Listener, b *bus.Bus) {
+	for {
+		conn, err := ln.Accept()
+		if err != nil {
+			return
 		}
-	}()
-	return nil
+		go handleConn(conn, b)
+	}
 }
 
 func handleConn(conn net.Conn, b *bus.Bus) {
@@ -49,4 +57,11 @@ func handleConn(conn net.Conn, b *bus.Bus) {
 	}
 
 	b.Publish(bus.TopicSystemControls, cmd)
+}
+
+// Close shuts down the listener and removes the socket file.
+func Close(ln *net.UnixListener) {
+	ln.Close()
+	// Best-effort cleanup of the default socket.
+	os.Remove(DefaultPath)
 }

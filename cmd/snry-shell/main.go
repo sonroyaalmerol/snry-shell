@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/sonroyaalmerol/snry-shell/internal/controlsocket"
 	"github.com/sonroyaalmerol/snry-shell/surfaces"
 )
 
@@ -18,7 +19,7 @@ func main() {
 }
 
 func sendControl(arg string) {
-	conn, err := net.Dial("unix", "/tmp/snry-shell.sock")
+	conn, err := net.Dial("unix", controlsocket.DefaultPath)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "snry-shell not running")
 		os.Exit(1)
