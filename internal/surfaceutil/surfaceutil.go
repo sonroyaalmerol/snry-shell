@@ -3,6 +3,7 @@ package surfaceutil
 import (
 	"fmt"
 	"os"
+	"reflect"
 
 	"github.com/diamondburned/gotk4/pkg/gdk/v4"
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
@@ -61,18 +62,20 @@ func FormatTime(seconds float64) string {
 	return fmt.Sprintf("%d:%02d", s/60, s%60)
 }
 
-// baseWidgetter accesses the unexported baseWidget method to reach
-// the underlying *gtk.Widget for Allocation/Parent calls.
-type baseWidgetter interface {
-	baseWidget() *gtk.Widget
-}
-
-// asWidget safely extracts the *gtk.Widget from any gtk.Widgetter.
+// asWidget extracts the embedded *gtk.Widget from any gtk.Widgetter
+// using reflection, since baseWidget() is unexported.
 func asWidget(w gtk.Widgetter) *gtk.Widget {
-	if bw, ok := w.(baseWidgetter); ok {
-		return bw.baseWidget()
+	v := reflect.ValueOf(w)
+	if v.Kind() == reflect.Ptr {
+		v = v.Elem()
 	}
-	fmt.Fprintf(os.Stderr, "asWidget: type assertion failed for %T\n", w)
+	f := v.FieldByName("Widget")
+	if !f.IsValid() {
+		return nil
+	}
+	if f.CanAddr() {
+		return f.Addr().Interface().(*gtk.Widget)
+	}
 	return nil
 }
 
