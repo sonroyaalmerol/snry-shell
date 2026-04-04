@@ -6,8 +6,8 @@ import (
 
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
-	"github.com/sonroyaalmerol/snry-shell/internal/layershell"
 	"github.com/sonroyaalmerol/snry-shell/internal/bus"
+	"github.com/sonroyaalmerol/snry-shell/internal/layershell"
 	"github.com/sonroyaalmerol/snry-shell/internal/state"
 )
 
@@ -24,17 +24,15 @@ type OSD struct {
 
 // New creates the OSD window (hidden by default) and wires bus subscriptions.
 func New(app *gtk.Application, b *bus.Bus) *OSD {
-	win := gtk.NewApplicationWindow(app)
-	win.SetDecorated(false)
-	win.SetName("snry-osd")
-
-	layershell.InitForWindow(win)
-	layershell.SetLayer(win, layershell.LayerOverlay)
-	layershell.SetAnchor(win, layershell.EdgeBottom, true)
-	layershell.SetMargin(win, layershell.EdgeBottom, 60)
-	layershell.SetKeyboardMode(win, layershell.KeyboardModeNone)
-	layershell.SetExclusiveZone(win, -1)
-	layershell.SetNamespace(win, "snry-osd")
+	win := layershell.NewWindow(app, layershell.WindowConfig{
+		Name:          "snry-osd",
+		Layer:         layershell.LayerOverlay,
+		Anchors:       map[layershell.Edge]bool{layershell.EdgeBottom: true},
+		Margins:       map[layershell.Edge]int{layershell.EdgeBottom: 60},
+		KeyboardMode:  layershell.KeyboardModeNone,
+		ExclusiveZone: -1,
+		Namespace:     "snry-osd",
+	})
 
 	o := &OSD{win: win, bus: b}
 	o.build()

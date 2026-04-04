@@ -19,19 +19,14 @@ type LockScreen struct {
 }
 
 func New(app *gtk.Application, b *bus.Bus) *LockScreen {
-	win := gtk.NewApplicationWindow(app)
-	win.SetDecorated(false)
-	win.SetName("snry-lockscreen")
-
-	layershell.InitForWindow(win)
-	layershell.SetLayer(win, layershell.LayerOverlay)
-	layershell.SetAnchor(win, layershell.EdgeTop, true)
-	layershell.SetAnchor(win, layershell.EdgeBottom, true)
-	layershell.SetAnchor(win, layershell.EdgeLeft, true)
-	layershell.SetAnchor(win, layershell.EdgeRight, true)
-	layershell.SetKeyboardMode(win, layershell.KeyboardModeExclusive)
-	layershell.SetExclusiveZone(win, -1)
-	layershell.SetNamespace(win, "snry-lockscreen")
+	win := layershell.NewWindow(app, layershell.WindowConfig{
+		Name:          "snry-lockscreen",
+		Layer:         layershell.LayerOverlay,
+		Anchors:       layershell.FullscreenAnchors(),
+		KeyboardMode:  layershell.KeyboardModeExclusive,
+		ExclusiveZone: -1,
+		Namespace:     "snry-lockscreen",
+	})
 
 	ls := &LockScreen{win: win, bus: b}
 	ls.build()

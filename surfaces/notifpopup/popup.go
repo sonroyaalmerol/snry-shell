@@ -2,40 +2,35 @@
 package notifpopup
 
 import (
-	"time"
-
 	"sync"
+	"time"
 
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
-	"github.com/sonroyaalmerol/snry-shell/internal/layershell"
 	"github.com/sonroyaalmerol/snry-shell/internal/bus"
+	"github.com/sonroyaalmerol/snry-shell/internal/layershell"
 	"github.com/sonroyaalmerol/snry-shell/internal/state"
 )
 
 // NotifPopup shows floating notification toasts at the top-right.
 type NotifPopup struct {
-	win  *gtk.ApplicationWindow
-	bus  *bus.Bus
-	box  *gtk.Box
-	dnd  bool
+	win   *gtk.ApplicationWindow
+	bus   *bus.Bus
+	box   *gtk.Box
+	dnd   bool
 	dndMu sync.RWMutex
 }
 
 func New(app *gtk.Application, b *bus.Bus) *NotifPopup {
-	win := gtk.NewApplicationWindow(app)
-	win.SetDecorated(false)
-	win.SetName("snry-notif-popup")
-
-	layershell.InitForWindow(win)
-	layershell.SetLayer(win, layershell.LayerOverlay)
-	layershell.SetAnchor(win, layershell.EdgeTop, true)
-	layershell.SetAnchor(win, layershell.EdgeRight, true)
-	layershell.SetMargin(win, layershell.EdgeTop, 8)
-	layershell.SetMargin(win, layershell.EdgeRight, 8)
-	layershell.SetKeyboardMode(win, layershell.KeyboardModeNone)
-	layershell.SetExclusiveZone(win, -1)
-	layershell.SetNamespace(win, "snry-notif-popup")
+	win := layershell.NewWindow(app, layershell.WindowConfig{
+		Name:          "snry-notif-popup",
+		Layer:         layershell.LayerOverlay,
+		Anchors:       map[layershell.Edge]bool{layershell.EdgeTop: true, layershell.EdgeRight: true},
+		Margins:       map[layershell.Edge]int{layershell.EdgeTop: 8, layershell.EdgeRight: 8},
+		KeyboardMode:  layershell.KeyboardModeNone,
+		ExclusiveZone: -1,
+		Namespace:     "snry-notif-popup",
+	})
 
 	box := gtk.NewBox(gtk.OrientationVertical, 0)
 	box.SetHAlign(gtk.AlignEnd)

@@ -16,17 +16,13 @@ type Bar struct {
 
 // New creates and shows the bar window.
 func New(app *gtk.Application, b *bus.Bus, refs *servicerefs.ServiceRefs) *Bar {
-	win := gtk.NewApplicationWindow(app)
-	win.SetDecorated(false)
-	win.SetName("snry-bar")
-
-	layershell.InitForWindow(win)
-	layershell.SetLayer(win, layershell.LayerTop)
-	layershell.SetAnchor(win, layershell.EdgeTop, true)
-	layershell.SetAnchor(win, layershell.EdgeLeft, true)
-	layershell.SetAnchor(win, layershell.EdgeRight, true)
-	layershell.SetExclusiveZone(win, 40)
-	layershell.SetNamespace(win, "snry-bar")
+	win := layershell.NewWindow(app, layershell.WindowConfig{
+		Name:          "snry-bar",
+		Layer:         layershell.LayerTop,
+		Anchors:       layershell.TopEdgeAnchors(),
+		ExclusiveZone: 40,
+		Namespace:     "snry-bar",
+	})
 
 	bar := &Bar{win: win, bus: b}
 	bar.build(refs)

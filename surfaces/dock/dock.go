@@ -3,9 +3,9 @@ package dock
 
 import (
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
-	"github.com/sonroyaalmerol/snry-shell/internal/layershell"
 	"github.com/sonroyaalmerol/snry-shell/internal/bus"
 	"github.com/sonroyaalmerol/snry-shell/internal/launcher"
+	"github.com/sonroyaalmerol/snry-shell/internal/layershell"
 )
 
 // Dock is a bottom-edge application dock.
@@ -15,15 +15,13 @@ type Dock struct {
 }
 
 func New(app *gtk.Application, b *bus.Bus) *Dock {
-	win := gtk.NewApplicationWindow(app)
-	win.SetDecorated(false)
-	win.SetName("snry-dock")
-
-	layershell.InitForWindow(win)
-	layershell.SetLayer(win, layershell.LayerTop)
-	layershell.SetAnchor(win, layershell.EdgeBottom, true)
-	layershell.SetExclusiveZone(win, 64)
-	layershell.SetNamespace(win, "snry-dock")
+	win := layershell.NewWindow(app, layershell.WindowConfig{
+		Name:          "snry-dock",
+		Layer:         layershell.LayerTop,
+		Anchors:       layershell.BottomEdgeAnchors(),
+		ExclusiveZone: 64,
+		Namespace:     "snry-dock",
+	})
 
 	d := &Dock{win: win, bus: b}
 	d.build()
