@@ -35,7 +35,6 @@ import (
 	"github.com/sonroyaalmerol/snry-shell/surfaces/crosshair"
 	"github.com/sonroyaalmerol/snry-shell/surfaces/dock"
 	"github.com/sonroyaalmerol/snry-shell/surfaces/emoji"
-	"github.com/sonroyaalmerol/snry-shell/surfaces/fpslimiter"
 	"github.com/sonroyaalmerol/snry-shell/surfaces/imageviewer"
 	"github.com/sonroyaalmerol/snry-shell/surfaces/lockscreen"
 	"github.com/sonroyaalmerol/snry-shell/surfaces/mediaoverlay"
@@ -150,7 +149,6 @@ func Run() int {
 		emoji.New(app, b)
 		notes.New(app, b)
 		recorder.New(app, b)
-		fpslimiter.New(app, b)
 		imageviewer.New(app, b)
 		if sysConn != nil {
 			agent := polkit.New(sysConn)

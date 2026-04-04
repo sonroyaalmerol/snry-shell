@@ -202,7 +202,6 @@ snry-shell listens on `/tmp/snry-shell.sock`. The following commands are accepte
 | `toggle-emoji` | Toggle emoji picker |
 | `toggle-notes` | Toggle notes overlay |
 | `toggle-recorder` | Toggle screen recorder |
-| `toggle-fps-limiter` | Toggle FPS limiter |
 
 ## Configuration
 

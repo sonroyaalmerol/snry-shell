@@ -1800,49 +1800,6 @@ scale.mixer-slider slider {
     min-width: 40px;
 }
 
-/* ── FPS limiter overlay ─────────────────────────────────────────────────────── */
-
-.fps-limiter-overlay {
-    background-color: alpha(@col_surface_container, 0.92);
-    border-radius: 16px;
-    border: 1px solid alpha(@col_outline_variant, 0.3);
-    padding: 20px;
-}
-
-.fps-limiter-title {
-    font-size: 15px;
-    font-weight: 600;
-    color: @col_on_surface;
-    font-family: "Google Sans Flex", sans-serif;
-}
-
-.fps-limiter-scale {
-    margin: 8px 0;
-}
-
-.fps-limiter-value {
-    font-size: 28px;
-    font-weight: 300;
-    color: @col_primary;
-    font-family: "Google Sans Flex", sans-serif;
-    font-variant-numeric: tabular-nums;
-}
-
-.fps-limiter-apply {
-    background-color: @col_primary;
-    color: @col_on_primary;
-    border-radius: 9999px;
-    padding: 8px 24px;
-    font-size: 13px;
-    font-family: "Google Sans Flex", sans-serif;
-    border: none;
-}
-
-.fps-limiter-apply:hover {
-    background-color: @col_primary_container;
-    color: @col_on_primary_container;
-}
-
 /* ── Floating image viewer ───────────────────────────────────────────────────── */
 
 /* Image viewer uses layer-shell anchor-all, no additional styling needed.
