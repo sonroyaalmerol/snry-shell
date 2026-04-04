@@ -30,9 +30,29 @@ type fakeMatugen struct {
 	err    error
 }
 
-func (f *fakeMatugen) Run(path string) error {
+const fakeMatugenJSON = `{
+	"colors": {
+		"dark": {
+			"primary": "#BB86FC", "on_primary": "#000000", "primary_container": "#BB86FC", "on_primary_container": "#000000",
+			"secondary": "#03DAC6", "on_secondary": "#000000", "secondary_container": "#03DAC6", "on_secondary_container": "#000000",
+			"tertiary": "#CF6679", "on_tertiary": "#000000", "tertiary_container": "#CF6679", "on_tertiary_container": "#000000",
+			"error": "#CF6679", "on_error": "#000000", "error_container": "#CF6679", "on_error_container": "#000000",
+			"surface": "#121212", "surface_dim": "#121212", "surface_bright": "#121212",
+			"surface_container": "#1E1E1E", "surface_container_low": "#1E1E1E",
+			"surface_container_high": "#2C2C2C", "surface_container_highest": "#2C2C2C",
+			"on_surface": "#E6E1E5", "on_surface_variant": "#CAC4D0",
+			"background": "#121212", "on_background": "#E6E1E5",
+			"outline": "#938F99", "outline_variant": "#49454F"
+		}
+	}
+}`
+
+func (f *fakeMatugen) Run(path string) ([]byte, error) {
 	f.called = append(f.called, path)
-	return f.err
+	if f.err != nil {
+		return nil, f.err
+	}
+	return []byte(fakeMatugenJSON), nil
 }
 
 func TestServiceTriggersMatugenOnChange(t *testing.T) {

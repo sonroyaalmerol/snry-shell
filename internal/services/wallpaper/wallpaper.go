@@ -12,7 +12,7 @@ import (
 	"time"
 
 	"github.com/sonroyaalmerol/snry-shell/internal/bus"
-	"github.com/sonroyaalmerol/snry-shell/internal/state"
+	"github.com/sonroyaalmerol/snry-shell/internal/theme"
 )
 
 // FileWatcher abstracts watching a file for changes.
@@ -24,7 +24,7 @@ type FileWatcher interface {
 
 // MatugenRunner abstracts running matugen for testability.
 type MatugenRunner interface {
-	Run(wallpaperPath string) error
+	Run(wallpaperPath string) ([]byte, error)
 }
 
 type realFileWatcher struct {
@@ -91,8 +91,8 @@ func currentWallpaper() (string, error) {
 
 type execMatugen struct{}
 
-func (e execMatugen) Run(wallpaperPath string) error {
-	return exec.Command("matugen", "image", wallpaperPath).Run()
+func (e execMatugen) Run(wallpaperPath string) ([]byte, error) {
+	return exec.Command("matugen", "image", wallpaperPath, "--json", "hex").Output()
 }
 
 // NewMatugenRunner returns a MatugenRunner backed by the real matugen binary.
@@ -136,8 +136,19 @@ func (s *Service) Run(ctx context.Context) error {
 }
 
 func (s *Service) handleChange(wallpaperPath string) {
-	if err := s.matugen.Run(wallpaperPath); err != nil {
+	scheme, err := theme.GenerateFromWallpaper(s.matugen, wallpaperPath)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "wallpaper: theme generation: %v\n", err)
 		return
 	}
-	s.bus.Publish(bus.TopicTheme, state.ColorScheme{})
+	if err := theme.WriteCSS(scheme, themeCachePath()); err != nil {
+		fmt.Fprintf(os.Stderr, "wallpaper: write theme: %v\n", err)
+		return
+	}
+	s.bus.Publish(bus.TopicTheme, scheme)
+}
+
+func themeCachePath() string {
+	home, _ := os.UserCacheDir()
+	return filepath.Join(home, "snry-shell", "theme.css")
 }
