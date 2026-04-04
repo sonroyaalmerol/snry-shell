@@ -58,7 +58,7 @@ func New(app *gtk.Application, b *bus.Bus, refs *servicerefs.ServiceRefs) *Notif
 func (nc *NotifCenter) build(refs *servicerefs.ServiceRefs) {
 	root := gtk.NewBox(gtk.OrientationHorizontal, 0)
 	root.AddCSSClass("popup-overlay")
-	root.SetHAlign(gtk.AlignCenter)
+	root.SetHAlign(gtk.AlignEnd)
 	root.SetVAlign(gtk.AlignStart)
 	root.SetMarginTop(layershell.BarExclusiveZone + 8)
 

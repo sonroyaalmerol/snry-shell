@@ -59,7 +59,7 @@ func New(app *gtk.Application, b *bus.Bus, refs *servicerefs.ServiceRefs) *Contr
 func (c *Controls) build(refs *servicerefs.ServiceRefs) {
 	root := gtk.NewBox(gtk.OrientationHorizontal, 0)
 	root.AddCSSClass("popup-overlay")
-	root.SetHAlign(gtk.AlignCenter)
+	root.SetHAlign(gtk.AlignStart)
 	root.SetVAlign(gtk.AlignStart)
 	root.SetMarginTop(layershell.BarExclusiveZone + 8)
 
