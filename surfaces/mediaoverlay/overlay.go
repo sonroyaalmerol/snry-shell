@@ -3,6 +3,7 @@ package mediaoverlay
 
 import (
 	"context"
+	"time"
 
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"

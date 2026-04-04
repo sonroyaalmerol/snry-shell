@@ -3,13 +3,10 @@ package gtkutil
 import "github.com/diamondburned/gotk4/pkg/gtk/v4"
 
 func ClearChildren(w *gtk.Widget) {
-	var children []*gtk.Widget
 	for child := w.FirstChild(); child != nil; {
-		children = append(children, child)
-		child = child.NextSibling()
-	}
-	for _, c := range children {
-		w.Remove(c)
+		next := child.(*gtk.Widget).NextSibling()
+		child.(*gtk.Widget).SetParent(nil)
+		child = next
 	}
 }
 
