@@ -9,20 +9,20 @@ import (
 	"sync/atomic"
 
 	"github.com/sonroyaalmerol/snry-shell/internal/bus"
+	"github.com/sonroyaalmerol/snry-shell/internal/fileutil"
 	"github.com/sonroyaalmerol/snry-shell/internal/state"
 )
 
 type Service struct {
-	mu      sync.RWMutex
-	bus     *bus.Bus
-	items   []state.TodoItem
-	nextID  atomic.Int32
-	path    string
+	mu     sync.RWMutex
+	bus    *bus.Bus
+	items  []state.TodoItem
+	nextID atomic.Int32
+	path   string
 }
 
 func New(b *bus.Bus) *Service {
-	home, _ := os.UserHomeDir()
-	path := filepath.Join(home, ".config", "snry-shell", "todo.json")
+	path := filepath.Join(fileutil.ConfigDir(), "todo.json")
 	s := &Service{bus: b, path: path}
 	s.load()
 	return s
@@ -52,14 +52,7 @@ func (s *Service) load() {
 }
 
 func (s *Service) save() error {
-	if err := os.MkdirAll(filepath.Dir(s.path), 0o755); err != nil {
-		return err
-	}
-	data, err := json.MarshalIndent(s.items, "", "  ")
-	if err != nil {
-		return err
-	}
-	return os.WriteFile(s.path, data, 0o644)
+	return fileutil.SaveJSON(s.path, s.items)
 }
 
 func (s *Service) publish() {
