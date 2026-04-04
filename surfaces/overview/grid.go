@@ -42,7 +42,7 @@ func (g *gridWidget) refresh() {
 		return
 	}
 
-	gtkutil.ClearChildren(&g.flow.Widget)
+	gtkutil.ClearChildren(&g.flow.Widget, g.flow.Remove)
 
 	// Group clients by workspace.
 	wsClients := make(map[int][]hyprland.HyprClient)

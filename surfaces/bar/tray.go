@@ -19,7 +19,7 @@ func newTrayWidget(b *bus.Bus) gtk.Widgetter {
 			return
 		}
 		glib.IdleAdd(func() {
-			gtkutil.ClearChildren(&box.Widget)
+			gtkutil.ClearChildren(&box.Widget, box.Remove)
 
 			for _, item := range items {
 				btn := newTrayItemBtn(b, item)

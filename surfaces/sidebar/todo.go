@@ -69,7 +69,7 @@ func newTodoWidget(b *bus.Bus, refs *servicerefs.ServiceRefs) gtk.Widgetter {
 			return
 		}
 		glib.IdleAdd(func() {
-			gtkutil.ClearChildren(&listBox.Widget)
+			gtkutil.ClearChildren(&listBox.Widget, listBox.Remove)
 
 			for _, item := range items {
 				row := newTodoItemRow(refs, item)

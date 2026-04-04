@@ -50,7 +50,7 @@ func newBluetoothWidget(b *bus.Bus, refs *servicerefs.ServiceRefs) gtk.Widgetter
 			return
 		}
 		glib.IdleAdd(func() {
-			gtkutil.ClearChildren(&listBox.Widget)
+			gtkutil.ClearChildren(&listBox.Widget, listBox.Remove)
 
 			for _, dev := range devices {
 				row := newBTDeviceRow(refs, dev)

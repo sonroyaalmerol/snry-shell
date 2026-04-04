@@ -99,7 +99,7 @@ func (p *Panel) refresh(filter string) {
 		}
 		lines := strings.Split(strings.TrimSpace(string(out)), "\n")
 		glib.IdleAdd(func() {
-			gtkutil.ClearChildren(&p.list.Widget)
+			gtkutil.ClearChildren(&p.list.Widget, p.list.Remove)
 
 			for _, line := range lines {
 				if line == "" {

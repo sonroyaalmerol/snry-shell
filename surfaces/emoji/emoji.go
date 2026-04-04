@@ -95,7 +95,7 @@ func emojiButton(parent *gtk.FlowBox, emoji, name string) {
 }
 
 func populateGrid(grid *gtk.FlowBox) {
-	gtkutil.ClearChildren(&grid.Widget)
+	gtkutil.ClearChildren(&grid.Widget, grid.Remove)
 
 	categories := map[string][]struct {
 		e string

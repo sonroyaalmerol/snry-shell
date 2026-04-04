@@ -31,7 +31,7 @@ func newVolumeMixerWidget(b *bus.Bus, refs *servicerefs.ServiceRefs) gtk.Widgett
 			return
 		}
 		glib.IdleAdd(func() {
-			gtkutil.ClearChildren(&listBox.Widget)
+			gtkutil.ClearChildren(&listBox.Widget, listBox.Remove)
 
 			for _, app := range ms.Apps {
 				row := newMixerRow(refs, app)

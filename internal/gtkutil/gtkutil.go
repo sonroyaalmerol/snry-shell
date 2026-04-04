@@ -2,14 +2,14 @@ package gtkutil
 
 import "github.com/diamondburned/gotk4/pkg/gtk/v4"
 
-func ClearChildren(w *gtk.Widget) {
+func ClearChildren(parent *gtk.Widget, remove func(gtk.Widgetter)) {
 	var children []gtk.Widgetter
-	for child := w.FirstChild(); child != nil; {
+	for child := parent.FirstChild(); child != nil; {
 		children = append(children, child)
 		child = gtk.BaseWidget(child).NextSibling()
 	}
 	for _, child := range children {
-		gtk.BaseWidget(child).Unparent()
+		remove(child)
 	}
 }
 
