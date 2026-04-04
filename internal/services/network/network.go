@@ -3,6 +3,7 @@ package network
 import (
 	"context"
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/godbus/dbus/v5"
@@ -158,18 +159,23 @@ func (s *Service) wifiDevicePaths() ([]dbus.ObjectPath, error) {
 	if !ok {
 		return nil, nil
 	}
+	fmt.Fprintf(os.Stderr, "wifi: total devices=%d\n", len(paths))
 	var wifiPaths []dbus.ObjectPath
 	for _, p := range paths {
 		devObj := s.conn.Object(nmDest, p)
 		dtV, err := devObj.GetProperty(nmIface + ".Device.DeviceType")
 		if err != nil {
+			fmt.Fprintf(os.Stderr, "wifi: device %s DeviceType error: %v\n", p, err)
 			continue
 		}
-		dt, _ := dtV.Value().(uint32)
-		if dt == nmDeviceTypeWifi {
+		dtVal := dtV.Value()
+		dt, ok := dtVal.(uint32)
+		fmt.Fprintf(os.Stderr, "wifi: device %s type=%v (asserted=%v)\n", p, dtVal, ok)
+		if ok && dt == nmDeviceTypeWifi {
 			wifiPaths = append(wifiPaths, p)
 		}
 	}
+	fmt.Fprintf(os.Stderr, "wifi: wifi devices=%d\n", len(wifiPaths))
 	return wifiPaths, nil
 }
 
@@ -181,8 +187,10 @@ func (s *Service) ScanWiFi() ([]state.WiFiNetwork, error) {
 
 	paths, err := s.wifiDevicePaths()
 	if err != nil {
+		fmt.Fprintf(os.Stderr, "wifi scan: wifiDevicePaths error: %v\n", err)
 		return networks, err
 	}
+	fmt.Fprintf(os.Stderr, "wifi scan: %d wifi devices\n", len(paths))
 
 	seen := make(map[string]bool)
 
