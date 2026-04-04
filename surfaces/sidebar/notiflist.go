@@ -31,11 +31,7 @@ func newNotificationList(b *bus.Bus) gtk.Widgetter {
 
 	b.Subscribe(bus.TopicNotification, func(e bus.Event) {
 		if e.Data == nil {
-			// Dismiss event — remove the most recent notification from sidebar.
-			glib.IdleAdd(func() {
-				nl.removeNewest()
-			})
-			return
+			return // dismiss event — only affects popup/badge, not sidebar list
 		}
 		n := e.Data.(state.Notification)
 		glib.IdleAdd(func() {
@@ -44,16 +40,6 @@ func newNotificationList(b *bus.Bus) gtk.Widgetter {
 	})
 
 	return nl.scroll
-}
-
-// removeNewest removes the first (newest) notification card from the list.
-func (nl *notificationList) removeNewest() {
-	if first := nl.box.FirstChild(); first != nil {
-		nl.box.Remove(first)
-		if nl.count > 0 {
-			nl.count--
-		}
-	}
 }
 
 func (nl *notificationList) prepend(n state.Notification) {
@@ -82,19 +68,19 @@ func (nl *notificationList) buildCard(n state.Notification) gtk.Widgetter {
 	header := gtk.NewBox(gtk.OrientationHorizontal, 8)
 
 	appLabel := gtk.NewLabel(n.AppName)
-	appLabel.AddCSSClass("notif-app")
+	appLabel.AddCSSClass("notification-app-name")
 	appLabel.SetHAlign(gtk.AlignStart)
 	appLabel.SetHExpand(true)
 
 	closeBtn := gtk.NewButton()
-	closeBtn.AddCSSClass("notif-close")
+	closeBtn.AddCSSClass("notification-dismiss-btn")
 	closeBtn.SetLabel("✕")
 	closeBtn.ConnectClicked(func() {
-		// Remove the card from the list on click.
 		parent := card.Parent()
 		if p, ok := parent.(*gtk.Box); ok {
 			p.Remove(&card.Widget)
 			nl.count--
+			nl.bus.Publish(bus.TopicNotification, nil)
 		}
 	})
 
@@ -102,7 +88,7 @@ func (nl *notificationList) buildCard(n state.Notification) gtk.Widgetter {
 	header.Append(closeBtn)
 
 	summary := gtk.NewLabel(n.Summary)
-	summary.AddCSSClass("notif-summary")
+	summary.AddCSSClass("notification-summary")
 	summary.SetHAlign(gtk.AlignStart)
 	summary.SetWrap(true)
 
@@ -111,7 +97,7 @@ func (nl *notificationList) buildCard(n state.Notification) gtk.Widgetter {
 
 	if n.Body != "" {
 		body := gtk.NewLabel(n.Body)
-		body.AddCSSClass("notif-body")
+		body.AddCSSClass("notification-body")
 		body.SetHAlign(gtk.AlignStart)
 		body.SetWrap(true)
 		body.SetTooltipText(fmt.Sprintf("ID: %d", n.ID))
