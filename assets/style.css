@@ -367,11 +367,14 @@
 
 /* ── Sidebar (right) ─────────────────────────────────────────────────────────── */
 
+.sidebar-overlay {
+    background-color: transparent;
+}
+
 .sidebar-right {
     background-color: @col_surface;
     border-radius: var(--radius-xl) 0 0 var(--radius-xl);
     padding: 12px 8px;
-    min-width: 460px;
     border: 1px solid alpha(@col_outline, 0.15);
 }
 
@@ -477,10 +480,9 @@ scale.osd-slider trough highlight {
 }
 
 scale.osd-slider slider {
-    background-color: @col_primary;
-    border-radius: var(--radius-pill);
-    min-width: 16px;
-    min-height: 16px;
+    background-color: transparent;
+    min-width: 0;
+    min-height: 0;
     box-shadow: none;
     border: none;
 }

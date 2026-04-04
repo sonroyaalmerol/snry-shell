@@ -59,6 +59,7 @@ func NewRight(app *gtk.Application, b *bus.Bus, refs *servicerefs.ServiceRefs) *
 func (r *Right) build(refs *servicerefs.ServiceRefs) {
 	// Root overlay: fullscreen box with sidebar content packed to the right.
 	root := gtk.NewBox(gtk.OrientationHorizontal, 0)
+	root.AddCSSClass("sidebar-overlay")
 	root.SetHAlign(gtk.AlignEnd)
 	root.SetVAlign(gtk.AlignFill)
 
