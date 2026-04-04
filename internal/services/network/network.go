@@ -175,6 +175,9 @@ func (s *Service) ScanWiFi() ([]state.WiFiNetwork, error) {
 	currentSSID := ""
 	if ns, err := s.fetchState(); err == nil {
 		currentSSID = ns.SSID
+		fmt.Fprintf(os.Stderr, "wifi scan: connected SSID=%q wireless=%v\n", ns.SSID, ns.WirelessEnabled)
+	} else {
+		fmt.Fprintf(os.Stderr, "wifi scan: fetchState error: %v\n", err)
 	}
 
 	// Request scan on all devices, then wait for NM to discover APs.
