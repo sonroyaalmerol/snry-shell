@@ -4,52 +4,30 @@ import (
 	"bufio"
 	"context"
 	"fmt"
-	"os/exec"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/sonroyaalmerol/snry-shell/internal/bus"
+	"github.com/sonroyaalmerol/snry-shell/internal/services/runner"
 	"github.com/sonroyaalmerol/snry-shell/internal/state"
 )
 
-// Runner abstracts running subprocesses for testability.
-type Runner interface {
-	Output(args ...string) ([]byte, error)
-}
-
-type execRunner struct{}
-
-func (e execRunner) Output(args ...string) ([]byte, error) {
-	return exec.Command(args[0], args[1:]...).Output()
-}
-
-// NewRunner returns a Runner backed by the real OS.
-func NewRunner() Runner { return execRunner{} }
-
-// Service polls cliphist for clipboard entries and publishes them.
 type Service struct {
-	runner   Runner
-	bus      *bus.Bus
-	interval time.Duration
+	runner runner.Runner
+	bus    *bus.Bus
 }
 
-func New(runner Runner, b *bus.Bus) *Service {
-	return &Service{runner: runner, bus: b, interval: 2 * time.Second}
+func New(r runner.Runner, b *bus.Bus) *Service {
+	return &Service{runner: r, bus: b}
+}
+
+func NewWithDefaults(b *bus.Bus) *Service {
+	return New(runner.New(), b)
 }
 
 func (s *Service) Run(ctx context.Context) error {
-	s.poll()
-	ticker := time.NewTicker(s.interval)
-	defer ticker.Stop()
-	for {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case <-ticker.C:
-			s.poll()
-		}
-	}
+	return runner.PollLoop(ctx, 2*time.Second, s.poll)
 }
 
 func (s *Service) poll() {

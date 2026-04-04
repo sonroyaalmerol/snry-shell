@@ -9,10 +9,10 @@ import (
 	"time"
 
 	"github.com/sonroyaalmerol/snry-shell/internal/bus"
+	"github.com/sonroyaalmerol/snry-shell/internal/services/runner"
 	"github.com/sonroyaalmerol/snry-shell/internal/state"
 )
 
-// FileReader reads a file's contents. Used for testability.
 type FileReader interface {
 	ReadFile(path string) (string, error)
 }
@@ -27,32 +27,19 @@ func (osFileReader) ReadFile(path string) (string, error) {
 func NewFileReader() FileReader { return osFileReader{} }
 
 type Service struct {
-	bus      *bus.Bus
-	reader   FileReader
-	interval time.Duration
+	bus       *bus.Bus
+	reader    FileReader
 	prevIdle  uint64
 	prevTotal uint64
 }
 
 func New(reader FileReader, b *bus.Bus) *Service {
-	return &Service{bus: b, reader: reader, interval: 2 * time.Second}
+	return &Service{bus: b, reader: reader}
 }
 
 func (s *Service) Run(ctx context.Context) error {
-	// Initialize CPU baseline from first read.
 	s.readCPU()
-	s.publish()
-
-	ticker := time.NewTicker(s.interval)
-	defer ticker.Stop()
-	for {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case <-ticker.C:
-			s.publish()
-		}
-	}
+	return runner.PollLoop(ctx, 2*time.Second, s.publish)
 }
 
 func (s *Service) publish() {

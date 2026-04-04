@@ -3,33 +3,21 @@ package hyprland
 import (
 	"encoding/json"
 	"fmt"
-	"os/exec"
 	"strings"
+
+	"github.com/sonroyaalmerol/snry-shell/internal/services/runner"
 )
 
-// Commander abstracts running hyprctl so tests can inject a fake.
-type Commander interface {
-	Run(args ...string) ([]byte, error)
-}
-
-type hyprctlCommander struct{}
-
-func (h hyprctlCommander) Run(args ...string) ([]byte, error) {
-	return exec.Command("hyprctl", args...).Output()
-}
-
-// NewCommander returns a Commander backed by hyprctl.
-func NewCommander() Commander {
-	return hyprctlCommander{}
-}
-
-// Querier issues hyprctl JSON queries on demand.
 type Querier struct {
-	cmd Commander
+	cmd runner.Commander
 }
 
-func NewQuerier(cmd Commander) *Querier {
+func NewQuerier(cmd runner.Commander) *Querier {
 	return &Querier{cmd: cmd}
+}
+
+func NewQuerierWithDefaults() *Querier {
+	return NewQuerier(runner.NewCommander())
 }
 
 func (q *Querier) Clients() ([]HyprClient, error) {
