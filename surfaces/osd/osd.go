@@ -40,7 +40,8 @@ func New(app *gtk.Application, b *bus.Bus) *OSD {
 
 	b.Subscribe(bus.TopicAudio, func(e bus.Event) {
 		sink := e.Data.(state.AudioSink)
-		if sink == o.lastAudio {
+		// Only show OSD when volume or mute state actually changes.
+		if sink.Muted == o.lastAudio.Muted && sink.Volume == o.lastAudio.Volume {
 			return
 		}
 		o.lastAudio = sink

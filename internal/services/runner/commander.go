@@ -9,7 +9,7 @@ type Commander interface {
 type execCommander struct{}
 
 func (e execCommander) Run(args ...string) ([]byte, error) {
-	return exec.Command(args[0], args[1:]...).Output()
+	return exec.Command("hyprctl", args...).Output()
 }
 
 func NewCommander() Commander { return execCommander{} }

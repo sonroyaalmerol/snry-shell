@@ -7,13 +7,13 @@ import (
 	"github.com/sonroyaalmerol/snry-shell/internal/bus"
 	"github.com/sonroyaalmerol/snry-shell/internal/layershell"
 	"github.com/sonroyaalmerol/snry-shell/internal/servicerefs"
-	"github.com/sonroyaalmerol/snry-shell/internal/surfaceutil"
 )
 
 // Right is the right-edge sidebar showing notifications, media, calendar, and controls.
 type Right struct {
-	win *gtk.ApplicationWindow
-	bus *bus.Bus
+	win        *gtk.ApplicationWindow
+	clickCatcher *gtk.ApplicationWindow
+	bus        *bus.Bus
 }
 
 // NewRight creates the right sidebar.
@@ -26,11 +26,34 @@ func NewRight(app *gtk.Application, b *bus.Bus, refs *servicerefs.ServiceRefs) *
 		Namespace:    "snry-sidebar-right",
 	})
 
-	r := &Right{win: win, bus: b}
+	// Full-screen invisible click catcher behind the sidebar.
+	clickCatcher := layershell.NewWindow(app, layershell.WindowConfig{
+		Name:         "snry-sidebar-catcher",
+		Layer:        layershell.LayerOverlay,
+		Anchors:      layershell.FullscreenAnchors(),
+		KeyboardMode: layershell.KeyboardModeNone,
+		ExclusiveZone: -1,
+		Namespace:    "snry-sidebar-catcher",
+	})
+	clickCatcher.SetVisible(false)
+
+	r := &Right{win: win, clickCatcher: clickCatcher, bus: b}
 	r.build(refs)
 	win.SetVisible(false)
 
-	surfaceutil.AddToggleOn(b, win, "toggle-sidebar")
+	// Clicking the catcher dismisses the sidebar.
+	clickGesture := gtk.NewGestureClick()
+	clickGesture.SetButton(1)
+	clickGesture.ConnectReleased(func(_ int, _ float64, _ float64) {
+		r.close()
+	})
+	clickCatcher.AddController(clickGesture)
+
+	b.Subscribe(bus.TopicSystemControls, func(e bus.Event) {
+		if e.Data == "toggle-sidebar" {
+			r.toggle()
+		}
+	})
 
 	return r
 }
@@ -79,9 +102,20 @@ func (r *Right) build(refs *servicerefs.ServiceRefs) {
 	r.win.SetChild(scroll)
 }
 
-// Toggle shows or hides the sidebar.
-func (r *Right) Toggle() {
-	r.win.SetVisible(!r.win.Visible())
+// toggle shows or hides the sidebar along with the click catcher.
+func (r *Right) toggle() {
+	if r.win.Visible() {
+		r.close()
+	} else {
+		r.win.SetVisible(true)
+		r.clickCatcher.SetVisible(true)
+	}
+}
+
+// close hides both the sidebar and click catcher.
+func (r *Right) close() {
+	r.win.SetVisible(false)
+	r.clickCatcher.SetVisible(false)
 }
 
 // buildBottomGroup creates the collapsible system controls section.
