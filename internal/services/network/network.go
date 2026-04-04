@@ -212,12 +212,15 @@ func (s *Service) ScanWiFi() ([]state.WiFiNetwork, error) {
 
 		apsV, err := devObj.GetProperty(nmDeviceWireless + ".AllAccessPoints")
 		if err != nil {
+			fmt.Fprintf(os.Stderr, "wifi scan: AllAccessPoints error on %s: %v\n", p, err)
 			continue
 		}
 		apPaths, ok := apsV.Value().([]dbus.ObjectPath)
 		if !ok {
+			fmt.Fprintf(os.Stderr, "wifi scan: AllAccessPoints type=%T on %s\n", apsV.Value(), p)
 			continue
 		}
+		fmt.Fprintf(os.Stderr, "wifi scan: device %s has %d APs\n", p, len(apPaths))
 
 		for _, apPath := range apPaths {
 			apObj := s.conn.Object(nmDest, apPath)
