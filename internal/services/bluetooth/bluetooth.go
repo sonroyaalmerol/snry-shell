@@ -61,9 +61,21 @@ func (s *Service) poll() error {
 		return fmt.Errorf("bluetooth poll: %w", err)
 	}
 	powered, _ := poweredV.Value().(bool)
-	s.bus.Publish(bus.TopicBluetooth, state.BluetoothState{
-		Powered: powered,
-	})
+
+	bs := state.BluetoothState{Powered: powered}
+	if powered {
+		devices, err := s.GetDevices()
+		if err == nil {
+			for _, d := range devices {
+				if d.Connected {
+					bs.Connected = true
+					bs.DeviceName = d.Name
+					break
+				}
+			}
+		}
+	}
+	s.bus.Publish(bus.TopicBluetooth, bs)
 	return nil
 }
 

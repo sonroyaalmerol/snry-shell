@@ -85,12 +85,12 @@ func (s *Service) fetchState() (state.NetworkState, error) {
 		return state.NetworkState{}, fmt.Errorf("no D-Bus connection")
 	}
 
-	connStateV, err := nmObj.GetProperty(nmIface + ".Connectivity")
+	stateV, err := nmObj.GetProperty(nmIface + ".State")
 	if err != nil {
-		return state.NetworkState{}, fmt.Errorf("get connectivity: %w", err)
+		return state.NetworkState{}, fmt.Errorf("get state: %w", err)
 	}
-	connState, _ := connStateV.Value().(uint32)
-	connected := connState >= nmStateConnectedLocal
+	nmState, _ := stateV.Value().(uint32)
+	connected := nmState >= nmStateConnectedLocal
 
 	// Try to get SSID from the primary WiFi device.
 	ssid := ""

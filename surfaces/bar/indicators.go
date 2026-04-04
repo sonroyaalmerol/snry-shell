@@ -95,10 +95,28 @@ func newIndicatorPill(b *bus.Bus, refs *servicerefs.ServiceRefs) gtk.Widgetter {
 	})
 
 	// Bluetooth icon.
-	btIcon := materialIcon("bluetooth")
+	btIcon := materialIcon("bluetooth_disabled")
 	btIcon.AddCSSClass("indicator-icon")
 	btIcon.SetVisible(refs.Bluetooth != nil)
 	box.Append(btIcon)
+
+	b.Subscribe(bus.TopicBluetooth, func(e bus.Event) {
+		bs, ok := e.Data.(state.BluetoothState)
+		if !ok {
+			return
+		}
+		glib.IdleAdd(func() {
+			if bs.Powered {
+				if bs.Connected {
+					btIcon.SetText("bluetooth_connected")
+				} else {
+					btIcon.SetText("bluetooth")
+				}
+			} else {
+				btIcon.SetText("bluetooth_disabled")
+			}
+		})
+	})
 
 	return box
 }
