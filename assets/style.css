@@ -74,6 +74,15 @@
     padding: 4px 6px;
 }
 
+.bar-group-clickable {
+    cursor: pointer;
+    transition: background-color 150ms ease;
+}
+
+.bar-group-clickable:hover {
+    background-color: alpha(@col_on_surface, 0.08);
+}
+
 /* Thin vertical separator between bar groups */
 .bar-separator {
     background-color: alpha(@col_outline_variant, 0.3);
@@ -331,6 +340,26 @@
     padding: 12px 8px;
     min-width: 460px;
     border: 1px solid alpha(@col_outline, 0.15);
+}
+
+.sidebar-scroll {
+    background-color: transparent;
+}
+
+.sidebar-scroll > scrollbar {
+    background-color: transparent;
+    opacity: 0;
+}
+
+.sidebar-scroll > scrollbar slider {
+    background-color: alpha(@col_on_surface, 0.2);
+    border-radius: var(--radius-pill);
+    min-width: 4px;
+}
+
+.sidebar-scroll > scrollbar.hovering,
+.sidebar-scroll > scrollbar.sliding {
+    opacity: 1;
 }
 
 .notification-list {

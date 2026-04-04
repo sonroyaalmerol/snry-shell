@@ -36,6 +36,10 @@ func NewRight(app *gtk.Application, b *bus.Bus, refs *servicerefs.ServiceRefs) *
 }
 
 func (r *Right) build(refs *servicerefs.ServiceRefs) {
+	scroll := gtk.NewScrolledWindow()
+	scroll.SetPolicy(gtk.PolicyNever, gtk.PolicyAutomatic)
+	scroll.AddCSSClass("sidebar-scroll")
+
 	root := gtk.NewBox(gtk.OrientationVertical, 0)
 	root.AddCSSClass("sidebar-right")
 	root.SetMarginTop(12)
@@ -71,7 +75,8 @@ func (r *Right) build(refs *servicerefs.ServiceRefs) {
 	// Bottom group: system controls (collapsible)
 	root.Append(buildBottomGroup(r.bus, refs))
 
-	r.win.SetChild(root)
+	scroll.SetChild(root)
+	r.win.SetChild(scroll)
 }
 
 // Toggle shows or hides the sidebar.

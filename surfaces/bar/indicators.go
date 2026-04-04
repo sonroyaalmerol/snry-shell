@@ -21,24 +21,29 @@ func barGroup(child gtk.Widgetter) gtk.Widgetter {
 	return box
 }
 
+// clickableBarGroup wraps a widget like barGroup but adds a click gesture to toggle the sidebar.
+func clickableBarGroup(child gtk.Widgetter, b *bus.Bus) gtk.Widgetter {
+	box := gtk.NewBox(gtk.OrientationHorizontal, 0)
+	box.AddCSSClass("bar-group")
+	box.AddCSSClass("bar-group-clickable")
+	box.SetVAlign(gtk.AlignCenter)
+	box.Append(child)
+
+	click := gtk.NewGestureClick()
+	click.SetButton(1)
+	click.ConnectReleased(func(_ int, _ float64, _ float64) {
+		b.Publish(bus.TopicSystemControls, "toggle-sidebar")
+	})
+	box.AddController(click)
+
+	return box
+}
+
 // barSeparator returns a thin vertical divider.
 func barSeparator() gtk.Widgetter {
 	sep := gtk.NewLabel("")
 	sep.AddCSSClass("bar-separator")
 	return sep
-}
-
-// newLeftSidebarButton creates the left sidebar toggle button.
-func newLeftSidebarButton(b *bus.Bus) gtk.Widgetter {
-	btn := gtk.NewButton()
-	btn.AddCSSClass("bar-sidebar-btn")
-	icon := materialIcon("menu")
-	btn.SetChild(icon)
-	btn.SetTooltipText("Toggle sidebar")
-	btn.ConnectClicked(func() {
-		b.Publish(bus.TopicSystemControls, "toggle-sidebar")
-	})
-	return btn
 }
 
 // newIndicatorPill creates the grouped indicator pill (notifications, wifi, bluetooth).

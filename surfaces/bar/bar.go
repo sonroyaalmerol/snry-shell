@@ -40,13 +40,9 @@ func (b *Bar) build(refs *servicerefs.ServiceRefs) {
 	b.win.SetChild(root)
 }
 
-// Left: sidebar button + active window title (fills remaining space).
+// Left: active window title (fills remaining space).
 func (b *Bar) buildLeft() gtk.Widgetter {
-	box := gtk.NewBox(gtk.OrientationHorizontal, 6)
-	box.SetVAlign(gtk.AlignCenter)
-	box.Append(newLeftSidebarButton(b.bus))
-	box.Append(newWindowTitleWidget(b.bus))
-	return box
+	return newWindowTitleWidget(b.bus)
 }
 
 // Center: [Resources+Media group] | [Workspaces group] | [Clock+Status group].
@@ -55,13 +51,13 @@ func (b *Bar) buildCenter(refs *servicerefs.ServiceRefs) gtk.Widgetter {
 	box.SetVAlign(gtk.AlignCenter)
 
 	// Status indicators group (resources, volume, brightness, battery, keyboard).
-	statusGroup := barGroup(newStatusWidgetGroup(b.bus, refs))
+	statusGroup := clickableBarGroup(newStatusWidgetGroup(b.bus, refs), b.bus)
 
 	// Workspaces group.
-	wsGroup := barGroup(newWorkspacesWidget(b.bus, refs.Hyprland))
+	wsGroup := clickableBarGroup(newWorkspacesWidget(b.bus, refs.Hyprland), b.bus)
 
 	// Clock + media group.
-	clockGroup := barGroup(newClockGroup(b.bus))
+	clockGroup := clickableBarGroup(newClockGroup(b.bus), b.bus)
 
 	box.Append(statusGroup)
 	box.Append(barSeparator())
