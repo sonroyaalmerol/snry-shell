@@ -16,7 +16,6 @@ builds:
       - linux
     goarch:
       - amd64
-      - arm64
     ldflags:
       - -s -w
       - -X main.version={{.Version}}
@@ -26,12 +25,7 @@ archives:
     formats:
       - tar.gz
     name_template: >-
-      {{ .ProjectName }}_
-      {{- .Version }}_
-      {{- .Os }}_
-      {{- if eq .Arch "amd64" }}x86_64
-      {{- else if eq .Arch "arm64" }}aarch64
-      {{- else }}{{ .Arch }}{{ end }}
+      {{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}
     files:
       - LICENSE
       - README.md
@@ -41,12 +35,7 @@ nfpms:
   - id: deb
     package_name: snry-shell
     file_name_template: >-
-      {{ .ProjectName }}_
-      {{- .Version }}_
-      {{- .Os }}_
-      {{- if eq .Arch "amd64" }}x86_64
-      {{- else if eq .Arch "arm64" }}aarch64
-      {{- else }}{{ .Arch }}{{ end }}
+      {{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}
     formats:
       - deb
     maintainer: Son Roy Almerol <github@snry.me>
@@ -68,12 +57,7 @@ nfpms:
   - id: rpm
     package_name: snry-shell
     file_name_template: >-
-      {{ .ProjectName }}_
-      {{- .Version }}_
-      {{- .Os }}_
-      {{- if eq .Arch "amd64" }}x86_64
-      {{- else if eq .Arch "arm64" }}aarch64
-      {{- else }}{{ .Arch }}{{ end }}
+      {{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}
     formats:
       - rpm
     maintainer: Son Roy Almerol <github@snry.me>
@@ -89,12 +73,7 @@ nfpms:
   - id: apk
     package_name: snry-shell
     file_name_template: >-
-      {{ .ProjectName }}_
-      {{- .Version }}_
-      {{- .Os }}_
-      {{- if eq .Arch "amd64" }}x86_64
-      {{- else if eq .Arch "arm64" }}aarch64
-      {{- else }}{{ .Arch }}{{ end }}
+      {{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}
     formats:
       - apk
     maintainer: Son Roy Almerol <github@snry.me>
