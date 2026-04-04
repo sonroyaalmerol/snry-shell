@@ -41,6 +41,8 @@ func New(app *gtk.Application, b *bus.Bus, refs *servicerefs.ServiceRefs, trigge
 	nc.build(refs)
 	win.SetVisible(false)
 
+	layershell.SetMargin(win, layershell.EdgeTop, layershell.BarExclusiveZone+8)
+
 	clickGesture := gtk.NewGestureClick()
 	clickGesture.SetButton(1)
 	clickGesture.ConnectReleased(func(_ int, _ float64, _ float64) {
@@ -112,7 +114,6 @@ func (nc *NotifCenter) positionUnderTrigger() {
 		}
 	}
 
-	nc.root.SetMarginTop(layershell.BarExclusiveZone + 8)
 	nc.root.SetMarginStart(desiredLeft)
 }
 

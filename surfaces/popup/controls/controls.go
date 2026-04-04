@@ -41,6 +41,9 @@ func New(app *gtk.Application, b *bus.Bus, refs *servicerefs.ServiceRefs, trigge
 	c.build(refs)
 	win.SetVisible(false)
 
+	// Layer-shell top margin keeps the window below the bar.
+	layershell.SetMargin(win, layershell.EdgeTop, layershell.BarExclusiveZone+8)
+
 	// Click background to close.
 	clickGesture := gtk.NewGestureClick()
 	clickGesture.SetButton(1)
@@ -116,7 +119,6 @@ func (c *Controls) positionUnderTrigger() {
 	fmt.Fprintf(os.Stderr, "controls: desiredLeft=%d marginTop=%d\n",
 		desiredLeft, layershell.BarExclusiveZone+8)
 
-	c.root.SetMarginTop(layershell.BarExclusiveZone + 8)
 	c.root.SetMarginStart(desiredLeft)
 }
 
