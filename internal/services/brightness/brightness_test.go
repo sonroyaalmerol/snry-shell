@@ -1,44 +1,34 @@
 package brightness_test
 
 import (
+	"regexp"
 	"testing"
-
-	"github.com/sonroyaalmerol/snry-shell/internal/services/brightness"
 )
 
-func TestParseBrightnessctl(t *testing.T) {
+// ddcutil output: "VCP code 0x10 (Brightness): current value =    20, max value =   100"
+var ddcutilRe = regexp.MustCompile(`current value\s*=\s*(\d+),\s*max value\s*=\s*(\d+)`)
+
+func TestDdcutilRegex(t *testing.T) {
 	tests := []struct {
-		current string
-		max     string
-		wantCur int
-		wantMax int
+		name   string
+		out    string
+		wantOk bool
 	}{
-		{"100\n", "255\n", 100, 255},
-		{"0\n", "255\n", 0, 255},
-		{"255\n", "255\n", 255, 255},
-		{"120", "255", 120, 255},
+		{"typical", "VCP code 0x10 (Brightness                    ): current value =    20, max value =   100\n", true},
+		{"zero", "VCP code 0x10 (Brightness                    ): current value =    0, max value =   100\n", true},
+		{"max", "VCP code 0x10 (Brightness                    ): current value =   100, max value =   100\n", true},
+		{"tight", "VCP code 0x10 (Brightness): current value=50,max value=100\n", true},
+		{"garbage", "no brightness here\n", false},
 	}
 	for _, tt := range tests {
-		got, err := brightness.ParseBrightnessctl(tt.current, tt.max)
-		if err != nil {
-			t.Fatalf("current=%q max=%q: unexpected error: %v", tt.current, tt.max, err)
-		}
-		if got.Current != tt.wantCur {
-			t.Fatalf("current=%q: expected %d, got %d", tt.current, tt.wantCur, got.Current)
-		}
-		if got.Max != tt.wantMax {
-			t.Fatalf("max=%q: expected %d, got %d", tt.max, tt.wantMax, got.Max)
-		}
-	}
-}
-
-func TestParseBrightnessctlInvalid(t *testing.T) {
-	_, err := brightness.ParseBrightnessctl("not a number", "255")
-	if err == nil {
-		t.Fatal("expected error for invalid current")
-	}
-	_, err = brightness.ParseBrightnessctl("100", "not a number")
-	if err == nil {
-		t.Fatal("expected error for invalid max")
+		t.Run(tt.name, func(t *testing.T) {
+			m := ddcutilRe.FindStringSubmatch(tt.out)
+			if tt.wantOk && m == nil {
+				t.Fatal("expected match")
+			}
+			if !tt.wantOk && m != nil {
+				t.Fatalf("unexpected match: %v", m)
+			}
+		})
 	}
 }

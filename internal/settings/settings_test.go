@@ -20,9 +20,6 @@ func TestDefaultConfig(t *testing.T) {
 	if cfg.DoNotDisturb {
 		t.Fatal("expected do-not-disturb off by default")
 	}
-	if cfg.WallpaperDir == "" {
-		t.Fatal("expected non-empty wallpaper dir")
-	}
 }
 
 func TestSaveAndLoad(t *testing.T) {

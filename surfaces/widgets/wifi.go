@@ -180,15 +180,11 @@ func newWiFiRow(parent *gtk.ApplicationWindow, refs *servicerefs.ServiceRefs, ne
 
 func signalStrengthIcon(signal int) string {
 	switch {
-	case signal >= 80:
-		return "signal_wifi_4_bar"
 	case signal >= 60:
 		return "network_wifi_3_bar"
-	case signal >= 40:
-		return "wifi_2_bar"
-	case signal >= 20:
-		return "wifi_1_bar"
+	case signal >= 30:
+		return "network_wifi_2_bar"
 	default:
-		return "signal_wifi_0_bar"
+		return "network_wifi_1_bar"
 	}
 }

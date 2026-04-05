@@ -13,7 +13,6 @@ const (
 	TopicNotification Topic = "notification"
 	TopicMedia        Topic = "media"
 	TopicMediaTick    Topic = "mediatick"
-	TopicTheme        Topic = "theme"
 	TopicBrightness   Topic = "brightness"
 	TopicClipboard    Topic = "clipboard"
 
@@ -21,7 +20,6 @@ const (
 	TopicBluetooth      Topic = "bluetooth"
 	TopicNightMode      Topic = "nightmode"
 	TopicSystemControls Topic = "systemcontrols"
-	TopicWallpapers     Topic = "wallpapers"
 	TopicSessionAction  Topic = "session"
 	TopicScreenLock     Topic = "screenlock"
 	TopicSettings       Topic = "settings"

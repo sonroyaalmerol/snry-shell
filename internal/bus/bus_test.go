@@ -57,14 +57,14 @@ func TestBusPublisherInterface(t *testing.T) {
 	b := bus.New()
 	var pub bus.Publisher = b
 	received := make(chan bus.Event, 1)
-	b.Subscribe(bus.TopicTheme, func(e bus.Event) {
+	b.Subscribe(bus.TopicClipboard, func(e bus.Event) {
 		received <- e
 	})
-	pub.Publish(bus.TopicTheme, state.ColorScheme{Primary: "#6750A4"})
+	pub.Publish(bus.TopicClipboard, "test-data")
 	ev := <-received
-	scheme := ev.Data.(state.ColorScheme)
-	if scheme.Primary != "#6750A4" {
-		t.Fatalf("unexpected primary: %q", scheme.Primary)
+	data, ok := ev.Data.(string)
+	if !ok || data != "test-data" {
+		t.Fatalf("unexpected data: %v", ev.Data)
 	}
 }
 

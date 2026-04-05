@@ -5,10 +5,8 @@ import (
 	"fmt"
 	"net"
 	"os"
-	"path/filepath"
 
 	"github.com/diamondburned/gotk4/pkg/gdk/v4"
-	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/godbus/dbus/v5"
 	"github.com/sonroyaalmerol/snry-shell/assets"
@@ -30,7 +28,6 @@ import (
 	"github.com/sonroyaalmerol/snry-shell/internal/services/sni"
 	"github.com/sonroyaalmerol/snry-shell/internal/services/todo"
 	"github.com/sonroyaalmerol/snry-shell/internal/services/upower"
-	"github.com/sonroyaalmerol/snry-shell/internal/services/wallpaper"
 	"github.com/sonroyaalmerol/snry-shell/surfaces/bar"
 	"github.com/sonroyaalmerol/snry-shell/surfaces/cheatsheet"
 	"github.com/sonroyaalmerol/snry-shell/surfaces/clipboard"
@@ -54,20 +51,7 @@ import (
 	"github.com/sonroyaalmerol/snry-shell/surfaces/regionselector"
 	"github.com/sonroyaalmerol/snry-shell/surfaces/session"
 	"github.com/sonroyaalmerol/snry-shell/surfaces/settings"
-	"github.com/sonroyaalmerol/snry-shell/surfaces/wallpaperpicker"
 )
-
-func themeCachePath() string {
-	home, _ := os.UserCacheDir()
-	return filepath.Join(home, "snry-shell", "theme.css")
-}
-
-// loadThemeCSS loads CSS from a file into a GTK CSS provider.
-func loadThemeCSS(display *gdk.Display, css string) {
-	provider := gtk.NewCSSProvider()
-	provider.LoadFromString(css)
-	gtk.StyleContextAddProviderForDisplay(display, provider, gtk.STYLE_PROVIDER_PRIORITY_USER+1)
-}
 
 // Run creates the GTK application, initialises all services, wires every
 // surface and enters the main loop.
@@ -118,9 +102,8 @@ func Run() int {
 		notifications.Register(sesConn, notifications.New(b))
 	}
 
-	// Clipboard and wallpaper watchers.
+	// Clipboard watcher.
 	go serviceclipboard.NewWithDefaults(b).Run(ctx)
-	go wallpaper.New(b).Run(ctx)
 
 	// Hyprland event stream.
 	if conn, err := net.Dial("unix", hyprland.SocketPath()); err == nil {
@@ -147,23 +130,7 @@ func Run() int {
 			provider.LoadFromString(assets.StyleCSS)
 			gtk.StyleContextAddProviderForDisplay(display, provider, gtk.STYLE_PROVIDER_PRIORITY_USER)
 
-			// Load cached matugen theme if it exists.
-			if data, err := os.ReadFile(themeCachePath()); err == nil {
-				loadThemeCSS(display, string(data))
-			}
 		}
-
-		// Hot-reload theme when wallpaper changes.
-		b.Subscribe(bus.TopicTheme, func(ev bus.Event) {
-			glib.IdleAdd(func() {
-				if display == nil {
-					return
-				}
-				if data, err := os.ReadFile(themeCachePath()); err == nil {
-					loadThemeCSS(display, string(data))
-				}
-			})
-		})
 
 		shellBar := bar.New(app, b, refs)
 		overview.New(app, b, refs.Hyprland)
@@ -181,7 +148,6 @@ func Run() int {
 		osk.New(app, b)
 		regionselector.New(app, b)
 		cheatsheet.New(app, b)
-		wallpaperpicker.New(app, b)
 		settings.New(app, b)
 		clipboard.New(app, b)
 		emoji.New(app, b)

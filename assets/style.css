@@ -1403,36 +1403,6 @@ scale.mixer-slider slider {
     color: @col_error;
 }
 
-/* ── Wallpaper picker ───────────────────────────────────────────────────────── */
-
-.wallpaper-picker {
-    background-color: alpha(@col_background, 0.92);
-}
-
-.wallpaper-picker-header {
-    font-size: 16px;
-    font-weight: 600;
-    color: @col_on_background;
-    padding: 16px 24px 8px;
-}
-
-.wallpaper-grid {
-    padding: 24px;
-}
-
-.wallpaper-thumb {
-    border-radius: var(--radius-md);
-    margin: 6px;
-    min-width: 240px;
-    min-height: 135px;
-    transition: box-shadow 150ms var(--ease-standard-decel);
-}
-
-.wallpaper-thumb:hover,
-.wallpaper-thumb.selected {
-    box-shadow: 0 0 0 3px @col_primary;
-}
-
 /* ── Session power menu ──────────────────────────────────────────────────────── */
 
 .session-overlay {

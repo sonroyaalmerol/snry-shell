@@ -15,7 +15,7 @@ const (
 	panelWidth  = 350
 )
 
-// Controls is a popup dialog showing volume, brightness, and wallpaper controls.
+// Controls is a popup dialog showing volume and brightness controls.
 type Controls struct {
 	win     *gtk.ApplicationWindow
 	bus     *bus.Bus

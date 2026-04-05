@@ -3,6 +3,7 @@ package brightness
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -37,33 +38,31 @@ func (s *Service) poll() {
 	s.bus.Publish(bus.TopicBrightness, bs)
 }
 
-func (s *Service) query() (state.BrightnessState, error) {
-	current, err := s.runner.Output("brightnessctl", "get")
-	if err != nil {
-		return state.BrightnessState{}, fmt.Errorf("brightnessctl get: %w", err)
-	}
-	max, err := s.runner.Output("brightnessctl", "max")
-	if err != nil {
-		return state.BrightnessState{}, fmt.Errorf("brightnessctl max: %w", err)
-	}
-	return ParseBrightnessctl(string(current), string(max))
-}
+// ddcutil output: "VCP code 0x10 (Brightness): current value =    20, max value =   100"
+var ddcutilRe = regexp.MustCompile(`current value\s*=\s*(\d+),\s*max value\s*=\s*(\d+)`)
 
-// ParseBrightnessctl parses the output of `brightnessctl get` and `brightnessctl max`.
-func ParseBrightnessctl(current, max string) (state.BrightnessState, error) {
-	cur, err := strconv.Atoi(strings.TrimSpace(current))
+func (s *Service) query() (state.BrightnessState, error) {
+	out, err := s.runner.Output("ddcutil", "getvcp", "10")
 	if err != nil {
-		return state.BrightnessState{}, fmt.Errorf("parse current brightness: %w", err)
+		return state.BrightnessState{}, fmt.Errorf("ddcutil getvcp: %w", err)
 	}
-	mx, err := strconv.Atoi(strings.TrimSpace(max))
-	if err != nil {
-		return state.BrightnessState{}, fmt.Errorf("parse max brightness: %w", err)
+	m := ddcutilRe.FindStringSubmatch(string(out))
+	if m == nil {
+		return state.BrightnessState{}, fmt.Errorf("ddcutil: could not parse output: %q", strings.TrimSpace(string(out)))
 	}
+	cur, _ := strconv.Atoi(m[1])
+	mx, _ := strconv.Atoi(m[2])
 	return state.BrightnessState{Current: cur, Max: mx}, nil
 }
 
-// SetBrightness sets the screen brightness. v is 0.0–1.0.
+// SetBrightness sets the monitor brightness. v is 0.0–1.0.
 func (s *Service) SetBrightness(v float64) error {
-	pct := fmt.Sprintf("%.0f%%", v*100)
-	return s.runner.Run("brightnessctl", "set", pct+"@")
+	val := int(v * 100)
+	if val < 0 {
+		val = 0
+	}
+	if val > 100 {
+		val = 100
+	}
+	return s.runner.Run("ddcutil", "setvcp", "10", strconv.Itoa(val))
 }

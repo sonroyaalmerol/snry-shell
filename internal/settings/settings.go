@@ -13,7 +13,6 @@ type Config struct {
 	FontScale    float64 `json:"font_scale"`
 	BarPosition  string  `json:"bar_position"`
 	DoNotDisturb bool    `json:"do_not_disturb"`
-	WallpaperDir string  `json:"wallpaper_dir"`
 }
 
 func DefaultConfig() Config {
@@ -22,7 +21,6 @@ func DefaultConfig() Config {
 		FontScale:    1.0,
 		BarPosition:  "top",
 		DoNotDisturb: false,
-		WallpaperDir: filepath.Join(os.Getenv("HOME"), "Pictures", "Wallpapers"),
 	}
 }
 
