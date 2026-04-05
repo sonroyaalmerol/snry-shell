@@ -36,40 +36,29 @@ func New(app *gtk.Application, b *bus.Bus, refs *servicerefs.ServiceRefs) *Bar {
 func (b *Bar) build(refs *servicerefs.ServiceRefs) {
 	root := gtk.NewCenterBox()
 	root.AddCSSClass("bar")
-	root.SetStartWidget(b.buildLeft())
+	root.SetStartWidget(b.buildLeft(refs))
 	root.SetCenterWidget(b.buildCenter(refs))
 	root.SetEndWidget(b.buildRight(refs))
 	b.win.SetChild(root)
 }
 
-// Left: active window title (fills remaining space).
-func (b *Bar) buildLeft() gtk.Widgetter {
-	return newWindowTitleWidget(b.bus)
-}
-
-// Center: [Resources+Media group] | [Workspaces group] | [Clock+Status group].
-func (b *Bar) buildCenter(refs *servicerefs.ServiceRefs) gtk.Widgetter {
+// Left: window title + status indicators.
+func (b *Bar) buildLeft(refs *servicerefs.ServiceRefs) gtk.Widgetter {
 	box := gtk.NewBox(gtk.OrientationHorizontal, 0)
 	box.SetVAlign(gtk.AlignCenter)
 
-	// Status indicators group (resources, volume, brightness, battery, keyboard).
 	statusGroup := clickableBarGroup(newStatusWidgetGroup(b.bus, refs), b.bus, "toggle-controls")
-
-	// Workspaces group (not clickable — has its own interactive buttons).
-	wsGroup := barGroup(newWorkspacesWidget(b.bus, refs.Hyprland))
-
-	// Clock + media group (non-clickable display).
-	clockGroup := barGroup(newClockGroup(b.bus))
-
 	b.StatusGroup = statusGroup
 
+	box.Append(newWindowTitleWidget(b.bus))
+	box.Append(barSeparator())
 	box.Append(statusGroup)
-	box.Append(barSeparator())
-	box.Append(wsGroup)
-	box.Append(barSeparator())
-	box.Append(clockGroup)
-
 	return box
+}
+
+// Center: workspaces only.
+func (b *Bar) buildCenter(refs *servicerefs.ServiceRefs) gtk.Widgetter {
+	return barGroup(newWorkspacesWidget(b.bus, refs.Hyprland))
 }
 
 func newClockGroup(b *bus.Bus) gtk.Widgetter {
@@ -80,15 +69,17 @@ func newClockGroup(b *bus.Bus) gtk.Widgetter {
 	return box
 }
 
-// Right: indicator pill + system tray.
+// Right: indicator pill + system tray + clock.
 func (b *Bar) buildRight(refs *servicerefs.ServiceRefs) gtk.Widgetter {
 	box := gtk.NewBox(gtk.OrientationHorizontal, 6)
 	box.SetVAlign(gtk.AlignCenter)
 
-	// Wrap indicator pill in a clickable bar-group.
 	pillBox := clickableBarGroup(newIndicatorPill(b.bus, refs), b.bus, "toggle-notif-center")
 	b.NotifPill = pillBox
+
 	box.Append(pillBox)
 	box.Append(newTrayWidget(b.bus))
+	box.Append(barSeparator())
+	box.Append(barGroup(newClockGroup(b.bus)))
 	return box
 }
