@@ -536,6 +536,20 @@ scale.m3-scale slider {
     background-color: alpha(@col_on_surface, var(--state-focus));
 }
 
+.notification-empty {
+    padding: 24px 0;
+}
+
+.notification-empty-icon {
+    font-size: 40px;
+    color: @col_outline;
+}
+
+.notification-empty-label {
+    font-size: 13px;
+    color: @col_outline;
+}
+
 /* ── OSD (volume / brightness) ───────────────────────────────────────────────── */
 
 .osd {

@@ -11,8 +11,9 @@ import (
 )
 
 type Service struct {
-	bus  *bus.Bus
-	last state.BrightnessState
+	bus        *bus.Bus
+	last       state.BrightnessState
+	lastErr    string // suppresses repeated identical errors
 }
 
 func New(b *bus.Bus) *Service {
@@ -45,9 +46,15 @@ func pollLoop(ctx context.Context, interval time.Duration, poll func()) error {
 func (s *Service) poll() {
 	v, err := ddc.GetVCP(0x10)
 	if err != nil {
-		log.Printf("[brightness] ddc get: %v", err)
+		errStr := err.Error()
+		if errStr != s.lastErr {
+			log.Printf("[brightness] ddc get: %v", err)
+			s.lastErr = errStr
+		}
 		return
 	}
+	// Reset error suppression on success so new errors get logged once.
+	s.lastErr = ""
 	bs := state.BrightnessState{Current: int(v.Current), Max: int(v.Max)}
 	if bs.Current == s.last.Current && bs.Max == s.last.Max {
 		return

@@ -13,10 +13,12 @@ import (
 const maxNotifications = 20
 
 type notificationList struct {
-	scroll *gtk.ScrolledWindow
-	box    *gtk.Box
-	bus    *bus.Bus
-	count  int
+	scroll  *gtk.ScrolledWindow
+	box     *gtk.Box
+	bus     *bus.Bus
+	count   int
+	empty   *gtk.Box
+	hasNotif bool
 }
 
 func NewNotificationList(b *bus.Bus) gtk.Widgetter {
@@ -30,9 +32,22 @@ func NewNotificationList(b *bus.Bus) gtk.Widgetter {
 	nl.scroll.SetVExpand(true)
 	nl.scroll.SetPolicy(gtk.PolicyNever, gtk.PolicyAutomatic)
 
+	// Empty state placeholder.
+	nl.empty = gtk.NewBox(gtk.OrientationVertical, 8)
+	nl.empty.AddCSSClass("notification-empty")
+	nl.empty.SetVAlign(gtk.AlignCenter)
+	nl.empty.SetHAlign(gtk.AlignCenter)
+	icon := gtkutil.MaterialIcon("notifications_none")
+	icon.AddCSSClass("notification-empty-icon")
+	nl.empty.Append(icon)
+	label := gtk.NewLabel("No notifications")
+	label.AddCSSClass("notification-empty-label")
+	nl.empty.Append(label)
+	nl.box.Append(nl.empty)
+
 	b.Subscribe(bus.TopicNotification, func(e bus.Event) {
 		if e.Data == nil {
-			return // dismiss event — only affects popup/badge, not sidebar list
+			return
 		}
 		n := e.Data.(state.Notification)
 		glib.IdleAdd(func() {
@@ -44,6 +59,10 @@ func NewNotificationList(b *bus.Bus) gtk.Widgetter {
 }
 
 func (nl *notificationList) prepend(n state.Notification) {
+	if !nl.hasNotif {
+		nl.empty.SetVisible(false)
+		nl.hasNotif = true
+	}
 	card := nl.buildCard(n)
 	nl.box.Prepend(card)
 	nl.count++
@@ -79,6 +98,10 @@ func (nl *notificationList) buildCard(n state.Notification) gtk.Widgetter {
 		if p, ok := parent.(*gtk.Box); ok {
 			p.Remove(&card.Widget)
 			nl.count--
+			if nl.count == 0 {
+				nl.empty.SetVisible(true)
+				nl.hasNotif = false
+			}
 			nl.bus.Publish(bus.TopicNotification, nil)
 		}
 	})
