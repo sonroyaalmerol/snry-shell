@@ -11,7 +11,31 @@ import (
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/sonroyaalmerol/snry-shell/internal/bus"
 	"github.com/sonroyaalmerol/snry-shell/internal/layershell"
+	"github.com/sonroyaalmerol/snry-shell/internal/state"
 )
+
+// textInputClasses lists window classes (case-insensitive substring match)
+// where text input is likely. Terminals, browsers, editors, and chat apps.
+var textInputClasses = []string{
+	// Terminals
+	"kitty", "alacritty", "wezterm", "foot", "ghostty",
+	"tilix", "terminator", "konsole", "gnome-terminal",
+	"weston-terminal", "xfce4-terminal", "lxterminal",
+	// Browsers
+	"firefox", "chromium", "chrome", "brave", "vivaldi",
+	"edge", "thorium", "zen",
+	// Editors / IDEs
+	"code", "code-oss", "codium", "cursor",
+	"sublime_text", "nvim-qt", "gedit", "mousepad",
+	"neovide", "zeditor",
+	// Chat / comms
+	"telegram", "discord", "vesktop", "element", "nheko",
+	"signal", "whatsapp", "skype", "teams",
+	// Other text-heavy apps
+	"obsidian", "logseq", "joplin", "notion",
+	"thunderbird", "geary", "evolution",
+	"spotify", "firefox-esr",
+}
 
 type OSK struct {
 	win       *gtk.ApplicationWindow
@@ -68,14 +92,26 @@ func New(app *gtk.Application, b *bus.Bus) *OSK {
 		}
 	})
 
-	if osk.hasTouch {
-		b.Subscribe(bus.TopicActiveWindow, func(e bus.Event) {
-			glib.IdleAdd(func() {
-				if !osk.manualOff && !osk.visible {
-					osk.show()
-				}
-			})
+	// Auto-show/hide based on active window class heuristic.
+	b.Subscribe(bus.TopicActiveWindow, func(e bus.Event) {
+		if osk.manualOff {
+			return
+		}
+		win, ok := e.Data.(state.ActiveWindow)
+		if !ok {
+			return
+		}
+		want := osk.hasTouch && isTextInputWindow(win.Class)
+		glib.IdleAdd(func() {
+			if want && !osk.visible {
+				osk.show()
+			} else if !want && osk.visible {
+				osk.hide()
+			}
 		})
+	})
+
+	if osk.hasTouch {
 		log.Printf("[OSK] touch device detected, auto-trigger enabled")
 	}
 
@@ -102,6 +138,19 @@ func detectTouchDevice() bool {
 		return strings.Contains(string(out), "touch")
 	}
 	return strings.Contains(string(out), "touch")
+}
+
+// isTextInputWindow returns true if the window class looks like an app that
+// commonly needs text input. Uses case-insensitive substring matching against
+// a known list of terminals, browsers, editors, and chat apps.
+func isTextInputWindow(class string) bool {
+	lower := strings.ToLower(class)
+	for _, match := range textInputClasses {
+		if strings.Contains(lower, match) {
+			return true
+		}
+	}
+	return false
 }
 
 // keyDef describes a single key on the on-screen keyboard.
