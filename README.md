@@ -14,8 +14,8 @@ snry-shell provides a complete desktop shell UI layer:
 - **Status bar** — workspaces, window title, notification unread badge, system tray (SNI), resource monitor, keyboard layout, volume/brightness/network/battery indicators, clock
 - **Application overview** — window previews grouped by workspace, fuzzy app launcher
 - **Notifications** — freedesktop notification daemon (DBus), toast popups, sidebar notification list
-- **Control panel** — media controls, calendar popup, quick toggles (14 total), pomodoro timer, todo list, volume mixer, WiFi picker, Bluetooth picker
-- **Quick toggles** — WiFi, Bluetooth, Night Light, Anti-Flashbang, Mic Mute, EasyEffects, Volume Mixer, DND, Idle Inhibitor, GameMode, Performance, Screenshot, Color Picker, WiFi Networks
+- **Control panel** — media controls, calendar popup, quick toggles (13 total), pomodoro timer, todo list, volume mixer, WiFi picker, Bluetooth picker
+- **Quick toggles** — WiFi, Bluetooth, Night Light, Anti-Flash, Mic Mute, EasyEffects, DND, Idle Off, GameMode, Performance, Screenshot, Color Pick, On-Screen Keyboard
 - **Lock screen** — password entry, clock display
 - **Session menu** — lock, suspend, reboot, shutdown, logout
 - **Settings panel** — dark mode, font scale, bar position
@@ -26,7 +26,7 @@ snry-shell provides a complete desktop shell UI layer:
 - **Screen recorder** — wf-recorder integration with live timer
 - **Floating image viewer** — click-to-dismiss image display
 - **Polkit agent** — GUI authentication dialog (replaces text-based agent)
-- **On-screen keyboard** — QWERTY layout with key injection via `/dev/uinput` (zero external dependencies)
+- **On-screen keyboard** — QWERTY layout with key injection via `/dev/uinput`, auto-show via `zwp_input_method_v2`
 - **Extras** — screen corner hotspots, crosshair overlay, region screenshot selector, cheatsheet, OSD (volume/brightness)
 
 ## Architecture
@@ -60,29 +60,29 @@ surfaces/
   cheatsheet/                   Keyboard shortcuts overlay
   widgets/                      Shared bar/panel widgets (toggles, sliders, media, etc.)
 internal/
-  bus/                          Event bus (pub/sub)
+  bus/                          Event bus (pub/sub with replay)
   state/                        Shared state types
   servicerefs/                  Service container struct
   services/
-    hyprland/                   Hyprland IPC + queries + forced config injection
-    audio/                      Volume control (wpctl)
-    brightness/                 Brightness control (brightnessctl)
-    resources/                  CPU/RAM monitoring (/proc)
-    audiomixer/                 Per-app volume (pactl)
+    hyprland/                   Hyprland IPC (socket events) + queries (hyprctl)
+    audio/                      Volume control (wpctl; event-driven via pactl subscribe)
+    brightness/                 Brightness control (pure Go DDC/CI over I2C)
+    resources/                  CPU/RAM monitoring (/proc, change detection skips <1% deltas)
+    audiomixer/                 Per-app volume (pactl; event-driven via pactl subscribe)
     network/                    WiFi scanning + connectivity (NetworkManager DBus)
     bluetooth/                  Device discovery + pairing (Bluez DBus)
-    mpris/                      Media player control (MPRIS2 DBus)
+    mpris/                      Media player control (MPRIS2 DBus, PropertiesChanged + Seeked signals)
     upower/                     Battery status (UPower DBus)
     notifications/              Notification server (freedesktop DBus)
-    clipboard/                  Clipboard history (wl-clipboard)
+    clipboard/                  Clipboard history (cliphist; event-driven via wl-paste --watch)
     wallpaper/                  Wallpaper watcher (swww)
     nightmode/                  Night light (hyprsunset)
-    weather/                    Weather data
-    pomodoro/                   Pomodoro timer
+    pomodoro/                   Pomodoro timer (internal)
     todo/                       Task list (JSON persistence)
     sni/                        System tray host (StatusNotifierItem DBus)
-    runner/                     Command abstraction for testable subprocess calls
-  atspi2/                       AT-SPI2 text input focus detection (accessibility D-Bus)
+    runner/                     Command abstraction (Runner, StreamReader, Commander)
+  ddc/                          Pure Go DDC/CI monitor control (I2C ioctls, bus caching)
+  inputmethod/                  zwp_input_method_v2 watcher for OSK auto-show
   controlsocket/                Unix socket for --toggle-* commands
   dbusutil/                     D-Bus helper utilities
   fileutil/                     File I/O helpers
@@ -101,8 +101,9 @@ assets/
 
 ### Design Patterns
 
-- **Event bus** — All services publish state changes to a central `bus.Bus`; surfaces subscribe to topics they care about. No direct service-to-surface coupling.
-- **Dependency injection** — Every service that touches the OS (subprocesses, sockets, DBus) is abstracted behind an interface, enabling unit tests with fakes.
+- **Event bus** — All services publish state changes to a central `bus.Bus`; surfaces subscribe to topics they care about. Late subscribers receive the last published event (replay). No direct service-to-surface coupling.
+- **Event-driven architecture** — Services use event streams (pactl subscribe, wl-paste --watch, MPRIS D-Bus signals, Hyprland socket events, zwp_input_method_v2) instead of polling where possible. Remaining polling services (brightness via I2C, resources via /proc) use change deduplication to skip redundant publishes.
+- **Dependency injection** — Every service that touches the OS (subprocesses, sockets, DBus, I2C ioctls) is abstracted behind an interface, enabling unit tests with fakes.
 - **Layer shell** — Each surface is a separate gtk-layer-shell window with its own layer, anchors, exclusive zone, and keyboard mode.
 - **Service refs** — A single `ServiceRefs` struct bundles all service pointers and is passed to surface constructors that need them.
 - **Forced configs** — The shell temporarily injects Hyprland config values (e.g. `decoration:rounding`) via `hyprctl keyword` and restores originals on exit.
@@ -148,6 +149,7 @@ See [Building](#building) below.
 - **Hyprland** compositor
 - **gtk4-layer-shell** development headers
 - **System tools**: pkgconf, swww, matugen, wpctl (wireplumber), grim, wl-copy, cliphist, hyprpicker, wf-recorder
+- **I2C access**: User must be in the `i2c` group for direct monitor brightness control
 - **Optional**: checkpw (lock screen PAM), polkit-agent-helper-1 (polkit authentication)
 - **Fonts**: Google Sans Flex, Material Symbols Rounded, JetBrains Mono NF
 
@@ -278,23 +280,25 @@ bind = SUPER, N,      exec, snry-shell --toggle-notes
 
 ### Control socket
 
-snry-shell listens on `/tmp/snry-shell.sock`. The following commands are accepted:
+snry-shell listens on `/tmp/snry-shell.sock`. Any `toggle-*` command sent to the socket is dispatched via the event bus. Surfaces that handle a command toggle their visibility:
 
-| Command | Action |
-|---------|--------|
-| `toggle-overview` | Toggle application overview |
-| `toggle-controls` | Toggle control panel |
-| `toggle-session` | Toggle session power menu |
-| `toggle-crosshair` | Toggle crosshair overlay |
-| `toggle-cheatsheet` | Toggle keyboard shortcuts overlay |
-| `toggle-media-overlay` | Toggle full-screen media controls |
-| `toggle-settings` | Toggle settings panel |
-| `toggle-region-selector` | Toggle region screenshot selector |
-| `toggle-osk` | Toggle on-screen keyboard |
-| `toggle-clipboard` | Toggle clipboard history panel |
-| `toggle-emoji` | Toggle emoji picker |
-| `toggle-notes` | Toggle notes overlay |
-| `toggle-recorder` | Toggle screen recorder |
+| Command | Surface |
+|---------|---------|
+| `toggle-overview` | Application overview |
+| `toggle-controls` | Control panel |
+| `toggle-notif-center` | Notification center |
+| `toggle-calendar` | Calendar popup |
+| `toggle-session` | Power menu |
+| `toggle-crosshair` | Crosshair overlay |
+| `toggle-cheatsheet` | Keyboard shortcuts |
+| `toggle-media-overlay` | Full-screen media controls |
+| `toggle-settings` | Settings panel |
+| `toggle-region-selector` | Region screenshot selector |
+| `toggle-osk` | On-screen keyboard |
+| `toggle-clipboard` | Clipboard history |
+| `toggle-emoji` | Emoji picker |
+| `toggle-notes` | Notes overlay |
+| `toggle-recorder` | Screen recorder |
 
 ## Configuration
 
@@ -328,7 +332,7 @@ Custom CSS overrides can be added to `assets/style.css`. The base stylesheet use
 make test
 ```
 
-Test suites cover the internal packages (bus, calendar, launcher, services, settings, theme, uinput, atspi2, osk). Surface UI packages require a GTK display and are not unit-tested.
+Test suites cover the internal packages (bus, calendar, ddc, launcher, services, settings, theme, uinput, controlsocket, osk). DDC tests include an optional hardware integration test (`DDC_INTEGRATION=1`). Surface UI packages require a GTK display and are not unit-tested.
 
 ## License
 
