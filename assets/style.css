@@ -2034,6 +2034,15 @@ scale.settings-scale slider {
 
 /* ── Loading states ──────────────────────────────────────────────── */
 
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.spinner-icon {
+    animation: spin 1s linear infinite;
+    color: @col_primary;
+}
+
 .quick-toggle.loading {
     opacity: 0.6;
     pointer-events: none;
@@ -2043,8 +2052,4 @@ scale.settings-scale slider {
 .conn-row-loading {
     opacity: 0.6;
     pointer-events: none;
-}
-
-spinner.inline-spinner {
-    color: @col_primary;
 }

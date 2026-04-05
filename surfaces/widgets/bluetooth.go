@@ -62,10 +62,7 @@ func NewBluetoothWidget(b *bus.Bus, refs *servicerefs.ServiceRefs, parent *gtk.A
 
 	scanBtn.ConnectClicked(func() {
 		scanBtn.SetSensitive(false)
-		s := gtk.NewSpinner()
-		s.SetSizeRequest(18, 18)
-		s.Start()
-		scanBtn.SetChild(s)
+		scanBtn.SetChild(gtkutil.MaterialIcon("progress_activity", "spinner-icon"))
 		rescan()
 	})
 	scanBtnWrapper := gtk.NewBox(gtk.OrientationHorizontal, 0)
@@ -151,11 +148,7 @@ func newBTDeviceRow(parent *gtk.ApplicationWindow, refs *servicerefs.ServiceRefs
 		setLoading := func() {
 			row.AddCSSClass("conn-row-loading")
 			gtkutil.ClearChildren(&meta.Widget, meta.Remove)
-			s := gtk.NewSpinner()
-			s.AddCSSClass("inline-spinner")
-			s.SetSizeRequest(18, 18)
-			s.Start()
-			meta.Append(s)
+			meta.Append(gtkutil.MaterialIcon("progress_activity", "spinner-icon"))
 		}
 
 		click := gtk.NewGestureClick()

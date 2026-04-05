@@ -194,18 +194,19 @@ func (s *Service) ScanWiFi() ([]state.WiFiNetwork, error) {
 
 	seen := make(map[string]bool)
 
-	// Get currently connected SSID.
-	currentSSID := ""
-	if ns, err := s.fetchState(); err == nil {
-		currentSSID = ns.SSID
-	}
-
 	// Request scan on all WiFi devices, then wait for NM to discover APs.
 	for _, p := range paths {
 		devObj := s.conn.Object(nmDest, p)
 		devObj.Call(nmDeviceWireless+".RequestScan", 0)
 	}
 	time.Sleep(3 * time.Second)
+
+	// Get currently connected SSID after scan wait so connection
+	// changes (e.g. switching networks) are reflected.
+	currentSSID := ""
+	if ns, err := s.fetchState(); err == nil {
+		currentSSID = ns.SSID
+	}
 
 	for _, p := range paths {
 		devObj := s.conn.Object(nmDest, p)

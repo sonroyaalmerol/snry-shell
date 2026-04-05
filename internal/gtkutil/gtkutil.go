@@ -37,9 +37,12 @@ func MaterialButtonWithClass(icon string, classes ...string) *gtk.Button {
 }
 
 // MaterialIcon returns a label styled as a Material Symbols icon.
-func MaterialIcon(name string) *gtk.Label {
+func MaterialIcon(name string, classes ...string) *gtk.Label {
 	l := gtk.NewLabel(name)
 	l.AddCSSClass("material-icon")
+	for _, c := range classes {
+		l.AddCSSClass(c)
+	}
 	return l
 }
 
