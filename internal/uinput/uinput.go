@@ -42,7 +42,7 @@ type charEntry struct {
 
 // charMap maps printable characters to their evdev keycodes.
 var charMap = map[rune]charEntry{
-	// Letters
+	// Letters (lowercase)
 	'a': {30, false}, 'b': {48, false}, 'c': {46, false}, 'd': {32, false},
 	'e': {18, false}, 'f': {33, false}, 'g': {34, false}, 'h': {35, false},
 	'i': {23, false}, 'j': {36, false}, 'k': {37, false}, 'l': {38, false},
@@ -50,6 +50,14 @@ var charMap = map[rune]charEntry{
 	'q': {16, false}, 'r': {19, false}, 's': {31, false}, 't': {20, false},
 	'u': {22, false}, 'v': {47, false}, 'w': {17, false}, 'x': {45, false},
 	'y': {21, false}, 'z': {44, false},
+	// Letters (uppercase — same keycodes, shift=true)
+	'A': {30, true}, 'B': {48, true}, 'C': {46, true}, 'D': {32, true},
+	'E': {18, true}, 'F': {33, true}, 'G': {34, true}, 'H': {35, true},
+	'I': {23, true}, 'J': {36, true}, 'K': {37, true}, 'L': {38, true},
+	'M': {50, true}, 'N': {49, true}, 'O': {24, true}, 'P': {25, true},
+	'Q': {16, true}, 'R': {19, true}, 'S': {31, true}, 'T': {20, true},
+	'U': {22, true}, 'V': {47, true}, 'W': {17, true}, 'X': {45, true},
+	'Y': {21, true}, 'Z': {44, true},
 	// Numbers
 	'1': {2, false}, '2': {3, false}, '3': {4, false}, '4': {5, false},
 	'5': {6, false}, '6': {7, false}, '7': {8, false}, '8': {9, false},

@@ -389,6 +389,7 @@ func (o *OSK) typeKey(d keyDef, kb *keyButton) {
 		o.ui.TypeKey(d.key, o.ctrlL, o.altL, o.shift)
 		o.releaseAllModsLocked()
 		o.mu.Unlock()
+		o.updateKeyLabels()
 		return
 	}
 
@@ -398,11 +399,14 @@ func (o *OSK) typeKey(d keyDef, kb *keyButton) {
 	}
 
 	// Regular character — resolve via shift/caps state.
+	// Snapshot modifier state before releasing so they're applied to this keystroke.
 	ch := o.activeChar(kb)
+	ctrl, alt := o.ctrlL, o.altL
 	o.releaseAllModsLocked()
 	o.mu.Unlock()
+	o.updateKeyLabels()
 
-	o.ui.TypeChar(ch, o.ctrlL, o.altL)
+	o.ui.TypeChar(ch, ctrl, alt)
 }
 
 func (o *OSK) activeChar(kb *keyButton) string {

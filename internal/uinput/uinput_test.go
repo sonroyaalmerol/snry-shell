@@ -107,10 +107,38 @@ func TestCharMapShifted(t *testing.T) {
 			t.Errorf("rune %q: shift=%v, want %v", tt.ch, e.shift, tt.shift)
 		}
 	}
-	// Uppercase letters are not in charMap — the OSK resolves them via
-	// the lowercase entry + shift modifier.
-	if _, ok := charMap['A']; ok {
-		t.Error("uppercase 'A' should not be in charMap (use 'a' + shift)")
+}
+
+func TestCharMapUppercase(t *testing.T) {
+	// Uppercase letters share keycodes with lowercase but have shift=true.
+	tests := []struct {
+		lo   rune // lowercase counterpart
+		hi   rune // uppercase
+		code uint16
+	}{
+		{'a', 'A', 30},
+		{'z', 'Z', 44},
+		{'m', 'M', 50},
+	}
+	for _, tt := range tests {
+		lo, ok1 := charMap[tt.lo]
+		hi, ok2 := charMap[tt.hi]
+		if !ok1 {
+			t.Errorf("lowercase %q not in charMap", tt.lo)
+		}
+		if !ok2 {
+			t.Errorf("uppercase %q not in charMap", tt.hi)
+			continue
+		}
+		if hi.code != lo.code {
+			t.Errorf("%q and %q: different keycodes %d vs %d", tt.lo, tt.hi, lo.code, hi.code)
+		}
+		if lo.shift {
+			t.Errorf("lowercase %q: shift should be false", tt.lo)
+		}
+		if !hi.shift {
+			t.Errorf("uppercase %q: shift should be true", tt.hi)
+		}
 	}
 }
 
