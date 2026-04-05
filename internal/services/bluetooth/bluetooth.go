@@ -118,10 +118,16 @@ func (s *Service) SetPowered(enabled bool) error {
 }
 
 // StartScan requests a Bluetooth device discovery scan.
+// If discovery is already in progress, it stops and restarts.
 func (s *Service) StartScan() error {
 	log.Printf("[BT] StartScan called")
 	obj := s.conn.Object(bluezService, bluezAdapter)
 	err := obj.Call(bluezIface+".StartDiscovery", 0).Err
+	if err != nil {
+		log.Printf("[BT] StartScan failed (%v), stopping and retrying", err)
+		_ = obj.Call(bluezIface+".StopDiscovery", 0).Err
+		err = obj.Call(bluezIface+".StartDiscovery", 0).Err
+	}
 	if err != nil {
 		log.Printf("[BT] StartScan error: %v", err)
 	} else {

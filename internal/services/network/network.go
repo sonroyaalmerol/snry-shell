@@ -198,7 +198,7 @@ func (s *Service) ScanWiFi() ([]state.WiFiNetwork, error) {
 	// Request scan on all WiFi devices, then wait for NM to discover APs.
 	for _, p := range paths {
 		devObj := s.conn.Object(nmDest, p)
-		err := devObj.Call(nmDeviceWireless+".RequestScan", 0).Err
+		err := devObj.Call(nmDeviceWireless+".RequestScan", 0, map[string]dbus.Variant{}).Err
 		log.Printf("[WIFI] RequestScan on %s: %v", p, err)
 	}
 	time.Sleep(3 * time.Second)
