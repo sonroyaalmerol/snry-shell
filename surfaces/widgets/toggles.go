@@ -1,7 +1,6 @@
 package widgets
 
 import (
-	"log"
 	"os/exec"
 
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
@@ -9,12 +8,19 @@ import (
 	"github.com/sonroyaalmerol/snry-shell/internal/bus"
 	"github.com/sonroyaalmerol/snry-shell/internal/servicerefs"
 	"github.com/sonroyaalmerol/snry-shell/internal/state"
+	"github.com/sonroyaalmerol/snry-shell/internal/surfaceutil"
 )
 
-const quickToggleCols = 2
+const (
+	quickToggleCols  = 2
+	quickToggleRowH  = 44
+	quickToggleGap   = 8
+)
 
-// NewQuickToggles creates the quick toggle grid.
-func NewQuickToggles(b *bus.Bus, refs *servicerefs.ServiceRefs) gtk.Widgetter {
+// NewQuickToggles creates the quick toggle grid using ConstraintLayout
+// to ensure equal column widths. panelWidth is the available width for
+// the grid content (panel width minus margins).
+func NewQuickToggles(b *bus.Bus, refs *servicerefs.ServiceRefs, panelWidth int) gtk.Widgetter {
 	box := gtk.NewBox(gtk.OrientationVertical, 8)
 	box.AddCSSClass("quick-toggles")
 
@@ -23,163 +29,90 @@ func NewQuickToggles(b *bus.Bus, refs *servicerefs.ServiceRefs) gtk.Widgetter {
 	label.SetHAlign(gtk.AlignStart)
 	box.Append(label)
 
-	grid := gtk.NewGrid()
-	grid.AddCSSClass("quick-toggles-grid")
-	grid.SetColumnSpacing(8)
-	grid.SetRowSpacing(8)
-	grid.SetHExpand(true)
+	layout := gtk.NewConstraintLayout()
 
 	type toggleDef struct {
 		icon     string
 		label    string
 		topic    bus.Topic
-		requires string // binary name; empty string means no external dep
-		button   bool   // if true, render as a regular button (one-shot action)
+		requires string
+		button   bool
 		toggle   func(active bool)
 	}
 
-	// binInPath checks whether a command is available on $PATH.
 	binInPath := func(name string) bool {
 		_, err := exec.LookPath(name)
 		return err == nil
 	}
 
 	toggles := []toggleDef{
-		// ── Connectivity ──
-		{
-			icon:  "wifi",
-			label: "WiFi",
-			topic: bus.TopicNetwork,
-			toggle: func(active bool) {
-				if refs.Network != nil {
-					go refs.Network.SetWiFi(active)
-				}
-			},
-		},
-		{
-			icon:  "bluetooth",
-			label: "Bluetooth",
-			topic: bus.TopicBluetooth,
-			toggle: func(active bool) {
-				if refs.Bluetooth != nil {
-					go refs.Bluetooth.SetPowered(active)
-				}
-			},
-		},
-		// ── Display ──
-		{
-			icon:     "nightlight",
-			label:    "Night Light",
-			topic:    bus.TopicNightMode,
-			requires: "hyprsunset",
-			toggle: func(_ bool) {
-				if refs.NightMode != nil {
-					refs.NightMode.Toggle()
-				}
-			},
-		},
-		{
-			icon:     "visibility",
-			label:    "Anti-Flash",
-			requires: "hyprctl",
-			toggle: func(active bool) {
-				val := "0"
-				if active {
-					val = "0.3"
-				}
-				go func() { _ = exec.Command("hyprctl", "keyword", "decoration:dim_strength", val).Run() }()
-			},
-		},
-		// ── Audio ──
-		{
-			icon:     "mic",
-			label:    "Mic Mute",
-			requires: "wpctl",
-			toggle: func(_ bool) {
-				go func() { _ = exec.Command("wpctl", "set-mute", "@DEFAULT_SOURCE@", "toggle").Run() }()
-			},
-		},
-		{
-			icon:     "equalizer",
-			label:    "EasyEffects",
-			requires: "easyeffects",
-			toggle: func(_ bool) {
-				go func() { _ = exec.Command("easyeffects", "-t").Run() }()
-			},
-		},
-		// ── System ──
-		{
-			icon:  "notifications_off",
-			label: "DND",
-			topic: bus.TopicDND,
-			toggle: func(active bool) {
-				b.Publish(bus.TopicDND, active)
-			},
-		},
-		{
-			icon:     "keep_public",
-			label:    "Idle Off",
-			requires: "hyprctl",
-			toggle: func(active bool) {
-				action := "close"
-				if active {
-					action = "open"
-				}
-				go func() { _ = exec.Command("hyprctl", "dispatch", "inhibit-activity", action).Run() }()
-			},
-		},
-		{
-			icon:     "sports_esports",
-			label:    "GameMode",
-			requires: "gamemoderectl",
-			toggle: func(_ bool) {
-				go func() { _ = exec.Command("gamemoderectl", "-t").Run() }()
-			},
-		},
-		{
-			icon:     "speed",
-			label:    "Performance",
-			requires: "powerprofilesctl",
-			toggle: func(active bool) {
-				profile := "balanced"
-				if active {
-					profile = "performance"
-				}
-				go func() { _ = exec.Command("powerprofilesctl", "set", profile).Run() }()
-			},
-		},
-		// ── Tools ──
-		{
-			icon:   "screenshot",
-			label:  "Screenshot",
-			button: true,
-			toggle: func(_ bool) {
-				b.Publish(bus.TopicSystemControls, "toggle-region-selector")
-			},
-		},
-		{
-			icon:     "colorize",
-			label:    "Color Pick",
-			requires: "hyprpicker",
-			button:   true,
-			toggle: func(_ bool) {
-				go func() { _ = exec.Command("hyprpicker").Run() }()
-			},
-		},
-		{
-			icon:   "keyboard",
-			label:  "On-Screen Keyboard",
-			button: true,
-			toggle: func(_ bool) {
-				b.Publish(bus.TopicSystemControls, "toggle-osk")
-			},
-		},
+		{icon: "wifi", label: "WiFi", topic: bus.TopicNetwork, toggle: func(active bool) {
+			if refs.Network != nil {
+				go refs.Network.SetWiFi(active)
+			}
+		}},
+		{icon: "bluetooth", label: "Bluetooth", topic: bus.TopicBluetooth, toggle: func(active bool) {
+			if refs.Bluetooth != nil {
+				go refs.Bluetooth.SetPowered(active)
+			}
+		}},
+		{icon: "nightlight", label: "Night Light", topic: bus.TopicNightMode, requires: "hyprsunset", toggle: func(_ bool) {
+			if refs.NightMode != nil {
+				refs.NightMode.Toggle()
+			}
+		}},
+		{icon: "visibility", label: "Anti-Flash", requires: "hyprctl", toggle: func(active bool) {
+			val := "0"
+			if active {
+				val = "0.3"
+			}
+			go func() { _ = exec.Command("hyprctl", "keyword", "decoration:dim_strength", val).Run() }()
+		}},
+		{icon: "mic", label: "Mic Mute", requires: "wpctl", toggle: func(_ bool) {
+			go func() { _ = exec.Command("wpctl", "set-mute", "@DEFAULT_SOURCE@", "toggle").Run() }()
+		}},
+		{icon: "equalizer", label: "EasyEffects", requires: "easyeffects", toggle: func(_ bool) {
+			go func() { _ = exec.Command("easyeffects", "-t").Run() }()
+		}},
+		{icon: "notifications_off", label: "DND", topic: bus.TopicDND, toggle: func(active bool) {
+			b.Publish(bus.TopicDND, active)
+		}},
+		{icon: "keep_public", label: "Idle Off", requires: "hyprctl", toggle: func(active bool) {
+			action := "close"
+			if active {
+				action = "open"
+			}
+			go func() { _ = exec.Command("hyprctl", "dispatch", "inhibit-activity", action).Run() }()
+		}},
+		{icon: "sports_esports", label: "GameMode", requires: "gamemoderectl", toggle: func(_ bool) {
+			go func() { _ = exec.Command("gamemoderectl", "-t").Run() }()
+		}},
+		{icon: "speed", label: "Performance", requires: "powerprofilesctl", toggle: func(active bool) {
+			profile := "balanced"
+			if active {
+				profile = "performance"
+			}
+			go func() { _ = exec.Command("powerprofilesctl", "set", profile).Run() }()
+		}},
+		{icon: "screenshot", label: "Screenshot", button: true, toggle: func(_ bool) {
+			b.Publish(bus.TopicSystemControls, "toggle-region-selector")
+		}},
+		{icon: "colorize", label: "Color Pick", requires: "hyprpicker", button: true, toggle: func(_ bool) {
+			go func() { _ = exec.Command("hyprpicker").Run() }()
+		}},
+		{icon: "keyboard", label: "On-Screen Keyboard", button: true, toggle: func(_ bool) {
+			b.Publish(bus.TopicSystemControls, "toggle-osk")
+		}},
 	}
 
-	col := 0
-	row := 0
+	type btnEntry struct {
+		btn  gtk.Widgetter
+		def  toggleDef
+		isPB bool // is push button (vs toggle)
+	}
+	var btns []btnEntry
+
 	for _, t := range toggles {
-		// Skip toggles whose external dependency is not installed.
 		if t.requires != "" && !binInPath(t.requires) {
 			continue
 		}
@@ -198,7 +131,6 @@ func NewQuickToggles(b *bus.Bus, refs *servicerefs.ServiceRefs) gtk.Widgetter {
 		lbl.SetVAlign(gtk.AlignCenter)
 		lbl.SetXAlign(0)
 		lbl.SetWrap(true)
-
 		inner.Append(icon)
 		inner.Append(lbl)
 
@@ -208,64 +140,107 @@ func NewQuickToggles(b *bus.Bus, refs *servicerefs.ServiceRefs) gtk.Widgetter {
 			btn.AddCSSClass("quick-toggle")
 			btn.AddCSSClass("quick-toggle-button")
 			btn.SetChild(inner)
-			btn.SetHExpand(true)
 			btn.ConnectClicked(func() {
 				toggle.toggle(true)
 			})
-			grid.Attach(btn, col, row, 1, 1)
+			btns = append(btns, btnEntry{btn: btn, def: toggle, isPB: true})
 		} else {
-			btn := gtk.NewToggleButton()
-			btn.SetCursorFromName("pointer")
-			btn.AddCSSClass("quick-toggle")
-			btn.SetChild(inner)
-			btn.SetHExpand(true)
+			tb := gtk.NewToggleButton()
+			tb.SetCursorFromName("pointer")
+			tb.AddCSSClass("quick-toggle")
+			tb.SetChild(inner)
 
 			settingState := false
-			btn.ConnectToggled(func() {
-				log.Printf("[TOGGLE] %s ConnectToggled: Active=%v, settingState=%v", toggle.label, btn.Active(), settingState)
+			tb.ConnectToggled(func() {
 				if settingState {
 					return
 				}
-				btn.AddCSSClass("loading")
+				tb.AddCSSClass("loading")
 				glib.TimeoutAdd(uint(3000), func() bool {
-					btn.RemoveCSSClass("loading")
+					tb.RemoveCSSClass("loading")
 					return false
 				})
-				toggle.toggle(btn.Active())
+				toggle.toggle(tb.Active())
 			})
 
 			if toggle.topic != "" {
 				topic := toggle.topic
 				b.Subscribe(topic, func(e bus.Event) {
-					log.Printf("[TOGGLE] %s bus event: %+v", toggle.label, e.Data)
 					glib.IdleAdd(func() {
-						log.Printf("[TOGGLE] %s IdleAdd: setting settingState=true, current Active=%v", toggle.label, btn.Active())
 						settingState = true
 						switch v := e.Data.(type) {
 						case state.NetworkState:
-							btn.SetActive(v.WirelessEnabled)
+							tb.SetActive(v.WirelessEnabled)
 						case state.BluetoothState:
-							btn.SetActive(v.Powered)
+							tb.SetActive(v.Powered)
 						case bool:
-							btn.SetActive(v)
+							tb.SetActive(v)
 						}
-						log.Printf("[TOGGLE] %s IdleAdd: now Active=%v, setting settingState=false", toggle.label, btn.Active())
 						settingState = false
-						btn.RemoveCSSClass("loading")
+						tb.RemoveCSSClass("loading")
 					})
 				})
 			}
 
-			grid.Attach(btn, col, row, 1, 1)
-		}
-
-		col++
-		if col >= quickToggleCols {
-			col = 0
-			row++
+			btns = append(btns, btnEntry{btn: tb, def: toggle, isPB: false})
 		}
 	}
 
-	box.Append(grid)
+	// Place buttons into the constraint layout with equal-width columns.
+	strength := int(gtk.ConstraintStrengthRequired)
+	colWidth := float64(panelWidth - quickToggleGap*(quickToggleCols-1)) / float64(quickToggleCols)
+
+	var firstTarget gtk.ConstraintTargetter
+	for i, entry := range btns {
+		w := surfaceutil.AsWidget(entry.btn)
+		target := &w.ConstraintTarget
+		col := i % quickToggleCols
+		row := i / quickToggleCols
+
+		// Fixed width = colWidth for all buttons.
+		layout.AddConstraint(gtk.NewConstraintConstant(
+			target, gtk.ConstraintAttributeWidth, gtk.ConstraintRelationEq,
+			colWidth, strength))
+
+		// Position: left = col * (colWidth + gap).
+		layout.AddConstraint(gtk.NewConstraintConstant(
+			target, gtk.ConstraintAttributeLeft, gtk.ConstraintRelationEq,
+			float64(col)*(colWidth+float64(quickToggleGap)), strength))
+
+		// Position: top = row * (rowHeight + gap).
+		layout.AddConstraint(gtk.NewConstraintConstant(
+			target, gtk.ConstraintAttributeTop, gtk.ConstraintRelationEq,
+			float64(row)*(float64(quickToggleRowH)+float64(quickToggleGap)), strength))
+
+		// Fixed height.
+		layout.AddConstraint(gtk.NewConstraintConstant(
+			target, gtk.ConstraintAttributeHeight, gtk.ConstraintRelationEq,
+			float64(quickToggleRowH), strength))
+
+		if firstTarget == nil {
+			firstTarget = target
+		} else {
+			// Equal width: this button's width == first button's width.
+			layout.AddConstraint(gtk.NewConstraint(
+				target, gtk.ConstraintAttributeWidth, gtk.ConstraintRelationEq,
+				firstTarget, gtk.ConstraintAttributeWidth,
+				1.0, 0.0, strength))
+		}
+	}
+
+	// Set the overall grid height so the parent knows our size.
+	numRows := (len(btns) + quickToggleCols - 1) / quickToggleCols
+	totalH := numRows*quickToggleRowH + (numRows-1)*quickToggleGap
+	gridH := float64(totalH)
+	if gridH < 0 {
+		gridH = 0
+	}
+
+	root := gtk.NewBox(gtk.OrientationHorizontal, 0)
+	root.SetLayoutManager(layout)
+	root.SetSizeRequest(panelWidth, int(gridH))
+	root.AddCSSClass("quick-toggles-grid")
+	box.Append(root)
+
 	return box
 }

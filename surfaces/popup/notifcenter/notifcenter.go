@@ -49,7 +49,7 @@ func New(app *gtk.Application, b *bus.Bus, refs *servicerefs.ServiceRefs, trigge
 	scroll.SetPropagateNaturalHeight(true)
 
 	content := gtk.NewBox(gtk.OrientationVertical, 8)
-	content.Append(widgets.NewQuickToggles(nc.bus, refs))
+	content.Append(widgets.NewQuickToggles(nc.bus, refs, panelWidth-2*panelMargin))
 	content.Append(widgets.NewWiFiWidget(nc.bus, refs, nc.win))
 	content.Append(widgets.NewBluetoothWidget(nc.bus, refs, nc.win))
 	content.Append(gtkutil.M3Divider())
