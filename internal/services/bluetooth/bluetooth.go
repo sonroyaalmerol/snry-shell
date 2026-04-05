@@ -76,7 +76,21 @@ func (s *Service) poll() error {
 		return fmt.Errorf("bluetooth poll: %w", err)
 	}
 	powered, _ := poweredV.Value().(bool)
-	log.Printf("[BT] poll: Powered=%v", powered)
+
+	// BlueZ transitions through PowerState (string) before updating Powered
+	// (bool). Check PowerState so we don't publish stale Powered=true while
+	// the adapter is disabling.
+	if psV, err := obj.GetProperty(bluezIface + ".PowerState"); err == nil {
+		if ps, ok := psV.Value().(string); ok {
+			log.Printf("[BT] poll: Powered=%v PowerState=%s", powered, ps)
+			switch ps {
+			case "off", "on-disabling":
+				powered = false
+			}
+		}
+	} else {
+		log.Printf("[BT] poll: Powered=%v", powered)
+	}
 
 	bs := state.BluetoothState{Powered: powered}
 	if powered {
