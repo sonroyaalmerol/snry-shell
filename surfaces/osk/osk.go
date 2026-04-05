@@ -131,7 +131,10 @@ func (o *OSK) build() {
 	closeLabel.AddCSSClass("osk-key-label")
 	closeLabel.AddCSSClass("material-icon")
 	closeBtn.SetChild(closeLabel)
-	closeBtn.ConnectClicked(func() { o.hide() })
+	closeBtn.ConnectClicked(func() {
+		o.manualOff = true
+		o.hide()
+	})
 	topRow.Append(closeBtn)
 
 	// Spacer pushes close to the right.
@@ -220,6 +223,9 @@ func (o *OSK) build() {
 	}
 
 	o.win.SetChild(root)
+
+	// Initialize all character key labels with their normal values.
+	o.updateKeyLabels()
 }
 
 func (o *OSK) buildRow(parent *gtk.Box, defs []keyDef) {
