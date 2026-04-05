@@ -79,6 +79,7 @@ func (o *OSD) build() {
 
 	o.scale = gtk.NewScaleWithRange(gtk.OrientationHorizontal, 0, 1, 0.01)
 	o.scale.AddCSSClass("osd-slider")
+	o.scale.AddCSSClass("m3-scale")
 	o.scale.SetDrawValue(false)
 	o.scale.SetSensitive(false) // display only
 	o.scale.SetHExpand(true)

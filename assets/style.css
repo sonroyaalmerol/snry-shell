@@ -135,7 +135,7 @@
 
 /* Shared scale/slider base */
 scale.m3-scale trough {
-    background-color: @col_outline_variant;
+    background-color: @col_surface_container_highest;
     border-radius: var(--radius-pill);
     min-height: 4px;
 }
@@ -144,11 +144,11 @@ scale.m3-scale trough highlight {
     border-radius: var(--radius-pill);
 }
 scale.m3-scale slider {
-    background-color: @col_primary;
-    border-radius: var(--radius-pill);
-    min-width: 16px;
-    min-height: 16px;
-    box-shadow: none;
+    background-color: @col_on_primary;
+    border-radius: 50%;
+    min-width: 20px;
+    min-height: 20px;
+    box-shadow: 0 0 0 4px @col_primary;
     border: none;
 }
 /* Shared icon button base */
@@ -576,7 +576,7 @@ scale.m3-scale slider {
     color: @col_on_surface;
 }
 
-/* osd-slider uses .m3-scale .m3-scale-osd (see M3 Component Primitives) */
+/* osd-slider uses .m3-scale (see M3 Component Primitives) */
 
 /* ── Cheatsheet ──────────────────────────────────────────────────────────────── */
 
