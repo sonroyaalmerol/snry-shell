@@ -373,58 +373,13 @@ func (o *OSK) setupKey(btn *gtk.Button, d keyDef, kb *keyButton) {
 	})
 }
 
-// setupRepeatKey wires a key that auto-repeats while held (backspace, arrows).
-// Uses GestureClick for press/release but includes a failsafe max duration
-// since ConnectReleased may not fire reliably on touch.
+// setupRepeatKey wires a key like backspace/arrows. Uses ConnectClicked
+// like regular keys for touch reliability. Hold-to-repeat is not supported
+// on GTK4 touch (GestureClick ConnectReleased never fires).
 func (o *OSK) setupRepeatKey(btn *gtk.Button, d keyDef) {
-	var cancelled bool
-
-	gesture := gtk.NewGestureClick()
-	gesture.SetButton(1)
-	gesture.SetPropagationLimit(gtk.LimitNone)
-
-	stop := func() {
-		if !cancelled {
-			cancelled = true
-			glib.IdleAdd(func() { btn.RemoveCSSClass("osk-key-pressed") })
-		}
-	}
-
-	gesture.ConnectPressed(func(int, float64, float64) {
-		cancelled = false
-		glib.IdleAdd(func() { btn.AddCSSClass("osk-key-pressed") })
+	btn.ConnectClicked(func() {
 		o.typeKey(d, nil)
-
-		// Start repeat after initial delay (400ms).
-		glib.TimeoutAdd(400, func() bool {
-			if cancelled {
-				return false
-			}
-			o.typeKey(d, nil)
-			// Continue repeating at faster interval (60ms).
-			glib.TimeoutAdd(60, func() bool {
-				if cancelled {
-					return false
-				}
-				o.typeKey(d, nil)
-				return true
-			})
-			return false
-		})
-
-		// Failsafe: force-stop repeat after 3 seconds in case
-		// ConnectReleased never fires (known GTK4 touch issue).
-		glib.TimeoutAdd(3000, func() bool {
-			stop()
-			return false
-		})
 	})
-
-	gesture.ConnectReleased(func(int, float64, float64) {
-		stop()
-	})
-
-	btn.AddController(gesture)
 }
 
 func (o *OSK) typeKey(d keyDef, kb *keyButton) {

@@ -1371,8 +1371,7 @@ scale.mixer-slider slider {
     background-color: @col_surface_container_high;
 }
 
-.osk-key:active,
-.osk-key-pressed {
+.osk-key:active {
     background-color: @col_primary_container;
     color: @col_on_primary_container;
     transition: none;
