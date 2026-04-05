@@ -11,8 +11,10 @@ import (
 )
 
 type OSK struct {
-	win *gtk.ApplicationWindow
-	bus *bus.Bus
+	win    *gtk.ApplicationWindow
+	bus    *bus.Bus
+	shift  bool
+	caps   bool
 }
 
 func New(app *gtk.Application, b *bus.Bus) *OSK {
@@ -21,7 +23,7 @@ func New(app *gtk.Application, b *bus.Bus) *OSK {
 		Layer:         layershell.LayerOverlay,
 		Anchors:       layershell.BottomEdgeAnchors(),
 		KeyboardMode:  layershell.KeyboardModeNone,
-		ExclusiveZone: -1,
+		ExclusiveZone: layershell.BarExclusiveZone,
 		Namespace:     "snry-osk",
 	})
 
@@ -34,49 +36,191 @@ func New(app *gtk.Application, b *bus.Bus) *OSK {
 	return osk
 }
 
+type keyDef struct {
+	label   string
+	normal  string
+	shifted string
+	width   int    // column span (0 = default 1)
+	class   string // extra CSS class
+	action  func(o *OSK)
+}
+
 func (o *OSK) build() {
 	root := gtk.NewBox(gtk.OrientationVertical, 0)
 	root.AddCSSClass("osk")
 
-	rows := [][]string{
-		{"1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "⌫", "⌦"},
-		{"q", "w", "e", "r", "t", "y", "u", "i", "o", "p", "⌫", "⌦"},
-		{"a", "s", "d", "f", "g", "h", "j", "k", "l", ";", "'", "⏎"},
-		{"⇧", "z", "x", "c", "v", "b", "n", "m", ",", ".", "/", "⇩"},
-		{"⌨", " ", "⏎"},
+	numRow := []keyDef{
+		{label: "Esc", action: (*OSK).typeEscape},
+		{label: "`", normal: "`", shifted: "~"},
+		{label: "1", normal: "1", shifted: "!"},
+		{label: "2", normal: "2", shifted: "@"},
+		{label: "3", normal: "3", shifted: "#"},
+		{label: "4", normal: "4", shifted: "$"},
+		{label: "5", normal: "5", shifted: "%"},
+		{label: "6", normal: "6", shifted: "^"},
+		{label: "7", normal: "7", shifted: "&"},
+		{label: "8", normal: "8", shifted: "*"},
+		{label: "9", normal: "9", shifted: "("},
+		{label: "0", normal: "0", shifted: ")"},
+		{label: "-", normal: "-", shifted: "_"},
+		{label: "=", normal: "=", shifted: "+"},
+		{label: "⌫", class: "osk-key-wide", action: (*OSK).typeBackspace},
 	}
 
-	for _, row := range rows {
-		grid := gtk.NewGrid()
-		grid.AddCSSClass("osk-row")
-		grid.SetColumnSpacing(2)
-		grid.SetRowSpacing(2)
-		grid.SetHAlign(gtk.AlignCenter)
+	row1 := []keyDef{
+		{label: "Tab", class: "osk-key-wide", action: (*OSK).typeTab},
+		{label: "q", normal: "q", shifted: "Q"},
+		{label: "w", normal: "w", shifted: "W"},
+		{label: "e", normal: "e", shifted: "E"},
+		{label: "r", normal: "r", shifted: "R"},
+		{label: "t", normal: "t", shifted: "T"},
+		{label: "y", normal: "y", shifted: "Y"},
+		{label: "u", normal: "u", shifted: "U"},
+		{label: "i", normal: "i", shifted: "I"},
+		{label: "o", normal: "o", shifted: "O"},
+		{label: "p", normal: "p", shifted: "P"},
+		{label: "[", normal: "[", shifted: "{"},
+		{label: "]" , normal: "]" , shifted: "}"},
+		{label: "\\", normal: "\\", shifted: "|"},
+	}
 
-		for col, key := range row {
-			btn := gtk.NewButton()
-			btn.SetCursorFromName("pointer")
-			btn.AddCSSClass("osk-key")
-			label := gtk.NewLabel(key)
-			label.AddCSSClass("osk-key-label")
-			btn.SetChild(label)
-			btn.SetSizeRequest(40, 40)
+	row2 := []keyDef{
+		{label: "Caps", class: "osk-key-wide", action: (*OSK).toggleCaps},
+		{label: "a", normal: "a", shifted: "A"},
+		{label: "s", normal: "s", shifted: "S"},
+		{label: "d", normal: "d", shifted: "D"},
+		{label: "f", normal: "f", shifted: "F"},
+		{label: "g", normal: "g", shifted: "G"},
+		{label: "h", normal: "h", shifted: "H"},
+		{label: "j", normal: "j", shifted: "J"},
+		{label: "k", normal: "k", shifted: "K"},
+		{label: "l", normal: "l", shifted: "L"},
+		{label: ";", normal: ";", shifted: ":"},
+		{label: "'", normal: "'", shifted: "\""},
+		{label: "⏎", class: "osk-key-wide", action: (*OSK).typeEnter},
+	}
 
-			k := key
-			btn.ConnectClicked(func() {
-				o.typeKey(k)
-			})
+	row3 := []keyDef{
+		{label: "⇧", class: "osk-key-wide", action: (*OSK).toggleShift},
+		{label: "z", normal: "z", shifted: "Z"},
+		{label: "x", normal: "x", shifted: "X"},
+		{label: "c", normal: "c", shifted: "C"},
+		{label: "v", normal: "v", shifted: "V"},
+		{label: "b", normal: "b", shifted: "B"},
+		{label: "n", normal: "n", shifted: "N"},
+		{label: "m", normal: "m", shifted: "M"},
+		{label: ",", normal: ",", shifted: "<"},
+		{label: ".", normal: ".", shifted: ">"},
+		{label: "/", normal: "/", shifted: "?"},
+		{label: "⇧", class: "osk-key-wide", action: (*OSK).toggleShift},
+	}
 
-			grid.Attach(btn, col, 0, 1, 1)
-		}
-		root.Append(grid)
+	row4 := []keyDef{
+		{label: "Ctrl", class: "osk-key-wide", action: (*OSK).typeCtrl},
+		{label: "Alt", class: "osk-key-wide", action: (*OSK).typeAlt},
+		{label: "", normal: " ", class: "osk-key-space"},
+		{label: "Alt", class: "osk-key-wide", action: (*OSK).typeAlt},
+		{label: "Ctrl", class: "osk-key-wide", action: (*OSK).typeCtrl},
+	}
+
+	for _, row := range [][]keyDef{numRow, row1, row2, row3, row4} {
+		o.buildRow(root, row)
 	}
 
 	o.win.SetChild(root)
 }
 
-func (o *OSK) typeKey(key string) {
+func (o *OSK) buildRow(parent *gtk.Box, defs []keyDef) {
+	box := gtk.NewBox(gtk.OrientationHorizontal, 3)
+	box.AddCSSClass("osk-row")
+	box.SetHExpand(true)
+	box.SetHAlign(gtk.AlignFill)
+
+	for _, k := range defs {
+		btn := gtk.NewButton()
+		btn.SetCursorFromName("pointer")
+		btn.AddCSSClass("osk-key")
+		if k.class != "" {
+			btn.AddCSSClass(k.class)
+		}
+		label := gtk.NewLabel(k.label)
+		label.AddCSSClass("osk-key-label")
+		btn.SetChild(label)
+
+		btn.ConnectClicked(func() {
+			if k.action != nil {
+				k.action(o)
+			} else if k.normal != "" {
+				o.typeChar(k)
+			}
+		})
+
+		box.Append(btn)
+	}
+
+	parent.Append(box)
+}
+
+func (o *OSK) activeChar(k keyDef) string {
+	if o.shift || o.caps {
+		if k.shifted != "" {
+			return k.shifted
+		}
+		// For letters, uppercase when shift or caps
+		if len(k.normal) == 1 && k.normal[0] >= 'a' && k.normal[0] <= 'z' {
+			return string(k.normal[0] - 32)
+		}
+		return k.normal
+	}
+	return k.normal
+}
+
+func (o *OSK) typeChar(k keyDef) {
 	go func() {
-		_ = exec.Command("wtype", key).Run()
+		_ = exec.Command("wtype", o.activeChar(k)).Run()
 	}()
+}
+
+func (o *OSK) typeBackspace() {
+	go func() {
+		_ = exec.Command("wtype", "-B").Run()
+	}()
+}
+
+func (o *OSK) typeTab() {
+	go func() {
+		_ = exec.Command("wtype", "-Tab").Run()
+	}()
+}
+
+func (o *OSK) typeEnter() {
+	go func() {
+		_ = exec.Command("wtype", "-Return").Run()
+	}()
+}
+
+func (o *OSK) typeEscape() {
+	go func() {
+		_ = exec.Command("wtype", "-Escape").Run()
+	}()
+}
+
+func (o *OSK) typeCtrl() {
+	go func() {
+		_ = exec.Command("wtype", "-Ctrl_L").Run()
+	}()
+}
+
+func (o *OSK) typeAlt() {
+	go func() {
+		_ = exec.Command("wtype", "-Alt_L").Run()
+	}()
+}
+
+func (o *OSK) toggleShift() {
+	o.shift = !o.shift
+}
+
+func (o *OSK) toggleCaps() {
+	o.caps = !o.caps
 }

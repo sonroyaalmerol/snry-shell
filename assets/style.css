@@ -1335,8 +1335,8 @@ scale.mixer-slider slider {
 /* ── On-screen keyboard ─────────────────────────────────────────────────────── */
 
 .osk {
-    background-color: alpha(@col_surface, 0.95);
-    padding: 8px;
+    background-color: @col_surface;
+    padding: 6px 8px;
 }
 
 .osk-row {
@@ -1347,10 +1347,18 @@ scale.mixer-slider slider {
     background-color: @col_surface_container;
     border-radius: var(--radius-sm);
     border: none;
-    min-width: 40px;
-    min-height: 40px;
+    min-width: 38px;
+    min-height: 44px;
     color: @col_on_surface;
     transition: background-color 100ms var(--ease-emphasized-decel);
+}
+
+.osk-key-wide {
+    min-width: 60px;
+}
+
+.osk-key-space {
+    min-width: 0;
 }
 
 .osk-key:hover {
