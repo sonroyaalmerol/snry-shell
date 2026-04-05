@@ -40,25 +40,59 @@ func MaterialIcon(name string) *gtk.Label {
 	return l
 }
 
-// ConfirmDialog shows a modal confirmation dialog. Calls onConfirm if accepted.
-func ConfirmDialog(parent *gtk.ApplicationWindow, title, message, action string, onConfirm func()) {
-	dialog := gtk.NewMessageDialog(
-		&parent.Window,
-		gtk.DialogModal|gtk.DialogDestroyWithParent,
-		gtk.MessageQuestion,
-		gtk.ButtonsCancel,
-	)
-	dialog.SetTitle(title)
-	dialog.SetMarkup(message)
-	dialog.AddButton(action, int(gtk.ResponseAccept))
+// ConfirmDialog shows an M3-styled confirmation dialog. Calls onConfirm if accepted.
+func ConfirmDialog(parent *gtk.ApplicationWindow, icon, title, message, action string, onConfirm func()) {
+	win := gtk.NewWindow()
+	win.SetModal(true)
+	win.SetDecorated(false)
+	win.SetTransientFor(&parent.Window)
+	win.SetName("snry-m3-dialog")
 
-	dialog.ConnectResponse(func(response int) {
-		dialog.Destroy()
-		if response == int(gtk.ResponseAccept) {
-			onConfirm()
-		}
+	root := gtk.NewBox(gtk.OrientationVertical, 0)
+	root.AddCSSClass("m3-dialog")
+
+	if icon != "" {
+		iconLabel := MaterialIcon(icon)
+		iconLabel.AddCSSClass("m3-dialog-icon")
+		root.Append(iconLabel)
+	}
+
+	titleLabel := gtk.NewLabel(title)
+	titleLabel.AddCSSClass("m3-dialog-title")
+	titleLabel.SetWrap(true)
+	titleLabel.SetXAlign(0)
+	root.Append(titleLabel)
+
+	if message != "" {
+		msgLabel := gtk.NewLabel(message)
+		msgLabel.AddCSSClass("m3-dialog-content")
+		msgLabel.SetWrap(true)
+		msgLabel.SetXAlign(0)
+		root.Append(msgLabel)
+	}
+
+	btnBox := gtk.NewBox(gtk.OrientationHorizontal, 8)
+	btnBox.AddCSSClass("m3-dialog-actions")
+
+	cancelBtn := gtk.NewButtonWithLabel("Cancel")
+	cancelBtn.AddCSSClass("m3-dialog-btn")
+
+	actionBtn := gtk.NewButtonWithLabel(action)
+	actionBtn.AddCSSClass("m3-dialog-btn")
+	actionBtn.AddCSSClass("m3-dialog-btn-primary")
+
+	btnBox.Append(cancelBtn)
+	btnBox.Append(actionBtn)
+	root.Append(btnBox)
+	win.SetChild(root)
+
+	cancelBtn.ConnectClicked(func() { win.Close() })
+	actionBtn.ConnectClicked(func() {
+		win.Close()
+		onConfirm()
 	})
-	dialog.Show()
+
+	win.Present()
 }
 
 // SectionHeader creates a clickable header for a collapsible section.

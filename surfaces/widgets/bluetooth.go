@@ -175,6 +175,7 @@ func newBTDeviceRow(parent *gtk.ApplicationWindow, refs *servicerefs.ServiceRefs
 			case dev.Connected:
 				gtkutil.ConfirmDialog(
 					parent,
+					"bluetooth",
 					"Disconnect device",
 					name,
 					"Disconnect",
@@ -183,6 +184,7 @@ func newBTDeviceRow(parent *gtk.ApplicationWindow, refs *servicerefs.ServiceRefs
 			case dev.Paired:
 				gtkutil.ConfirmDialog(
 					parent,
+					"bluetooth",
 					"Connect to device",
 					name,
 					"Connect",
@@ -191,6 +193,7 @@ func newBTDeviceRow(parent *gtk.ApplicationWindow, refs *servicerefs.ServiceRefs
 			default:
 				gtkutil.ConfirmDialog(
 					parent,
+					"bluetooth",
 					"Pair with device",
 					name,
 					"Pair",

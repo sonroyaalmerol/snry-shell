@@ -155,6 +155,7 @@ func newWiFiRow(parent *gtk.ApplicationWindow, refs *servicerefs.ServiceRefs, ne
 			}
 			gtkutil.ConfirmDialog(
 					parent,
+				"wifi",
 				"Connect to network",
 				ssid,
 				"Connect",

@@ -1952,3 +1952,52 @@ scale.settings-scale slider {
     background-color: @col_primary_container;
     color: @col_on_primary_container;
 }
+
+/* ── M3 AlertDialog ───────────────────────────────────────────────────────────── */
+
+.m3-dialog {
+    background-color: @col_surface_container_high;
+    border-radius: 28px;
+    border: 1px solid alpha(@col_outline_variant, 0.3);
+    padding: 24px;
+    box-shadow: 0 8px 32px alpha(#000000, 0.3);
+    min-width: 280px;
+    max-width: 360px;
+}
+
+.m3-dialog-icon {
+    color: @col_secondary;
+    margin-bottom: 16px;
+}
+
+.m3-dialog-title {
+    font-size: 24px;
+    font-weight: 500;
+    color: @col_on_surface;
+    margin-bottom: 16px;
+}
+
+.m3-dialog-content {
+    font-size: 14px;
+    font-weight: 400;
+    color: @col_on_surface_variant;
+    margin-bottom: 24px;
+}
+
+.m3-dialog-actions {
+}
+
+.m3-dialog-btn {
+    background-color: transparent;
+    border-radius: var(--radius-pill);
+    padding: 8px 20px;
+    font-size: 14px;
+    font-weight: 500;
+    color: @col_primary;
+    border: none;
+    transition: background-color 150ms var(--ease-standard-decel);
+}
+
+.m3-dialog-btn:hover {
+    background-color: alpha(@col_on_surface, 0.08);
+}
