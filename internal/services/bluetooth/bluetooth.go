@@ -3,6 +3,7 @@ package bluetooth
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/godbus/dbus/v5"
 	"github.com/sonroyaalmerol/snry-shell/internal/bus"
@@ -82,7 +83,14 @@ func (s *Service) poll() error {
 // SetPowered enables or disables the Bluetooth adapter.
 func (s *Service) SetPowered(enabled bool) error {
 	obj := s.conn.Object(bluezService, bluezAdapter)
-	return obj.SetProperty(bluezIface+".Powered", dbus.MakeVariant(enabled))
+	err := obj.SetProperty(bluezIface+".Powered", dbus.MakeVariant(enabled))
+	// Re-poll after a delay to ensure the toggle reflects the actual state,
+	// even if BlueZ doesn't emit a PropertiesChanged signal.
+	go func() {
+		time.Sleep(1 * time.Second)
+		_ = s.poll()
+	}()
+	return err
 }
 
 // StartScan requests a Bluetooth device discovery scan.
