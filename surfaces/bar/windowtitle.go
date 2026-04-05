@@ -8,30 +8,18 @@ import (
 )
 
 func newWindowTitleWidget(b *bus.Bus) gtk.Widgetter {
-	box := gtk.NewBox(gtk.OrientationVertical, 0)
-	box.AddCSSClass("window-title-box")
-	box.SetVAlign(gtk.AlignCenter)
-
-	classLabel := gtk.NewLabel("")
-	classLabel.AddCSSClass("window-class")
-	classLabel.SetEllipsize(3) // pango.EllipsizeEnd
-	classLabel.SetHAlign(gtk.AlignFill)
-
-	titleLabel := gtk.NewLabel("")
-	titleLabel.AddCSSClass("window-title")
-	titleLabel.SetEllipsize(3)
-	titleLabel.SetHAlign(gtk.AlignFill)
-
-	box.Append(classLabel)
-	box.Append(titleLabel)
+	label := gtk.NewLabel("")
+	label.AddCSSClass("window-title")
+	label.SetVAlign(gtk.AlignCenter)
+	label.SetEllipsize(3) // pango.EllipsizeEnd
+	label.SetHAlign(gtk.AlignFill)
 
 	b.Subscribe(bus.TopicActiveWindow, func(e bus.Event) {
 		win := e.Data.(state.ActiveWindow)
 		glib.IdleAdd(func() {
-			classLabel.SetText(win.Class)
-			titleLabel.SetText(win.Title)
+			label.SetText(win.Title)
 		})
 	})
 
-	return box
+	return label
 }
