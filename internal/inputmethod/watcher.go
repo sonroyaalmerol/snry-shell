@@ -125,8 +125,8 @@ func New(b *bus.Bus) (*Watcher, error) {
 		// State sync point — no action needed for focus detection.
 	})
 
-	im.SetContentTypeHandler(func(e protocol.InputMethodContentTypeEvent) {
-		log.Printf("[IM] content_type: hint=%d purpose=%d", e.Hint, e.Purpose)
+	im.SetContentTypeHandler(func(protocol.InputMethodContentTypeEvent) {
+		// Future: adjust keyboard layout based on hint/purpose (e.g. number pad).
 	})
 
 	log.Printf("[IM] connected to input-method-v2 protocol")
