@@ -1,6 +1,9 @@
 package hyprland
 
-import "fmt"
+import (
+	"fmt"
+	"log"
+)
 
 // ForcedConfig is a single Hyprland config option the shell wants to
 // temporarily override while the shell is running.
@@ -28,10 +31,12 @@ func (f *ForcedConfigs) Apply(cfgs []ForcedConfig) error {
 		if err != nil {
 			return fmt.Errorf("forced config %s: %w", c.Option, err)
 		}
+		log.Printf("forced config: %s current=%q saving for restore", c.Option, cur)
 		f.saved[c.Option] = cur
 		if err := f.querier.SetKeyword(c.Option, c.Value); err != nil {
 			return fmt.Errorf("forced config %s: %w", c.Option, err)
 		}
+		log.Printf("forced config: %s set to %q", c.Option, c.Value)
 	}
 	return nil
 }
@@ -39,6 +44,7 @@ func (f *ForcedConfigs) Apply(cfgs []ForcedConfig) error {
 // Restore reverts all forced configs back to their original values.
 func (f *ForcedConfigs) Restore() {
 	for option, original := range f.saved {
+		log.Printf("forced config: restoring %s to %q", option, original)
 		_ = f.querier.SetKeyword(option, original)
 	}
 }

@@ -122,8 +122,13 @@ func Run() int {
 		{Option: "decoration:rounding", Value: "12"},
 	}); err != nil {
 		fmt.Fprintf(os.Stderr, "forced config: %v\n", err)
+	} else {
+		fmt.Fprintf(os.Stderr, "forced config: applied decoration:rounding=12\n")
 	}
-	defer forced.Restore()
+	defer func() {
+		fmt.Fprintf(os.Stderr, "forced config: restoring original values\n")
+		forced.Restore()
+	}()
 	// Subscribe to tray item activation.
 	b.Subscribe(bus.TopicTrayActivate, func(ev bus.Event) {
 		if id, ok := ev.Data.(string); ok {
