@@ -1371,6 +1371,11 @@ scale.mixer-slider slider {
     color: @col_on_primary_container;
 }
 
+.osk-key-active {
+    background-color: @col_primary;
+    color: @col_on_primary;
+}
+
 .osk-key-label {
     font-size: 16px;
     color: @col_on_surface;

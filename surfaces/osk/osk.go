@@ -17,10 +17,13 @@ type OSK struct {
 	bus       *bus.Bus
 	shift     bool
 	caps      bool
+	ctrlL     bool
+	altL      bool
 	hasTouch  bool
 	manualOff bool
 	visible   bool
 	keys      []*keyButton // all character keys, for label updates
+	modBtns   map[string]*gtk.Button // modifier name -> button widget
 }
 
 type keyButton struct {
@@ -39,7 +42,7 @@ func New(app *gtk.Application, b *bus.Bus) *OSK {
 		Namespace:    "snry-osk",
 	})
 
-	osk := &OSK{win: win, bus: b}
+	osk := &OSK{win: win, bus: b, modBtns: make(map[string]*gtk.Button)}
 	osk.build()
 	win.SetVisible(false)
 
@@ -102,13 +105,13 @@ func detectTouchDevice() bool {
 }
 
 type keyDef struct {
-	label  string
-	normal string // character to type when not shifted
-	shifted string // character to type when shifted
-	key    string // wtype key name (e.g. BackSpace, Tab, Return, space)
-	mod    string // modifier to hold (e.g. Ctrl_L, Alt_L)
-	class  string // extra CSS class
-	action func(*OSK) // custom action (e.g. toggleShift, toggleCaps)
+	label   string
+	normal  string  // character to type when not shifted
+	shifted string  // character to type when shifted
+	key     string  // wtype key name (e.g. BackSpace, Tab, Return, space)
+	mod     string  // modifier to hold (e.g. Ctrl_L, Alt_L)
+	class   string  // extra CSS class
+	action  func(*OSK) // custom action (e.g. toggleShift, toggleCaps)
 }
 
 func (o *OSK) build() {
@@ -118,11 +121,15 @@ func (o *OSK) build() {
 	root.SetVAlign(gtk.AlignEnd)
 	root.SetHExpand(true)
 
-	// Top row: exit button aligned right.
+	// Top row: spacer on left, close button on right.
 	topRow := gtk.NewBox(gtk.OrientationHorizontal, 0)
 	topRow.AddCSSClass("osk-row")
 	topRow.SetHExpand(true)
 	topRow.SetHAlign(gtk.AlignFill)
+
+	spacer := gtk.NewBox(gtk.OrientationHorizontal, 0)
+	spacer.SetHExpand(true)
+	topRow.Append(spacer)
 
 	closeBtn := gtk.NewButton()
 	closeBtn.SetCursorFromName("pointer")
@@ -136,11 +143,6 @@ func (o *OSK) build() {
 		o.hide()
 	})
 	topRow.Append(closeBtn)
-
-	// Spacer pushes close to the right.
-	spacer := gtk.NewBox(gtk.OrientationHorizontal, 0)
-	spacer.SetHExpand(true)
-	topRow.Append(spacer)
 
 	root.Append(topRow)
 
@@ -214,6 +216,10 @@ func (o *OSK) build() {
 		{label: "Ctrl", class: "osk-key-wide", mod: "Ctrl_L"},
 		{label: "Alt", class: "osk-key-wide", mod: "Alt_L"},
 		{label: "", normal: " ", class: "osk-key-space", key: "space"},
+		{label: "←", class: "osk-key-wide", key: "Left"},
+		{label: "↓", class: "osk-key-wide", key: "Down"},
+		{label: "↑", class: "osk-key-wide", key: "Up"},
+		{label: "→", class: "osk-key-wide", key: "Right"},
 		{label: "Alt", class: "osk-key-wide", mod: "Alt_L"},
 		{label: "Ctrl", class: "osk-key-wide", mod: "Ctrl_L"},
 	}
@@ -247,6 +253,12 @@ func (o *OSK) buildRow(parent *gtk.Box, defs []keyDef) {
 
 		if d.action != nil {
 			btn.ConnectClicked(func() { d.action(o) })
+		} else if d.mod != "" {
+			mod := d.mod
+			o.modBtns[mod] = btn
+			btn.ConnectClicked(func() {
+				o.toggleMod(mod)
+			})
 		} else if d.key != "" {
 			kb := &keyButton{btn: btn, label: label, normal: d.normal, shifted: d.shifted}
 			if d.normal != "" || d.shifted != "" {
@@ -254,10 +266,6 @@ func (o *OSK) buildRow(parent *gtk.Box, defs []keyDef) {
 			}
 			btn.ConnectClicked(func() {
 				o.typeKey(d, kb)
-			})
-		} else if d.mod != "" {
-			btn.ConnectClicked(func() {
-				o.typeMod(d.mod)
 			})
 		} else {
 			kb := &keyButton{btn: btn, label: label, normal: d.normal, shifted: d.shifted}
@@ -274,30 +282,83 @@ func (o *OSK) buildRow(parent *gtk.Box, defs []keyDef) {
 }
 
 func (o *OSK) typeKey(d keyDef, kb *keyButton) {
-	// If this key has a special wtype key name, use -k flag.
+	// Build wtype args: held modifiers first, then the key, then release modifiers.
+	args := o.modArgs()
 	if d.key != "" {
-		go func() {
-			_ = exec.Command("wtype", "-k", d.key).Run()
-		}()
-		return
+		args = append(args, "-k", d.key)
+	} else {
+		args = append(args, o.activeChar(kb))
+	}
+	// Release held modifiers after typing.
+	if o.ctrlL {
+		args = append(args, "-m", "Ctrl_L")
+	}
+	if o.altL {
+		args = append(args, "-m", "Alt_L")
+	}
+	if o.shift {
+		args = append(args, "-m", "Shift_L")
 	}
 
-	ch := o.activeChar(kb)
 	go func() {
-		_ = exec.Command("wtype", ch).Run()
+		_ = exec.Command("wtype", args...).Run()
 	}()
-	// Shift auto-releases after typing a character (Android behavior).
-	if o.shift && (ch != kb.normal) {
-		glib.IdleAdd(func() {
-			o.releaseShift()
-		})
+
+	// Release all held modifiers after pressing a non-modifier key.
+	glib.IdleAdd(func() {
+		o.releaseAllMods()
+	})
+
+	// Shift auto-releases after typing a shifted character (Android behavior).
+	if d.key == "" && o.shift {
+		ch := o.activeChar(kb)
+		if ch != kb.normal {
+			return // releaseAllMods already handles it
+		}
 	}
 }
 
-func (o *OSK) typeMod(mod string) {
-	go func() {
-		_ = exec.Command("wtype", "-M", mod, "-k", mod).Run()
-	}()
+// modArgs returns the wtype modifier-hold flags for currently active modifiers.
+func (o *OSK) modArgs() []string {
+	var args []string
+	if o.ctrlL {
+		args = append(args, "-M", "Ctrl_L")
+	}
+	if o.altL {
+		args = append(args, "-M", "Alt_L")
+	}
+	if o.shift {
+		args = append(args, "-M", "Shift_L")
+	}
+	return args
+}
+
+// toggleMod toggles a modifier key's held state and updates its visual.
+func (o *OSK) toggleMod(mod string) {
+	switch mod {
+	case "Ctrl_L":
+		o.ctrlL = !o.ctrlL
+	case "Alt_L":
+		o.altL = !o.altL
+	}
+	if btn, ok := o.modBtns[mod]; ok {
+		active := o.ctrlL && mod == "Ctrl_L" || o.altL && mod == "Alt_L"
+		if active {
+			glib.IdleAdd(func() { btn.AddCSSClass("osk-key-active") })
+		} else {
+			glib.IdleAdd(func() { btn.RemoveCSSClass("osk-key-active") })
+		}
+	}
+}
+
+// releaseAllMods releases all held modifier keys and updates their visuals.
+func (o *OSK) releaseAllMods() {
+	o.releaseShift()
+	for _, btn := range o.modBtns {
+		glib.IdleAdd(func() { btn.RemoveCSSClass("osk-key-active") })
+	}
+	o.ctrlL = false
+	o.altL = false
 }
 
 func (o *OSK) activeChar(kb *keyButton) string {
