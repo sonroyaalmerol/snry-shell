@@ -211,6 +211,12 @@ func NewQuickToggles(b *bus.Bus, refs *servicerefs.ServiceRefs) gtk.Widgetter {
 				return
 			}
 			btn.AddCSSClass("loading")
+			// Failsafe: remove loading class after 3s if no bus event does it
+			// (e.g. SetPowered succeeds but BlueZ emits no signal).
+			glib.TimeoutAdd(uint(3000), func() bool {
+				btn.RemoveCSSClass("loading")
+				return false
+			})
 			toggle.toggle(btn.Active())
 		})
 
