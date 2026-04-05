@@ -1337,6 +1337,7 @@ scale.mixer-slider slider {
 .osk {
     background-color: @col_surface;
     padding: 6px 8px;
+    border-top: 1px solid alpha(@col_outline_variant, 0.2);
 }
 
 .osk-row {
@@ -1354,11 +1355,11 @@ scale.mixer-slider slider {
 }
 
 .osk-key-wide {
-    min-width: 60px;
+    min-width: 68px;
 }
 
 .osk-key-space {
-    min-width: 0;
+    min-width: 200px;
 }
 
 .osk-key:hover {

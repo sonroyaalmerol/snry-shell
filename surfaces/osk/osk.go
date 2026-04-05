@@ -103,6 +103,9 @@ type keyDef struct {
 func (o *OSK) build() {
 	root := gtk.NewBox(gtk.OrientationVertical, 0)
 	root.AddCSSClass("osk")
+	root.SetVAlign(gtk.AlignEnd)
+	root.SetHExpand(true)
+	root.SetVExpand(true)
 
 	numRow := []keyDef{
 		{label: "Esc", action: (*OSK).typeEscape},
@@ -186,10 +189,12 @@ func (o *OSK) build() {
 }
 
 func (o *OSK) buildRow(parent *gtk.Box, defs []keyDef) {
-	box := gtk.NewBox(gtk.OrientationHorizontal, 3)
-	box.AddCSSClass("osk-row")
-	box.SetHExpand(true)
-	box.SetHAlign(gtk.AlignFill)
+	outer := gtk.NewBox(gtk.OrientationHorizontal, 0)
+	outer.AddCSSClass("osk-row")
+	outer.SetHExpand(true)
+
+	center := gtk.NewBox(gtk.OrientationHorizontal, 3)
+	center.SetHAlign(gtk.AlignCenter)
 
 	for _, k := range defs {
 		btn := gtk.NewButton()
@@ -210,10 +215,11 @@ func (o *OSK) buildRow(parent *gtk.Box, defs []keyDef) {
 			}
 		})
 
-		box.Append(btn)
+		center.Append(btn)
 	}
 
-	parent.Append(box)
+	outer.Append(center)
+	parent.Append(outer)
 }
 
 func (o *OSK) activeChar(k keyDef) string {
