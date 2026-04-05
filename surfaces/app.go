@@ -34,7 +34,6 @@ import (
 	"github.com/sonroyaalmerol/snry-shell/surfaces/clipboard"
 	"github.com/sonroyaalmerol/snry-shell/surfaces/corners"
 	"github.com/sonroyaalmerol/snry-shell/surfaces/crosshair"
-	"github.com/sonroyaalmerol/snry-shell/surfaces/dock"
 	"github.com/sonroyaalmerol/snry-shell/surfaces/emoji"
 	"github.com/sonroyaalmerol/snry-shell/surfaces/imageviewer"
 	"github.com/sonroyaalmerol/snry-shell/surfaces/lockscreen"
@@ -153,7 +152,6 @@ func Run() int {
 		controls.New(app, b, refs, shellBar.StatusGroup)
 		notifcenter.New(app, b, refs, shellBar.NotifPill)
 		calendar.New(app, b, shellBar.ClockGroup)
-		dock.New(app, b)
 		osd.New(app, b)
 		session.New(app, b)
 		corners.New(app, b)
