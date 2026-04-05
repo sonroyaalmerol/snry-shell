@@ -86,6 +86,9 @@ func SectionHeader(title string, count int, revealer *gtk.Revealer, onScan func(
 	expanded := true
 	click := gtk.NewGestureClick()
 	click.SetButton(1)
+	click.ConnectPressed(func(_ int, _ float64, _ float64) {
+		click.SetState(gtk.EventSequenceClaimed)
+	})
 	click.ConnectReleased(func(_ int, _ float64, _ float64) {
 		expanded = !expanded
 		revealer.SetRevealChild(expanded)
@@ -96,15 +99,6 @@ func SectionHeader(title string, count int, revealer *gtk.Revealer, onScan func(
 		}
 	})
 	box.AddController(click)
-
-	if onScan != nil {
-		dblClick := gtk.NewGestureClick()
-		dblClick.SetButton(1)
-		dblClick.ConnectReleased(func(_ int, _ float64, _ float64) {
-			onScan()
-		})
-		box.AddController(dblClick)
-	}
 
 	return box
 }

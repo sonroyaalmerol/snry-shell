@@ -146,6 +146,9 @@ func newWiFiRow(refs *servicerefs.ServiceRefs, net state.WiFiNetwork) gtk.Widget
 		connected := net.Connected
 		click := gtk.NewGestureClick()
 		click.SetButton(1)
+		click.ConnectPressed(func(_ int, _ float64, _ float64) {
+			click.SetState(gtk.EventSequenceClaimed)
+		})
 		click.ConnectReleased(func(_ int, _ float64, _ float64) {
 			if connected {
 				return

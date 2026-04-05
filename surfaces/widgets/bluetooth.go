@@ -167,6 +167,9 @@ func newBTDeviceRow(refs *servicerefs.ServiceRefs, dev state.BluetoothDevice) gt
 	if refs.Bluetooth != nil {
 		click := gtk.NewGestureClick()
 		click.SetButton(1)
+		click.ConnectPressed(func(_ int, _ float64, _ float64) {
+			click.SetState(gtk.EventSequenceClaimed)
+		})
 		click.ConnectReleased(func(_ int, _ float64, _ float64) {
 			switch {
 			case dev.Connected:
