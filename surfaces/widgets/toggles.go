@@ -1,6 +1,7 @@
 package widgets
 
 import (
+	"log"
 	"os/exec"
 
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
@@ -205,6 +206,7 @@ func NewQuickToggles(b *bus.Bus, refs *servicerefs.ServiceRefs) gtk.Widgetter {
 
 		settingState := false
 		btn.ConnectToggled(func() {
+			log.Printf("[TOGGLE] %s ConnectToggled: Active=%v, settingState=%v", toggle.label, btn.Active(), settingState)
 			if settingState {
 				return
 			}
@@ -216,7 +218,9 @@ func NewQuickToggles(b *bus.Bus, refs *servicerefs.ServiceRefs) gtk.Widgetter {
 		if toggle.topic != "" {
 			topic := toggle.topic
 			b.Subscribe(topic, func(e bus.Event) {
+				log.Printf("[TOGGLE] %s bus event: %+v", toggle.label, e.Data)
 				glib.IdleAdd(func() {
+					log.Printf("[TOGGLE] %s IdleAdd: setting settingState=true, current Active=%v", toggle.label, btn.Active())
 					settingState = true
 					switch v := e.Data.(type) {
 					case state.NetworkState:
@@ -226,6 +230,7 @@ func NewQuickToggles(b *bus.Bus, refs *servicerefs.ServiceRefs) gtk.Widgetter {
 					case bool:
 						btn.SetActive(v)
 					}
+					log.Printf("[TOGGLE] %s IdleAdd: now Active=%v, setting settingState=false", toggle.label, btn.Active())
 					settingState = false
 					btn.RemoveCSSClass("loading")
 				})

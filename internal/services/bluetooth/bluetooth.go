@@ -3,6 +3,7 @@ package bluetooth
 import (
 	"context"
 	"fmt"
+	"log"
 	"sync"
 
 	"github.com/godbus/dbus/v5"
@@ -47,10 +48,11 @@ func (s *Service) Run(ctx context.Context) error {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
-		case _, ok := <-signals:
+		case sig, ok := <-signals:
 			if !ok {
 				return nil
 			}
+			log.Printf("[BT] Run: received D-Bus signal: %v", sig)
 			_ = s.poll()
 		}
 	}
@@ -63,9 +65,11 @@ func (s *Service) poll() error {
 	obj := s.conn.Object(bluezService, bluezAdapter)
 	poweredV, err := obj.GetProperty(bluezIface + ".Powered")
 	if err != nil {
+		log.Printf("[BT] poll GetProperty error: %v", err)
 		return fmt.Errorf("bluetooth poll: %w", err)
 	}
 	powered, _ := poweredV.Value().(bool)
+	log.Printf("[BT] poll: Powered=%v", powered)
 
 	bs := state.BluetoothState{Powered: powered}
 	if powered {
@@ -87,8 +91,15 @@ func (s *Service) poll() error {
 // SetPowered enables or disables the Bluetooth adapter.
 // State updates are handled by D-Bus PropertiesChanged signals in Run().
 func (s *Service) SetPowered(enabled bool) error {
+	log.Printf("[BT] SetPowered(%v) called", enabled)
 	obj := s.conn.Object(bluezService, bluezAdapter)
-	return obj.SetProperty(bluezIface+".Powered", dbus.MakeVariant(enabled))
+	err := obj.SetProperty(bluezIface+".Powered", dbus.MakeVariant(enabled))
+	if err != nil {
+		log.Printf("[BT] SetPowered(%v) SetProperty error: %v", enabled, err)
+	} else {
+		log.Printf("[BT] SetPowered(%v) SetProperty succeeded", enabled)
+	}
+	return err
 }
 
 // StartScan requests a Bluetooth device discovery scan.
