@@ -122,6 +122,7 @@ func (o *OSK) scheduleFocusUpdate(want bool) {
 
 func (o *OSK) show() {
 	o.win.SetVisible(true)
+	o.win.Present() // raise above all other overlay surfaces
 	o.visible = true
 }
 
