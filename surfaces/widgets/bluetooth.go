@@ -44,6 +44,22 @@ func NewBluetoothWidget(b *bus.Bus, refs *servicerefs.ServiceRefs) gtk.Widgetter
 	pairedRevealer.SetChild(pairedListBox)
 	box.Append(pairedRevealer)
 
+	// Scan button.
+	scanAction := func() {
+		if refs.Bluetooth != nil {
+			go func() {
+				_ = refs.Bluetooth.StartScan()
+				_, _ = refs.Bluetooth.GetDevices()
+			}()
+		}
+	}
+	scanBtn := gtkutil.MaterialButtonWithClass("search", "conn-scan-btn")
+	scanBtn.ConnectClicked(scanAction)
+	scanBtnWrapper := gtk.NewBox(gtk.OrientationHorizontal, 0)
+	scanBtnWrapper.SetHAlign(gtk.AlignEnd)
+	scanBtnWrapper.Append(scanBtn)
+	box.Append(scanBtnWrapper)
+
 	pairedHeader := gtkutil.SectionHeader("Paired devices", 0, pairedRevealer, nil)
 	box.Append(pairedHeader)
 
@@ -57,24 +73,8 @@ func NewBluetoothWidget(b *bus.Bus, refs *servicerefs.ServiceRefs) gtk.Widgetter
 	availableRevealer.SetChild(availableListBox)
 	box.Append(availableRevealer)
 
-	scanAction := func() {
-		if refs.Bluetooth != nil {
-			go func() {
-				_ = refs.Bluetooth.StartScan()
-				_, _ = refs.Bluetooth.GetDevices()
-			}()
-		}
-	}
 	availableHeader := gtkutil.SectionHeader("Available devices", 0, availableRevealer, scanAction)
 	box.Append(availableHeader)
-
-	// Scan button.
-	scanBtn := gtkutil.MaterialButtonWithClass("search", "conn-scan-btn")
-	scanBtn.ConnectClicked(scanAction)
-	scanBtnWrapper := gtk.NewBox(gtk.OrientationHorizontal, 0)
-	scanBtnWrapper.SetHAlign(gtk.AlignEnd)
-	scanBtnWrapper.Append(scanBtn)
-	box.Append(scanBtnWrapper)
 
 	// Switch toggles Bluetooth on/off.
 	if refs.Bluetooth != nil {
