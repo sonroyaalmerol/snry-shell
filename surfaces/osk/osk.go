@@ -5,6 +5,7 @@ import (
 	"log"
 	"os/exec"
 	"strings"
+	"sync"
 
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
@@ -22,8 +23,11 @@ type OSK struct {
 	hasTouch  bool
 	manualOff bool
 	visible   bool
-	keys      []*keyButton // all character keys, for label updates
+	keys      []*keyButton        // all character keys, for label updates
 	modBtns   map[string]*gtk.Button // modifier name -> button widget
+	shiftBtns []*gtk.Button        // shift buttons for visual feedback
+	capsBtn   *gtk.Button          // caps button for visual feedback
+	mu        sync.Mutex
 }
 
 type keyButton struct {
@@ -46,12 +50,10 @@ func New(app *gtk.Application, b *bus.Bus) *OSK {
 	osk.build()
 	win.SetVisible(false)
 
-	// Set a generous exclusive zone so the OSK does not overlap windows.
 	layershell.SetExclusiveZone(win, 280)
 
 	osk.hasTouch = detectTouchDevice()
 
-	// Manual toggle via quick settings or bus event.
 	b.Subscribe(bus.TopicSystemControls, func(e bus.Event) {
 		if e.Data == "toggle-osk" {
 			glib.IdleAdd(func() {
@@ -66,7 +68,6 @@ func New(app *gtk.Application, b *bus.Bus) *OSK {
 		}
 	})
 
-	// Auto-show on active window change when touch device is present.
 	if osk.hasTouch {
 		b.Subscribe(bus.TopicActiveWindow, func(e bus.Event) {
 			glib.IdleAdd(func() {
@@ -91,7 +92,6 @@ func (o *OSK) hide() {
 	o.visible = false
 }
 
-// detectTouchDevice checks if a touch input device exists.
 func detectTouchDevice() bool {
 	out, err := exec.Command("libinput", "list-devices").Output()
 	if err != nil {
@@ -104,14 +104,16 @@ func detectTouchDevice() bool {
 	return strings.Contains(string(out), "touch")
 }
 
+// keyDef describes a single key on the on-screen keyboard.
 type keyDef struct {
-	label   string
-	normal  string  // character to type when not shifted
-	shifted string  // character to type when shifted
-	key     string  // wtype key name (e.g. BackSpace, Tab, Return, space)
-	mod     string  // modifier to hold (e.g. Ctrl_L, Alt_L)
-	class   string  // extra CSS class
-	action  func(*OSK) // custom action (e.g. toggleShift, toggleCaps)
+	label     string // display label
+	normal    string // character to type when not shifted
+	shifted   string // character to type when shifted
+	key       string // wtype key name (BackSpace, Tab, Return, space, Escape, Left, etc.)
+	mod       string // modifier to hold (Ctrl_L, Alt_L)
+	class     string // extra CSS class
+	action    string // "shift", "caps", or "" for none
+	repeatKey bool   // true for keys that should auto-repeat on hold (backspace, arrows)
 }
 
 func (o *OSK) build() {
@@ -143,11 +145,10 @@ func (o *OSK) build() {
 		o.hide()
 	})
 	topRow.Append(closeBtn)
-
 	root.Append(topRow)
 
 	numRow := []keyDef{
-		{label: "Esc"},
+		{label: "Esc", key: "Escape"},
 		{normal: "`", shifted: "~"},
 		{normal: "1", shifted: "!"},
 		{normal: "2", shifted: "@"},
@@ -161,11 +162,11 @@ func (o *OSK) build() {
 		{normal: "0", shifted: ")"},
 		{normal: "-", shifted: "_"},
 		{normal: "=", shifted: "+"},
-		{label: "⌫", class: "osk-key-wide", key: "BackSpace"},
+		{label: "⌫", key: "BackSpace", class: "osk-key-wide", repeatKey: true},
 	}
 
 	row1 := []keyDef{
-		{label: "Tab", class: "osk-key-wide", key: "Tab"},
+		{label: "Tab", key: "Tab", class: "osk-key-wide"},
 		{normal: "q", shifted: "Q"},
 		{normal: "w", shifted: "W"},
 		{normal: "e", shifted: "E"},
@@ -182,7 +183,7 @@ func (o *OSK) build() {
 	}
 
 	row2 := []keyDef{
-		{label: "Caps", class: "osk-key-wide", action: (*OSK).toggleCaps},
+		{label: "Caps", action: "caps", class: "osk-key-wide"},
 		{normal: "a", shifted: "A"},
 		{normal: "s", shifted: "S"},
 		{normal: "d", shifted: "D"},
@@ -194,11 +195,11 @@ func (o *OSK) build() {
 		{normal: "l", shifted: "L"},
 		{normal: ";", shifted: ":"},
 		{normal: "'", shifted: "\""},
-		{label: "⏎", class: "osk-key-wide", key: "Return"},
+		{label: "⏎", key: "Return", class: "osk-key-wide"},
 	}
 
 	row3 := []keyDef{
-		{label: "⇧", class: "osk-key-wide", action: (*OSK).toggleShift},
+		{label: "⇧", action: "shift", class: "osk-key-wide"},
 		{normal: "z", shifted: "Z"},
 		{normal: "x", shifted: "X"},
 		{normal: "c", shifted: "C"},
@@ -209,19 +210,17 @@ func (o *OSK) build() {
 		{normal: ",", shifted: "<"},
 		{normal: ".", shifted: ">"},
 		{normal: "/", shifted: "?"},
-		{label: "⇧", class: "osk-key-wide", action: (*OSK).toggleShift},
+		{label: "⇧", action: "shift", class: "osk-key-wide"},
 	}
 
 	row4 := []keyDef{
-		{label: "Ctrl", class: "osk-key-wide", mod: "Ctrl_L"},
-		{label: "Alt", class: "osk-key-wide", mod: "Alt_L"},
+		{label: "Ctrl", mod: "Ctrl_L", class: "osk-key-wide"},
+		{label: "Alt", mod: "Alt_L", class: "osk-key-wide"},
 		{label: "", normal: " ", class: "osk-key-space", key: "space"},
-		{label: "←", class: "osk-key-wide", key: "Left"},
-		{label: "↓", class: "osk-key-wide", key: "Down"},
-		{label: "↑", class: "osk-key-wide", key: "Up"},
-		{label: "→", class: "osk-key-wide", key: "Right"},
-		{label: "Alt", class: "osk-key-wide", mod: "Alt_L"},
-		{label: "Ctrl", class: "osk-key-wide", mod: "Ctrl_L"},
+		{label: "←", key: "Left", class: "osk-key-arrow", repeatKey: true},
+		{label: "↓", key: "Down", class: "osk-key-arrow", repeatKey: true},
+		{label: "↑", key: "Up", class: "osk-key-arrow", repeatKey: true},
+		{label: "→", key: "Right", class: "osk-key-arrow", repeatKey: true},
 	}
 
 	for _, row := range [][]keyDef{numRow, row1, row2, row3, row4} {
@@ -229,8 +228,6 @@ func (o *OSK) build() {
 	}
 
 	o.win.SetChild(root)
-
-	// Initialize all character key labels with their normal values.
 	o.updateKeyLabels()
 }
 
@@ -251,28 +248,26 @@ func (o *OSK) buildRow(parent *gtk.Box, defs []keyDef) {
 		label.AddCSSClass("osk-key-label")
 		btn.SetChild(label)
 
-		if d.action != nil {
-			btn.ConnectClicked(func() { d.action(o) })
-		} else if d.mod != "" {
+		switch {
+		case d.action == "shift":
+			o.shiftBtns = append(o.shiftBtns, btn)
+			btn.ConnectClicked(func() { o.toggleShift() })
+		case d.action == "caps":
+			o.capsBtn = btn
+			btn.ConnectClicked(func() { o.toggleCaps() })
+		case d.mod != "":
 			mod := d.mod
 			o.modBtns[mod] = btn
-			btn.ConnectClicked(func() {
-				o.toggleMod(mod)
-			})
-		} else if d.key != "" {
+			btn.ConnectClicked(func() { o.toggleMod(mod) })
+		case d.repeatKey:
+			o.setupRepeatKey(btn, d)
+		default:
+			// Regular typable key.
 			kb := &keyButton{btn: btn, label: label, normal: d.normal, shifted: d.shifted}
 			if d.normal != "" || d.shifted != "" {
 				o.keys = append(o.keys, kb)
 			}
-			btn.ConnectClicked(func() {
-				o.typeKey(d, kb)
-			})
-		} else {
-			kb := &keyButton{btn: btn, label: label, normal: d.normal, shifted: d.shifted}
-			o.keys = append(o.keys, kb)
-			btn.ConnectClicked(func() {
-				o.typeKey(d, kb)
-			})
+			o.setupKey(btn, d, kb)
 		}
 
 		box.Append(btn)
@@ -281,84 +276,92 @@ func (o *OSK) buildRow(parent *gtk.Box, defs []keyDef) {
 	parent.Append(box)
 }
 
+// setupKey wires a regular (non-repeating) key with press/release visual feedback.
+func (o *OSK) setupKey(btn *gtk.Button, d keyDef, kb *keyButton) {
+	gesture := gtk.NewGestureClick()
+	gesture.SetButton(1)
+	gesture.SetPropagationLimit(gtk.LimitNone)
+	gesture.ConnectPressed(func(int, float64, float64) {
+		btn.AddCSSClass("osk-key-pressed")
+		o.typeKey(d, kb)
+	})
+	gesture.ConnectReleased(func(int, float64, float64) {
+		btn.RemoveCSSClass("osk-key-pressed")
+	})
+	btn.AddController(gesture)
+}
+
+// setupRepeatKey wires a key that auto-repeats while held (backspace, arrows).
+func (o *OSK) setupRepeatKey(btn *gtk.Button, d keyDef) {
+	var cancelled bool
+
+	gesture := gtk.NewGestureClick()
+	gesture.SetButton(1)
+	gesture.SetPropagationLimit(gtk.LimitNone)
+	gesture.ConnectPressed(func(int, float64, float64) {
+		btn.AddCSSClass("osk-key-pressed")
+		cancelled = false
+		o.typeKey(d, nil)
+		// Start repeat after initial delay (400ms).
+		glib.TimeoutAdd(400, func() bool {
+			if cancelled {
+				return false
+			}
+			o.typeKey(d, nil)
+			// Continue repeating at faster interval (60ms).
+			glib.TimeoutAdd(60, func() bool {
+				if cancelled {
+					return false
+				}
+				o.typeKey(d, nil)
+				return true
+			})
+			return false
+		})
+	})
+	gesture.ConnectReleased(func(int, float64, float64) {
+		btn.RemoveCSSClass("osk-key-pressed")
+		cancelled = true
+	})
+	btn.AddController(gesture)
+}
+
 func (o *OSK) typeKey(d keyDef, kb *keyButton) {
-	// Build wtype args: held modifiers first, then the key, then release modifiers.
+	o.mu.Lock()
+	defer o.mu.Unlock()
+
 	args := o.modArgs()
 	if d.key != "" {
 		args = append(args, "-k", d.key)
-	} else {
+	} else if kb != nil {
 		args = append(args, o.activeChar(kb))
 	}
-	// Release held modifiers after typing.
-	if o.ctrlL {
-		args = append(args, "-m", "Ctrl_L")
-	}
-	if o.altL {
-		args = append(args, "-m", "Alt_L")
-	}
-	if o.shift {
-		args = append(args, "-m", "Shift_L")
+
+	if len(args) == 0 {
+		return
 	}
 
-	go func() {
-		_ = exec.Command("wtype", args...).Run()
-	}()
+	// Run synchronously — wtype is fast (sub-ms) and sequential execution
+	// avoids race conditions with modifier state.
+	_ = exec.Command("wtype", args...).Run()
 
-	// Release all held modifiers after pressing a non-modifier key.
-	glib.IdleAdd(func() {
-		o.releaseAllMods()
-	})
-
-	// Shift auto-releases after typing a shifted character (Android behavior).
-	if d.key == "" && o.shift {
-		ch := o.activeChar(kb)
-		if ch != kb.normal {
-			return // releaseAllMods already handles it
-		}
-	}
+	// After typing a non-modifier key, release all held modifiers.
+	o.releaseAllModsLocked()
 }
 
-// modArgs returns the wtype modifier-hold flags for currently active modifiers.
+// modArgs builds the wtype modifier-hold flags for currently active modifiers.
 func (o *OSK) modArgs() []string {
 	var args []string
 	if o.ctrlL {
-		args = append(args, "-M", "Ctrl_L")
+		args = append(args, "-M", "ctrl")
 	}
 	if o.altL {
-		args = append(args, "-M", "Alt_L")
+		args = append(args, "-M", "alt")
 	}
 	if o.shift {
-		args = append(args, "-M", "Shift_L")
+		args = append(args, "-M", "shift")
 	}
 	return args
-}
-
-// toggleMod toggles a modifier key's held state and updates its visual.
-func (o *OSK) toggleMod(mod string) {
-	switch mod {
-	case "Ctrl_L":
-		o.ctrlL = !o.ctrlL
-	case "Alt_L":
-		o.altL = !o.altL
-	}
-	if btn, ok := o.modBtns[mod]; ok {
-		active := o.ctrlL && mod == "Ctrl_L" || o.altL && mod == "Alt_L"
-		if active {
-			glib.IdleAdd(func() { btn.AddCSSClass("osk-key-active") })
-		} else {
-			glib.IdleAdd(func() { btn.RemoveCSSClass("osk-key-active") })
-		}
-	}
-}
-
-// releaseAllMods releases all held modifier keys and updates their visuals.
-func (o *OSK) releaseAllMods() {
-	o.releaseShift()
-	for _, btn := range o.modBtns {
-		glib.IdleAdd(func() { btn.RemoveCSSClass("osk-key-active") })
-	}
-	o.ctrlL = false
-	o.altL = false
 }
 
 func (o *OSK) activeChar(kb *keyButton) string {
@@ -378,7 +381,6 @@ func (o *OSK) activeChar(kb *keyButton) string {
 	return ch
 }
 
-// updateKeyLabels refreshes all character key labels based on shift/caps state.
 func (o *OSK) updateKeyLabels() {
 	shifted := o.shift != o.caps
 	for _, k := range o.keys {
@@ -398,20 +400,77 @@ func (o *OSK) updateKeyLabels() {
 	}
 }
 
-// releaseShift turns off shift (called after typing a shifted char).
-func (o *OSK) releaseShift() {
-	if o.shift {
-		o.shift = false
-		o.updateKeyLabels()
-	}
-}
-
 func (o *OSK) toggleShift() {
+	o.mu.Lock()
 	o.shift = !o.shift
+	o.updateModVisualsLocked()
+	o.mu.Unlock()
 	o.updateKeyLabels()
 }
 
 func (o *OSK) toggleCaps() {
+	o.mu.Lock()
 	o.caps = !o.caps
+	o.updateModVisualsLocked()
+	o.mu.Unlock()
 	o.updateKeyLabels()
+}
+
+func (o *OSK) toggleMod(mod string) {
+	o.mu.Lock()
+	switch mod {
+	case "Ctrl_L":
+		o.ctrlL = !o.ctrlL
+	case "Alt_L":
+		o.altL = !o.altL
+	}
+	o.updateModVisualsLocked()
+	o.mu.Unlock()
+}
+
+// updateModVisualsLocked updates the CSS class on all modifier/action buttons.
+// Caller must hold o.mu.
+func (o *OSK) updateModVisualsLocked() {
+	cls := "osk-key-active"
+	for _, btn := range o.shiftBtns {
+		if o.shift {
+			glib.IdleAdd(func() { btn.AddCSSClass(cls) })
+		} else {
+			glib.IdleAdd(func() { btn.RemoveCSSClass(cls) })
+		}
+	}
+	if o.capsBtn != nil {
+		if o.caps {
+			glib.IdleAdd(func() { o.capsBtn.AddCSSClass(cls) })
+		} else {
+			glib.IdleAdd(func() { o.capsBtn.RemoveCSSClass(cls) })
+		}
+	}
+	for _, btn := range o.modBtns {
+		if btn != nil {
+			glib.IdleAdd(func() { btn.RemoveCSSClass(cls) })
+		}
+	}
+	if btn, ok := o.modBtns["Ctrl_L"]; ok {
+		if o.ctrlL {
+			glib.IdleAdd(func() { btn.AddCSSClass(cls) })
+		}
+	}
+	if btn, ok := o.modBtns["Alt_L"]; ok {
+		if o.altL {
+			glib.IdleAdd(func() { btn.AddCSSClass(cls) })
+		}
+	}
+}
+
+// releaseAllModsLocked releases all held modifiers and updates visuals.
+// Caller must hold o.mu.
+func (o *OSK) releaseAllModsLocked() {
+	if !o.shift && !o.ctrlL && !o.altL {
+		return
+	}
+	o.shift = false
+	o.ctrlL = false
+	o.altL = false
+	o.updateModVisualsLocked()
 }

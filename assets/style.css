@@ -1336,39 +1336,46 @@ scale.mixer-slider slider {
 
 .osk {
     background-color: @col_surface;
-    padding: 6px 8px;
+    padding: 4px 6px;
     border-top: 1px solid alpha(@col_outline_variant, 0.2);
 }
 
 .osk-row {
-    padding: 2px 0;
+    padding: 1px 0;
 }
 
 .osk-key {
     background-color: @col_surface_container;
     border-radius: var(--radius-sm);
     border: none;
-    min-width: 38px;
-    min-height: 44px;
+    min-width: 36px;
+    min-height: 42px;
     color: @col_on_surface;
-    transition: background-color 100ms var(--ease-emphasized-decel);
+    transition: background-color 80ms ease;
+    padding: 0 2px;
 }
 
 .osk-key-wide {
-    min-width: 68px;
+    min-width: 62px;
 }
 
 .osk-key-space {
     min-width: 200px;
 }
 
+.osk-key-arrow {
+    min-width: 46px;
+}
+
 .osk-key:hover {
     background-color: @col_surface_container_high;
 }
 
-.osk-key:active {
+.osk-key:active,
+.osk-key-pressed {
     background-color: @col_primary_container;
     color: @col_on_primary_container;
+    transition: none;
 }
 
 .osk-key-active {
@@ -1376,8 +1383,19 @@ scale.mixer-slider slider {
     color: @col_on_primary;
 }
 
+.osk-key-close {
+    background-color: transparent;
+    min-width: 36px;
+    min-height: 36px;
+    border-radius: 50%;
+}
+
+.osk-key-close:hover {
+    background-color: alpha(@col_on_surface, 0.08);
+}
+
 .osk-key-label {
-    font-size: 16px;
+    font-size: 15px;
     color: @col_on_surface;
 }
 
