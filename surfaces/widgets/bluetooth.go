@@ -1,6 +1,8 @@
 package widgets
 
 import (
+	"time"
+
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/sonroyaalmerol/snry-shell/internal/bus"
@@ -19,6 +21,7 @@ func NewBluetoothWidget(b *bus.Bus, refs *servicerefs.ServiceRefs, parent *gtk.A
 		if refs.Bluetooth != nil {
 			go func() {
 				_ = refs.Bluetooth.StartScan()
+				time.Sleep(5 * time.Second)
 				_, _ = refs.Bluetooth.GetDevices()
 			}()
 		}
