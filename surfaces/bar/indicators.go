@@ -120,70 +120,15 @@ func newBluetoothIcon(b *bus.Bus, refs *servicerefs.ServiceRefs) gtk.Widgetter {
 	return icon
 }
 
-// newStatusWidgetGroup returns the grouped status indicators (resources, volume, brightness, battery, keyboard).
-func newStatusWidgetGroup(b *bus.Bus, refs *servicerefs.ServiceRefs) gtk.Widgetter {
-	box := gtk.NewBox(gtk.OrientationHorizontal, 4)
-	box.SetVAlign(gtk.AlignCenter)
-
-	box.Append(newResourceIndicator(b))
-	box.Append(newVolumeIndicator(b))
-	box.Append(newBrightnessIndicator(b))
-	box.Append(newBatteryIndicator(b))
-	box.Append(newKeyboardIndicator(b, refs.Hyprland))
-
-	return box
+// newStatusIcon returns a single icon that opens the control panel.
+func newStatusIcon(b *bus.Bus) gtk.Widgetter {
+	icon := gtkutil.MaterialIcon("tune")
+	icon.AddCSSClass("indicator-icon")
+	icon.SetTooltipText("Controls")
+	return icon
 }
 
-func newVolumeIndicator(b *bus.Bus) gtk.Widgetter {
-	icon := gtkutil.MaterialIcon("volume_up")
-	valueLabel := gtk.NewLabel("--")
-	valueLabel.AddCSSClass("indicator-value")
-
-	box := gtk.NewBox(gtk.OrientationHorizontal, 2)
-	box.SetVAlign(gtk.AlignCenter)
-	box.Append(icon)
-	box.Append(valueLabel)
-
-	b.Subscribe(bus.TopicAudio, func(e bus.Event) {
-		sink := e.Data.(state.AudioSink)
-		glib.IdleAdd(func() {
-			switch {
-			case sink.Muted:
-				icon.SetText("volume_off")
-			case sink.Volume < 0.33:
-				icon.SetText("volume_down")
-			default:
-				icon.SetText("volume_up")
-			}
-			valueLabel.SetText(fmt.Sprintf("%d%%", int(sink.Volume*100)))
-		})
-	})
-	return box
-}
-
-func newBrightnessIndicator(b *bus.Bus) gtk.Widgetter {
-	icon := gtkutil.MaterialIcon("brightness_medium")
-	valueLabel := gtk.NewLabel("--")
-	valueLabel.AddCSSClass("indicator-value")
-
-	box := gtk.NewBox(gtk.OrientationHorizontal, 2)
-	box.SetVAlign(gtk.AlignCenter)
-	box.Append(icon)
-	box.Append(valueLabel)
-
-	b.Subscribe(bus.TopicBrightness, func(e bus.Event) {
-		bs := e.Data.(state.BrightnessState)
-		glib.IdleAdd(func() {
-			pct := 0
-			if bs.Max > 0 {
-				pct = bs.Current * 100 / bs.Max
-			}
-			valueLabel.SetText(fmt.Sprintf("%d%%", pct))
-		})
-	})
-	return box
-}
-
+// newBatteryIndicator returns a battery icon + percentage, hidden if no battery.
 func newBatteryIndicator(b *bus.Bus) gtk.Widgetter {
 	revealer := gtk.NewRevealer()
 	revealer.SetTransitionType(gtk.RevealerTransitionTypeSlideLeft)
@@ -191,9 +136,9 @@ func newBatteryIndicator(b *bus.Bus) gtk.Widgetter {
 
 	icon := gtkutil.MaterialIcon("battery_full")
 	valueLabel := gtk.NewLabel("")
-	valueLabel.AddCSSClass("indicator-value")
+	valueLabel.AddCSSClass("bar-battery-value")
 
-	box := gtk.NewBox(gtk.OrientationHorizontal, 2)
+	box := gtk.NewBox(gtk.OrientationHorizontal, 4)
 	box.SetVAlign(gtk.AlignCenter)
 	box.Append(icon)
 	box.Append(valueLabel)
@@ -233,7 +178,7 @@ func newKeyboardIndicator(b *bus.Bus, querier *hyprland.Querier) gtk.Widgetter {
 	icon.AddCSSClass("indicator-icon")
 
 	label := gtk.NewLabel("")
-	label.AddCSSClass("indicator-value")
+	label.AddCSSClass("bar-kbd-layout")
 
 	box := gtk.NewBox(gtk.OrientationHorizontal, 2)
 	box.SetVAlign(gtk.AlignCenter)

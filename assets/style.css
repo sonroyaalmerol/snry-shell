@@ -306,6 +306,17 @@ scale.m3-scale slider {
     color: @col_on_surface;
 }
 
+.bar-battery-value {
+    font-size: 13px;
+    color: @col_on_surface_variant;
+    font-variant-numeric: tabular-nums;
+}
+
+.bar-kbd-layout {
+    font-size: 13px;
+    color: @col_on_surface_variant;
+}
+
 /* ── Individual indicator icons (right zone) ──────────────────────────────────── */
 
 .indicator-icon {

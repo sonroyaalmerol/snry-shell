@@ -45,17 +45,19 @@ func (b *Bar) build(refs *servicerefs.ServiceRefs) {
 	b.win.SetChild(root)
 }
 
-// Left: window title + status indicators.
+// Left: window title + status toggle + keyboard layout.
 func (b *Bar) buildLeft(refs *servicerefs.ServiceRefs) gtk.Widgetter {
 	box := gtk.NewBox(gtk.OrientationHorizontal, 0)
 	box.SetVAlign(gtk.AlignCenter)
 
-	statusGroup := clickableBarGroup(newStatusWidgetGroup(b.bus, refs), b.bus, "toggle-controls")
+	statusGroup := clickableBarGroup(newStatusIcon(b.bus), b.bus, "toggle-controls")
 	b.StatusGroup = statusGroup
 
 	box.Append(newWindowTitleWidget(b.bus))
 	box.Append(barSeparator())
 	box.Append(statusGroup)
+	box.Append(barSeparator())
+	box.Append(newKeyboardIndicator(b.bus, refs.Hyprland))
 	return box
 }
 
@@ -68,6 +70,7 @@ func newClockGroup(b *bus.Bus) gtk.Widgetter {
 	box := gtk.NewBox(gtk.OrientationHorizontal, 4)
 	box.SetVAlign(gtk.AlignCenter)
 	box.Append(newClockWidget())
+	box.Append(newBatteryIndicator(b))
 	return box
 }
 
