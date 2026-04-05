@@ -82,12 +82,15 @@ func New(app *gtk.Application, b *bus.Bus) *OSK {
 
 	// Auto-show/hide based on zwp_input_method_v2 activate/deactivate events.
 	b.Subscribe(bus.TopicTextInputFocus, func(e bus.Event) {
-		if osk.manualOff {
-			return
-		}
 		isText, ok := e.Data.(bool)
 		if !ok {
 			return
+		}
+		if isText && osk.manualOff {
+			return // user dismissed — don't auto-show for this field
+		}
+		if !isText {
+			osk.manualOff = false // field lost focus, allow auto-show next time
 		}
 		osk.scheduleFocusUpdate(isText)
 	})
