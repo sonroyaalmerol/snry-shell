@@ -203,7 +203,8 @@ func NewQuickToggles(b *bus.Bus, refs *servicerefs.ServiceRefs) gtk.Widgetter {
 		btn.AddCSSClass("quick-toggle")
 		btn.SetChild(inner)
 
-		btn.ConnectToggled(func() {
+		handlerID := btn.ConnectToggled(func() {
+			btn.AddCSSClass("loading")
 			toggle.toggle(btn.Active())
 		})
 
@@ -212,6 +213,7 @@ func NewQuickToggles(b *bus.Bus, refs *servicerefs.ServiceRefs) gtk.Widgetter {
 			topic := toggle.topic
 			b.Subscribe(topic, func(e bus.Event) {
 				glib.IdleAdd(func() {
+					btn.HandlerBlock(handlerID)
 					switch v := e.Data.(type) {
 					case state.NetworkState:
 						btn.SetActive(v.WirelessEnabled)
@@ -220,6 +222,8 @@ func NewQuickToggles(b *bus.Bus, refs *servicerefs.ServiceRefs) gtk.Widgetter {
 					case bool:
 						btn.SetActive(v)
 					}
+					btn.HandlerUnblock(handlerID)
+					btn.RemoveCSSClass("loading")
 				})
 			})
 		}

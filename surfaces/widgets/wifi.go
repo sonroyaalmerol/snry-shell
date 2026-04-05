@@ -15,6 +15,12 @@ func NewWiFiWidget(b *bus.Bus, refs *servicerefs.ServiceRefs, parent *gtk.Applic
 	box := gtk.NewBox(gtk.OrientationVertical, 0)
 	box.AddCSSClass("conn-widget")
 
+	rescan := func() {
+		if refs.Network != nil {
+			go refs.Network.ScanWiFi()
+		}
+	}
+
 	// Networks list (collapsible).
 	listBox := gtk.NewBox(gtk.OrientationVertical, 0)
 	listBox.AddCSSClass("conn-list")
@@ -26,21 +32,31 @@ func NewWiFiWidget(b *bus.Bus, refs *servicerefs.ServiceRefs, parent *gtk.Applic
 	revealer.SetChild(listBox)
 
 	// Section header.
-	sectionHeader := gtkutil.SectionHeader("Available networks", 0, revealer, func() {
-		if refs.Network != nil {
-			go refs.Network.ScanWiFi()
-		}
-	})
+	sectionHeader := gtkutil.SectionHeader("Available networks", 0, revealer, rescan)
 	box.Append(sectionHeader)
 
 	box.Append(revealer)
 
 	// Scan button.
-	scanBtn := gtkutil.MaterialButtonWithClass("refresh", "conn-scan-btn")
+	scanBtn := gtk.NewButton()
+	scanBtn.AddCSSClass("conn-scan-btn")
+	scanBtn.SetChild(gtkutil.MaterialIcon("refresh"))
+
+	restoreScanBtn := func() {
+		scanBtn.SetSensitive(true)
+		scanBtn.SetChild(gtkutil.MaterialIcon("refresh"))
+	}
+
 	scanBtn.ConnectClicked(func() {
-		if refs.Network != nil {
-			go refs.Network.ScanWiFi()
+		if refs.Network == nil {
+			return
 		}
+		scanBtn.SetSensitive(false)
+		s := gtk.NewSpinner()
+		s.SetSizeRequest(18, 18)
+		s.Start()
+		scanBtn.SetChild(s)
+		go refs.Network.ScanWiFi()
 	})
 	scanBtnWrapper := gtk.NewBox(gtk.OrientationHorizontal, 0)
 	scanBtnWrapper.SetHAlign(gtk.AlignEnd)
@@ -61,18 +77,19 @@ func NewWiFiWidget(b *bus.Bus, refs *servicerefs.ServiceRefs, parent *gtk.Applic
 			gtkutil.ClearChildren(&listBox.Widget, listBox.Remove)
 
 			for _, net := range networks {
-				row := newWiFiRow(parent, refs, net)
+				row := newWiFiRow(parent, refs, net, rescan)
 				listBox.Append(row)
 			}
 
 			gtkutil.UpdateSectionHeader(sectionHeader, len(networks))
+			restoreScanBtn()
 		})
 	})
 
 	return box
 }
 
-func newWiFiRow(parent *gtk.ApplicationWindow, refs *servicerefs.ServiceRefs, net state.WiFiNetwork) gtk.Widgetter {
+func newWiFiRow(parent *gtk.ApplicationWindow, refs *servicerefs.ServiceRefs, net state.WiFiNetwork, rescan func()) gtk.Widgetter {
 	row := gtk.NewBox(gtk.OrientationHorizontal, 12)
 	row.AddCSSClass("conn-row")
 	if net.Connected {
@@ -109,6 +126,17 @@ func newWiFiRow(parent *gtk.ApplicationWindow, refs *servicerefs.ServiceRefs, ne
 		saved := net.Saved
 		security := net.Security
 		connected := net.Connected
+
+		setLoading := func() {
+			row.AddCSSClass("conn-row-loading")
+			gtkutil.ClearChildren(&meta.Widget, meta.Remove)
+			s := gtk.NewSpinner()
+			s.AddCSSClass("inline-spinner")
+			s.SetSizeRequest(18, 18)
+			s.Start()
+			meta.Append(s)
+		}
+
 		click := gtk.NewGestureClick()
 		click.SetButton(1)
 		click.ConnectPressed(func(_ int, _ float64, _ float64) {
@@ -122,12 +150,19 @@ func newWiFiRow(parent *gtk.ApplicationWindow, refs *servicerefs.ServiceRefs, ne
 					"Connected to network",
 					ssid,
 					[]gtkutil.ActionDialogAction{
-						{Label: "Disconnect", OnClick: func() { go refs.Network.DisconnectWiFi() }},
-						{Label: "Forget", CSSClass: "m3-dialog-btn-error", OnClick: func() { go refs.Network.ForgetWiFi(ssid) }},
+						{Label: "Disconnect", OnClick: func() {
+							setLoading()
+							go func() { refs.Network.DisconnectWiFi(); rescan() }()
+						}},
+						{Label: "Forget", CSSClass: "m3-dialog-btn-error", OnClick: func() {
+							setLoading()
+							go func() { refs.Network.ForgetWiFi(ssid); rescan() }()
+						}},
 					},
 				)
 			case saved:
-				go refs.Network.ConnectWiFi(ssid)
+				setLoading()
+				go func() { refs.Network.ConnectWiFi(ssid); rescan() }()
 			case security != "":
 				gtkutil.PasswordDialog(
 					parent,
@@ -135,11 +170,13 @@ func newWiFiRow(parent *gtk.ApplicationWindow, refs *servicerefs.ServiceRefs, ne
 					ssid,
 					"Password",
 					func(password string) {
-						go refs.Network.ConnectWithPassword(ssid, password)
+						setLoading()
+						go func() { refs.Network.ConnectWithPassword(ssid, password); rescan() }()
 					},
 				)
 			default:
-				go refs.Network.ConnectWithPassword(ssid, "")
+				setLoading()
+				go func() { refs.Network.ConnectWithPassword(ssid, ""); rescan() }()
 			}
 		})
 		row.AddController(click)

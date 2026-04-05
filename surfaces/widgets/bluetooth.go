@@ -15,7 +15,7 @@ func NewBluetoothWidget(b *bus.Bus, refs *servicerefs.ServiceRefs, parent *gtk.A
 	box := gtk.NewBox(gtk.OrientationVertical, 0)
 	box.AddCSSClass("conn-widget")
 
-	scanAction := func() {
+	rescan := func() {
 		if refs.Bluetooth != nil {
 			go func() {
 				_ = refs.Bluetooth.StartScan()
@@ -33,7 +33,7 @@ func NewBluetoothWidget(b *bus.Bus, refs *servicerefs.ServiceRefs, parent *gtk.A
 	availableRevealer.SetRevealChild(true)
 	availableRevealer.SetChild(availableListBox)
 
-	availableHeader := gtkutil.SectionHeader("Available devices", 0, availableRevealer, scanAction)
+	availableHeader := gtkutil.SectionHeader("Available devices", 0, availableRevealer, rescan)
 	box.Append(availableHeader)
 	box.Append(availableRevealer)
 
@@ -51,15 +51,30 @@ func NewBluetoothWidget(b *bus.Bus, refs *servicerefs.ServiceRefs, parent *gtk.A
 	box.Append(pairedRevealer)
 
 	// Scan button.
-	scanBtn := gtkutil.MaterialButtonWithClass("search", "conn-scan-btn")
-	scanBtn.ConnectClicked(scanAction)
+	scanBtn := gtk.NewButton()
+	scanBtn.AddCSSClass("conn-scan-btn")
+	scanBtn.SetChild(gtkutil.MaterialIcon("search"))
+
+	restoreScanBtn := func() {
+		scanBtn.SetSensitive(true)
+		scanBtn.SetChild(gtkutil.MaterialIcon("search"))
+	}
+
+	scanBtn.ConnectClicked(func() {
+		scanBtn.SetSensitive(false)
+		s := gtk.NewSpinner()
+		s.SetSizeRequest(18, 18)
+		s.Start()
+		scanBtn.SetChild(s)
+		rescan()
+	})
 	scanBtnWrapper := gtk.NewBox(gtk.OrientationHorizontal, 0)
 	scanBtnWrapper.SetHAlign(gtk.AlignEnd)
 	scanBtnWrapper.Append(scanBtn)
 	box.Append(scanBtnWrapper)
 
 	if refs.Bluetooth != nil {
-		go scanAction()
+		go rescan()
 	}
 
 	// Subscribe to device list updates.
@@ -78,24 +93,25 @@ func NewBluetoothWidget(b *bus.Bus, refs *servicerefs.ServiceRefs, parent *gtk.A
 			for _, dev := range devices {
 				if dev.Paired {
 					pairedCount++
-					row := newBTDeviceRow(parent, refs, dev)
+					row := newBTDeviceRow(parent, refs, dev, rescan)
 					pairedListBox.Append(row)
 				} else {
 					availableCount++
-					row := newBTDeviceRow(parent, refs, dev)
+					row := newBTDeviceRow(parent, refs, dev, rescan)
 					availableListBox.Append(row)
 				}
 			}
 
 			gtkutil.UpdateSectionHeader(pairedHeader, pairedCount)
 			gtkutil.UpdateSectionHeader(availableHeader, availableCount)
+			restoreScanBtn()
 		})
 	})
 
 	return box
 }
 
-func newBTDeviceRow(parent *gtk.ApplicationWindow, refs *servicerefs.ServiceRefs, dev state.BluetoothDevice) gtk.Widgetter {
+func newBTDeviceRow(parent *gtk.ApplicationWindow, refs *servicerefs.ServiceRefs, dev state.BluetoothDevice, rescan func()) gtk.Widgetter {
 	row := gtk.NewBox(gtk.OrientationHorizontal, 12)
 	row.AddCSSClass("conn-row")
 	if dev.Connected {
@@ -130,6 +146,18 @@ func newBTDeviceRow(parent *gtk.ApplicationWindow, refs *servicerefs.ServiceRefs
 	row.Append(meta)
 
 	if refs.Bluetooth != nil {
+		addr := dev.Address
+
+		setLoading := func() {
+			row.AddCSSClass("conn-row-loading")
+			gtkutil.ClearChildren(&meta.Widget, meta.Remove)
+			s := gtk.NewSpinner()
+			s.AddCSSClass("inline-spinner")
+			s.SetSizeRequest(18, 18)
+			s.Start()
+			meta.Append(s)
+		}
+
 		click := gtk.NewGestureClick()
 		click.SetButton(1)
 		click.ConnectPressed(func(_ int, _ float64, _ float64) {
@@ -143,7 +171,10 @@ func newBTDeviceRow(parent *gtk.ApplicationWindow, refs *servicerefs.ServiceRefs
 					"Disconnect device",
 					name,
 					"Disconnect",
-					func() { go refs.Bluetooth.DisconnectDevice(dev.Address) },
+					func() {
+						setLoading()
+						go func() { refs.Bluetooth.DisconnectDevice(addr); rescan() }()
+					},
 				)
 			case dev.Paired:
 				gtkutil.ConfirmDialog(
@@ -151,7 +182,10 @@ func newBTDeviceRow(parent *gtk.ApplicationWindow, refs *servicerefs.ServiceRefs
 					"Connect to device",
 					name,
 					"Connect",
-					func() { go refs.Bluetooth.ConnectDevice(dev.Address) },
+					func() {
+						setLoading()
+						go func() { refs.Bluetooth.ConnectDevice(addr); rescan() }()
+					},
 				)
 			default:
 				gtkutil.ConfirmDialog(
@@ -159,7 +193,10 @@ func newBTDeviceRow(parent *gtk.ApplicationWindow, refs *servicerefs.ServiceRefs
 					"Pair with device",
 					name,
 					"Pair",
-					func() { go refs.Bluetooth.PairDevice(dev.Address) },
+					func() {
+						setLoading()
+						go func() { refs.Bluetooth.PairDevice(addr); rescan() }()
+					},
 				)
 			}
 		})

@@ -2031,3 +2031,20 @@ scale.settings-scale slider {
     background-color: alpha(@col_on_surface, 0.08);
     color: @col_on_surface;
 }
+
+/* ── Loading states ──────────────────────────────────────────────── */
+
+.quick-toggle.loading {
+    opacity: 0.6;
+    pointer-events: none;
+    transition: opacity 100ms;
+}
+
+.conn-row-loading {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+spinner.inline-spinner {
+    color: @col_primary;
+}
