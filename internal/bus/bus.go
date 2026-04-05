@@ -33,6 +33,7 @@ const (
 	TopicDND              Topic = "dnd"
 	TopicTrayItems        Topic = "trayitems"
 	TopicTrayActivate     Topic = "trayactivate"
+	TopicTextInputFocus   Topic = "textinputfocus"
 )
 
 type Event struct { Topic Topic; Data any }

@@ -13,6 +13,7 @@ import (
 	"github.com/sonroyaalmerol/snry-shell/assets"
 	"github.com/sonroyaalmerol/snry-shell/internal/bus"
 	"github.com/sonroyaalmerol/snry-shell/internal/controlsocket"
+	"github.com/sonroyaalmerol/snry-shell/internal/atspi2"
 	"github.com/sonroyaalmerol/snry-shell/internal/servicerefs"
 	"github.com/sonroyaalmerol/snry-shell/internal/services/audio"
 	"github.com/sonroyaalmerol/snry-shell/internal/services/audiomixer"
@@ -101,6 +102,15 @@ func Run() int {
 	// Notification daemon.
 	if sesConn != nil {
 		notifications.Register(sesConn, notifications.New(b))
+	}
+
+	// AT-SPI2 text input focus watcher for per-field OSK triggering.
+	atspi2Watcher, err := atspi2.New(b)
+	if err != nil {
+		log.Printf("[SHELL] atspi2: %v", err)
+	}
+	if atspi2Watcher != nil {
+		go atspi2Watcher.Run(ctx)
 	}
 
 	// Clipboard watcher.

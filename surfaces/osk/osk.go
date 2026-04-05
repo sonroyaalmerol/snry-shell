@@ -41,22 +41,23 @@ var textInputClasses = []string{
 }
 
 type OSK struct {
-	win       *gtk.ApplicationWindow
-	bus       *bus.Bus
-	ui        *uinput.Bridge
-	shift     bool
-	caps      bool
-	ctrlL     bool
-	altL      bool
-	hasTouch  bool
-	manualOff bool
-	visible   bool
-	keys      []*keyButton          // all character keys, for label updates
-	modBtns   map[string]*gtk.Button // modifier name -> button widget
-	shiftBtns []*gtk.Button         // shift buttons for visual feedback
-	capsBtn   *gtk.Button           // caps button for visual feedback
-	mu        sync.Mutex
-	debounce  *time.Timer           // coalesces rapid activewindow events
+	win          *gtk.ApplicationWindow
+	bus          *bus.Bus
+	ui           *uinput.Bridge
+	shift        bool
+	caps         bool
+	ctrlL        bool
+	altL         bool
+	hasTouch     bool
+	manualOff    bool
+	visible      bool
+	atspi2Active bool // true once AT-SPI2 starts delivering events
+	keys         []*keyButton          // all character keys, for label updates
+	modBtns      map[string]*gtk.Button // modifier name -> button widget
+	shiftBtns    []*gtk.Button         // shift buttons for visual feedback
+	capsBtn      *gtk.Button           // caps button for visual feedback
+	mu           sync.Mutex
+	debounce     *time.Timer           // coalesces rapid activewindow events
 }
 
 type keyButton struct {
@@ -108,8 +109,9 @@ func New(app *gtk.Application, b *bus.Bus, hq *hyprland.Querier) *OSK {
 	// Auto-show/hide based on active window class with debouncing.
 	// Shell surfaces (snry-*) and hex-address layer-shell events are filtered
 	// to prevent the OSK from self-triggering a show/hide loop.
+	// When AT-SPI2 is healthy (per-field focus detection), this is skipped.
 	b.Subscribe(bus.TopicActiveWindow, func(e bus.Event) {
-		if osk.manualOff {
+		if osk.manualOff || osk.atspi2Active {
 			return
 		}
 		w, ok := e.Data.(state.ActiveWindow)
@@ -117,6 +119,26 @@ func New(app *gtk.Application, b *bus.Bus, hq *hyprland.Querier) *OSK {
 			return
 		}
 		osk.scheduleFocusUpdate(w.Class)
+	})
+
+	// AT-SPI2 provides per-field text input focus detection (entry, terminal,
+	// text editor, etc.) via the accessibility D-Bus. When it starts delivering
+	// events, it takes priority over the window class heuristic.
+	b.Subscribe(bus.TopicTextInputFocus, func(e bus.Event) {
+		if osk.manualOff {
+			return
+		}
+		isText, ok := e.Data.(bool)
+		if !ok {
+			return
+		}
+		osk.atspi2Active = true
+		osk.scheduleFocusUpdate("atspi2:" + func(b bool) string {
+			if b {
+				return "atspi2:text"
+			}
+			return "atspi2:non-text"
+		}(isText))
 	})
 
 	// Set initial state from the currently focused window.
@@ -140,7 +162,12 @@ func (o *OSK) scheduleFocusUpdate(class string) {
 		return
 	}
 
-	want := o.hasTouch && isTextInputWindow(class)
+	var want bool
+	if strings.HasPrefix(class, "atspi2:") {
+		want = o.hasTouch && class == "atspi2:text"
+	} else {
+		want = o.hasTouch && isTextInputWindow(class)
+	}
 	log.Printf("[OSK] focus: class=%q text=%v touch=%v want=%v",
 		class, isTextInputWindow(class), o.hasTouch, want)
 
