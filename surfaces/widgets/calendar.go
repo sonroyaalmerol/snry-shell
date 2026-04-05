@@ -7,6 +7,7 @@ import (
 
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/sonroyaalmerol/snry-shell/internal/calendar"
+	"github.com/sonroyaalmerol/snry-shell/internal/gtkutil"
 )
 
 // baseWidget extracts the embedded *gtk.Widget via reflection.
@@ -34,24 +35,14 @@ func BuildCalendarGroup() gtk.Widgetter {
 	header := gtk.NewBox(gtk.OrientationHorizontal, 0)
 	header.SetHAlign(gtk.AlignFill)
 
-	prevBtn := gtk.NewButton()
-	prevBtn.SetCursorFromName("pointer")
-	prevBtn.AddCSSClass("cal-nav-btn")
-	prevLabel := gtk.NewLabel("chevron_left")
-	prevLabel.AddCSSClass("material-icon")
-	prevBtn.SetChild(prevLabel)
+	prevBtn := gtkutil.M3IconButton("chevron_left", "cal-nav-btn")
 
 	monthLabel := gtk.NewLabel("")
 	monthLabel.AddCSSClass("cal-month-label")
 	monthLabel.SetHExpand(true)
 	monthLabel.SetHAlign(gtk.AlignCenter)
 
-	nextBtn := gtk.NewButton()
-	nextBtn.SetCursorFromName("pointer")
-	nextBtn.AddCSSClass("cal-nav-btn")
-	nextLabel := gtk.NewLabel("chevron_right")
-	nextLabel.AddCSSClass("material-icon")
-	nextBtn.SetChild(nextLabel)
+	nextBtn := gtkutil.M3IconButton("chevron_right", "cal-nav-btn")
 
 	header.Append(prevBtn)
 	header.Append(monthLabel)

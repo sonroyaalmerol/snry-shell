@@ -23,6 +23,7 @@ func BuildSliderRow(icon, label string, min, max, step float64, onChange func(fl
 
 	scale := gtk.NewScaleWithRange(gtk.OrientationHorizontal, min, max, step)
 	scale.AddCSSClass("control-scale")
+	scale.AddCSSClass("m3-scale")
 	scale.SetDrawValue(false)
 	scale.SetHExpand(true)
 	scale.ConnectChangeValue(func(_ gtk.ScrollType, value float64) bool {
@@ -49,6 +50,7 @@ func BuildQuickControls(b *bus.Bus, refs *servicerefs.ServiceRefs) gtk.Widgetter
 	// Brightness slider with live state sync.
 	brightnessScale := gtk.NewScaleWithRange(gtk.OrientationHorizontal, 0, 1, 0.01)
 	brightnessScale.AddCSSClass("control-scale")
+	brightnessScale.AddCSSClass("m3-scale")
 	brightnessScale.SetDrawValue(false)
 	brightnessScale.SetHExpand(true)
 

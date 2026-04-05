@@ -48,12 +48,63 @@
     --ease-menu-accel:       cubic-bezier(0.52, 0.03, 0.72, 0.08);
 
     /* Radius tokens */
-    --radius-xs:   2px;
-    --radius-sm:   8px;
-    --radius-md:   12px;
-    --radius-lg:   17px;
-    --radius-xl:   23px;
-    --radius-pill: 9999px;
+    --radius-xs:    2px;
+    --radius-sm:    8px;
+    --radius-md:    12px;
+    --radius-lg:    17px;
+    --radius-xl:    23px;
+    --radius-full:  28px;
+    --radius-pill:  9999px;
+
+    /* Typography scale */
+    --typescale-label-sm:    10px;
+    --typescale-label-md:    11px;
+    --typescale-body-sm:     12px;
+    --typescale-body-md:     13px;
+    --typescale-body-lg:     14px;
+    --typescale-title-sm:    15px;
+    --typescale-title-md:    17px;
+    --typescale-title-lg:    18px;
+    --typescale-headline-sm: 20px;
+    --typescale-headline-md: 22px;
+    --typescale-headline-lg: 24px;
+    --typescale-display-sm:  28px;
+    --typescale-display-md:  32px;
+    --typescale-display-lg:  72px;
+
+    /* Material Symbols sizes */
+    --icon-sm:  18px;
+    --icon-md:  20px;
+    --icon-lg:  24px;
+    --icon-xl:  32px;
+
+    /* Motion durations */
+    --duration-short1:  80ms;
+    --duration-short2:  100ms;
+    --duration-short3:  150ms;
+    --duration-short4:  200ms;
+    --duration-medium1: 250ms;
+    --duration-medium2: 300ms;
+
+    /* State layer opacities */
+    --state-hover: 0.08;
+    --state-focus: 0.12;
+    --state-press: 0.12;
+
+    /* Elevation shadows */
+    --elevation-1: 0 2px 8px  alpha(#000000, 0.15);
+    --elevation-2: 0 4px 16px alpha(#000000, 0.20);
+    --elevation-3: 0 8px 24px alpha(#000000, 0.25);
+    --elevation-4: 0 8px 32px alpha(#000000, 0.30);
+
+    /* Spacing */
+    --spacing-xxs: 2px;
+    --spacing-xs:  4px;
+    --spacing-sm:  8px;
+    --spacing-md:  12px;
+    --spacing-lg:  16px;
+    --spacing-xl:  24px;
+    --spacing-xxl: 48px;
 
     all: unset;
     font-family: "Google Sans Flex", "Google Sans", sans-serif;
@@ -64,7 +115,7 @@
 
 .material-icon {
     font-family: "Material Symbols Rounded";
-    font-size: 18px;
+    font-size: var(--icon-sm);
     font-style: normal;
     font-weight: normal;
     font-feature-settings: "liga" 1;
@@ -73,11 +124,91 @@
 
 .material-icon-lg {
     font-family: "Material Symbols Rounded";
-    font-size: 24px;
+    font-size: var(--icon-lg);
     font-style: normal;
     font-weight: normal;
     font-feature-settings: "liga" 1;
     line-height: 1;
+}
+
+/* ── M3 Component Primitives ─────────────────────────────────────────────────── */
+
+/* Shared scale/slider base */
+scale.m3-scale trough {
+    background-color: @col_outline_variant;
+    border-radius: var(--radius-pill);
+    min-height: 4px;
+}
+scale.m3-scale trough highlight {
+    background-color: @col_primary;
+    border-radius: var(--radius-pill);
+}
+scale.m3-scale slider {
+    background-color: @col_primary;
+    border-radius: var(--radius-pill);
+    min-width: 16px;
+    min-height: 16px;
+    box-shadow: none;
+    border: none;
+}
+/* Size variants */
+scale.m3-scale-sm slider { min-width: 12px; min-height: 12px; }
+scale.m3-scale-thin trough { min-height: 3px; }
+/* OSD: invisible slider thumb */
+scale.m3-scale-osd slider { background-color: transparent; min-width: 0; min-height: 0; }
+
+/* Shared icon button base */
+.m3-icon-btn {
+    background-color: transparent;
+    border: none;
+    border-radius: var(--radius-pill);
+    color: @col_on_surface_variant;
+    min-width: 32px;
+    min-height: 32px;
+    transition: background-color var(--duration-short3) var(--ease-standard-decel);
+}
+.m3-icon-btn:hover {
+    background-color: alpha(@col_on_surface, var(--state-hover));
+    color: @col_on_surface;
+}
+.m3-icon-btn.m3-icon-btn-error:hover {
+    background-color: alpha(@col_error, var(--state-focus));
+    color: @col_error;
+}
+/* Size variants */
+.m3-icon-btn-sm { min-width: 24px; min-height: 24px; }
+.m3-icon-btn-lg { min-width: 36px; min-height: 36px; }
+.m3-icon-btn-xl { min-width: 44px; min-height: 44px; }
+
+/* Shared filled button base */
+.m3-filled-btn {
+    background-color: @col_primary;
+    color: @col_on_primary;
+    border: none;
+    border-radius: var(--radius-pill);
+    padding: 8px 20px;
+    font-size: var(--typescale-body-lg);
+    font-weight: 500;
+    transition: background-color var(--duration-short3) var(--ease-emphasized-decel);
+}
+.m3-filled-btn:hover {
+    background-color: @col_primary_container;
+    color: @col_on_primary_container;
+}
+
+/* Shared text button base */
+.m3-text-btn {
+    background-color: transparent;
+    border: none;
+    border-radius: var(--radius-pill);
+    padding: 8px 20px;
+    font-size: var(--typescale-body-lg);
+    font-weight: 500;
+    color: @col_primary;
+    transition: background-color var(--duration-short3) var(--ease-standard-decel);
+}
+.m3-text-btn:hover {
+    background-color: alpha(@col_on_surface, var(--state-hover));
 }
 
 /* ── Bar ─────────────────────────────────────────────────────────────────────── */
@@ -96,11 +227,11 @@
 }
 
 .bar-group-clickable {
-    transition: background-color 150ms ease;
+    transition: background-color var(--duration-short3) ease;
 }
 
 .bar-group-clickable:hover {
-    background-color: alpha(@col_on_surface, 0.08);
+    background-color: alpha(@col_on_surface, var(--state-hover));
 }
 
 /* Thin vertical separator between bar groups */
@@ -125,9 +256,9 @@
     margin: 0 1px;
     color: @col_on_surface_variant;
     transition:
-        background-color 200ms var(--ease-emphasized-decel),
-        min-width        250ms var(--ease-emphasized-decel),
-        color            200ms var(--ease-emphasized-decel);
+        background-color var(--duration-short4) var(--ease-emphasized-decel),
+        min-width        var(--duration-medium1) var(--ease-emphasized-decel),
+        color            var(--duration-short4) var(--ease-emphasized-decel);
 }
 
 .workspace-pill-label {
@@ -136,7 +267,7 @@
 }
 
 .workspace-pill:hover {
-    background-color: alpha(@col_on_surface, 0.08);
+    background-color: alpha(@col_on_surface, var(--state-hover));
 }
 
 .workspace-pill.occupied {
@@ -197,7 +328,7 @@
     background-color: @col_surface_container;
     border-radius: var(--radius-pill);
     padding: 2px 10px;
-    transition: background-color 150ms var(--ease-standard-decel);
+    transition: background-color var(--duration-short3) var(--ease-standard-decel);
 }
 
 .indicator-pill:hover {
@@ -240,11 +371,11 @@
     padding: 2px;
     min-width: 24px;
     min-height: 24px;
-    transition: background-color 150ms var(--ease-standard-decel);
+    transition: background-color var(--duration-short3) var(--ease-standard-decel);
 }
 
 .tray-item:hover {
-    background-color: alpha(@col_on_surface, 0.08);
+    background-color: alpha(@col_on_surface, var(--state-hover));
 }
 
 .tray-icon {
@@ -255,14 +386,6 @@
 
 .overview {
     background-color: alpha(@col_background, 0.85);
-}
-
-.search-container {
-    background-color: @col_surface_container;
-    border-radius: var(--radius-xl);
-    padding: 4px 10px;
-    min-width: 400px;
-    transition: min-height 250ms var(--ease-emphasized-decel);
 }
 
 .search-entry {
@@ -287,7 +410,7 @@
     border-radius: var(--radius-md);
     padding: 8px 12px;
     margin: 2px 8px;
-    transition: background-color 150ms var(--ease-emphasized-decel);
+    transition: background-color var(--duration-short3) var(--ease-emphasized-decel);
 }
 
 .search-result-row:hover,
@@ -320,12 +443,12 @@
     border-radius: var(--radius-lg);
     padding: 8px;
     margin: 6px;
-    transition: background-color 150ms var(--ease-emphasized-decel);
+    transition: background-color var(--duration-short3) var(--ease-emphasized-decel);
 }
 
 .window-preview-card:hover {
     background-color: @col_surface_container_high;
-    box-shadow: 0 2px 8px alpha(#000000, 0.2);
+    box-shadow: var(--elevation-1);
 }
 
 .window-preview-title {
@@ -350,12 +473,6 @@
 .window-preview-class {
     font-size: 10px;
     color: @col_on_surface_variant;
-}
-
-/* ── Sidebar (right) ─────────────────────────────────────────────────────────── */
-
-.sidebar-overlay {
-    background-color: transparent;
 }
 
 /* ── Popup dialogs ──────────────────────────────────────────────────────────── */
@@ -406,7 +523,7 @@
     border-radius: var(--radius-md);
     padding: 12px 16px;
     margin: 4px 0;
-    transition: background-color 150ms var(--ease-emphasized-decel);
+    transition: background-color var(--duration-short3) var(--ease-emphasized-decel);
 }
 
 .notification-card.urgent {
@@ -445,11 +562,11 @@
     color: @col_on_surface_variant;
     min-width: 24px;
     min-height: 24px;
-    transition: background-color 150ms var(--ease-emphasized-decel);
+    transition: background-color var(--duration-short3) var(--ease-emphasized-decel);
 }
 
 .notification-dismiss-btn:hover {
-    background-color: alpha(@col_on_surface, 0.12);
+    background-color: alpha(@col_on_surface, var(--state-focus));
 }
 
 /* ── OSD (volume / brightness) ───────────────────────────────────────────────── */
@@ -467,46 +584,7 @@
     color: @col_on_surface;
 }
 
-scale.osd-slider trough {
-    background-color: @col_surface_container_highest;
-    border-radius: var(--radius-pill);
-    min-height: 4px;
-}
-
-scale.osd-slider trough highlight {
-    background-color: @col_primary;
-    border-radius: var(--radius-pill);
-}
-
-scale.osd-slider slider {
-    background-color: transparent;
-    min-width: 0;
-    min-height: 0;
-    box-shadow: none;
-    border: none;
-}
-
-/* ── Dock ────────────────────────────────────────────────────────────────────── */
-
-.dock {
-    background-color: @col_surface;
-    border-radius: var(--radius-xl);
-    padding: 5px;
-    border: 1px solid alpha(@col_outline, 0.15);
-}
-
-.dock-btn {
-    background-color: transparent;
-    border-radius: var(--radius-lg);
-    padding: 3px;
-    min-width: 42px;
-    min-height: 42px;
-    transition: background-color 150ms var(--ease-standard-decel);
-}
-
-.dock-btn:hover {
-    background-color: alpha(@col_primary_container, 0.6);
-}
+/* osd-slider uses .m3-scale .m3-scale-osd (see M3 Component Primitives) */
 
 /* ── Cheatsheet ──────────────────────────────────────────────────────────────── */
 
@@ -529,21 +607,9 @@ scale.osd-slider slider {
     margin-bottom: 8px;
 }
 
-.cheatsheet-section-title {
-    font-size: 13px;
-    font-weight: 600;
-    color: @col_primary;
-    margin-bottom: 4px;
-}
-
-.cheatsheet-row {
-    padding: 4px 8px;
-    border-radius: var(--radius-sm);
-}
-
 .cheatsheet-key {
     background-color: @col_surface_container_high;
-    border-radius: 6px;
+    border-radius: var(--radius-sm);
     padding: 2px 6px;
     font-family: "JetBrains Mono NF", "JetBrainsMono Nerd Font", monospace;
     font-size: 11px;
@@ -563,7 +629,7 @@ scale.osd-slider slider {
     padding: 12px 16px;
     margin-bottom: 6px;
     min-width: 320px;
-    box-shadow: 0 4px 12px alpha(#000000, 0.25);
+    box-shadow: var(--elevation-2);
 }
 
 .notif-toast.urgent {
@@ -586,35 +652,11 @@ scale.osd-slider slider {
     color: @col_on_surface_variant;
 }
 
-.notif-clear-btn {
-    background-color: transparent;
-    border-radius: var(--radius-pill);
-    color: @col_on_surface_variant;
-    font-size: 12px;
-    padding: 4px 10px;
-    transition: background-color 150ms var(--ease-standard-decel);
-}
-
-.notif-clear-btn:hover {
-    background-color: alpha(@col_on_surface, 0.08);
-}
-
 .notif-group-header {
     font-size: 13px;
     font-weight: 600;
     color: @col_on_surface;
     padding: 4px 8px 8px 8px;
-}
-
-.notif-unread-badge {
-    background-color: @col_error;
-    color: @col_on_primary;
-    border-radius: var(--radius-pill);
-    font-size: 10px;
-    font-weight: 600;
-    min-width: 16px;
-    min-height: 16px;
-    padding: 0 4px;
 }
 
 /* ── Media controls ────────────────────────────────────────────────── */
@@ -643,25 +685,7 @@ scale.osd-slider slider {
     color: @col_subtext;
 }
 
-scale.media-progress trough {
-    background-color: @col_outline_variant;
-    border-radius: var(--radius-pill);
-    min-height: 3px;
-}
-
-scale.media-progress trough highlight {
-    background-color: @col_primary;
-    border-radius: var(--radius-pill);
-}
-
-scale.media-progress slider {
-    min-width: 12px;
-    min-height: 12px;
-    background-color: @col_primary;
-    border-radius: var(--radius-pill);
-    box-shadow: none;
-    border: none;
-}
+/* media-progress uses .m3-scale .m3-scale-sm .m3-scale-thin (see M3 Component Primitives) */
 
 .media-btn {
     background-color: transparent;
@@ -672,11 +696,11 @@ scale.media-progress slider {
     min-height: 36px;
     font-family: "Material Symbols Rounded";
     font-size: 20px;
-    transition: background-color 150ms var(--ease-standard-decel);
+    transition: background-color var(--duration-short3) var(--ease-standard-decel);
 }
 
 .media-btn:hover {
-    background-color: alpha(@col_on_surface, 0.08);
+    background-color: alpha(@col_on_surface, var(--state-hover));
 }
 
 .media-btn.play-pause {
@@ -698,7 +722,7 @@ scale.media-progress slider {
     border-radius: var(--radius-xl);
     padding: 16px;
     min-width: 340px;
-    box-shadow: 0 8px 24px alpha(#000000, 0.3);
+    box-shadow: var(--elevation-3);
 }
 
 .media-overlay-art {
@@ -748,11 +772,11 @@ scale.media-progress slider {
     min-height: 28px;
     font-family: "Material Symbols Rounded";
     font-size: 18px;
-    transition: background-color 150ms var(--ease-standard-decel);
+    transition: background-color var(--duration-short3) var(--ease-standard-decel);
 }
 
 .cal-nav-btn:hover {
-    background-color: alpha(@col_on_surface, 0.08);
+    background-color: alpha(@col_on_surface, var(--state-hover));
 }
 
 .cal-dow-row {
@@ -785,58 +809,6 @@ scale.media-progress slider {
     color: @col_outline;
 }
 
-.calendar-container {
-    background-color: @col_surface_container;
-    border-radius: var(--radius-md);
-    padding: 12px;
-    margin: 4px 0;
-}
-
-.calendar-header {
-    font-size: 13px;
-    font-weight: 600;
-    color: @col_on_surface;
-}
-
-.calendar-nav-btn {
-    background-color: transparent;
-    border: none;
-    border-radius: var(--radius-pill);
-    color: @col_on_surface_variant;
-    min-width: 28px;
-    min-height: 28px;
-    font-family: "Material Symbols Rounded";
-    font-size: 18px;
-    transition: background-color 150ms var(--ease-standard-decel);
-}
-
-.calendar-nav-btn:hover {
-    background-color: alpha(@col_on_surface, 0.08);
-}
-
-.calendar-day-header {
-    font-size: 11px;
-    color: @col_on_surface_variant;
-    min-width: 32px;
-}
-
-.calendar-day {
-    font-size: 12px;
-    color: @col_on_surface;
-    border-radius: var(--radius-pill);
-    min-width: 32px;
-    min-height: 32px;
-}
-
-.calendar-day.today {
-    background-color: @col_primary;
-    color: @col_on_primary;
-}
-
-.calendar-day.other-month {
-    color: @col_outline;
-}
-
 /* ── System controls (sidebar bottom group) ─────────────────────────────────── */
 
 .system-controls {
@@ -862,25 +834,7 @@ scale.media-progress slider {
     min-width: 72px;
 }
 
-scale.control-scale trough {
-    background-color: @col_outline_variant;
-    border-radius: var(--radius-pill);
-    min-height: 4px;
-}
-
-scale.control-scale trough highlight {
-    background-color: @col_primary;
-    border-radius: var(--radius-pill);
-}
-
-scale.control-scale slider {
-    background-color: @col_primary;
-    border-radius: var(--radius-pill);
-    min-width: 16px;
-    min-height: 16px;
-    box-shadow: none;
-    border: none;
-}
+/* control-scale uses .m3-scale base (see M3 Component Primitives) */
 
 .system-slider-row {
     margin: 4px 0;
@@ -891,53 +845,6 @@ scale.control-scale slider {
     font-size: 18px;
     color: @col_on_surface;
     min-width: 28px;
-}
-
-scale.system-slider trough {
-    background-color: @col_outline_variant;
-    border-radius: var(--radius-pill);
-    min-height: 4px;
-}
-
-scale.system-slider trough highlight {
-    background-color: @col_primary;
-    border-radius: var(--radius-pill);
-}
-
-scale.system-slider slider {
-    background-color: @col_primary;
-    border-radius: var(--radius-pill);
-    min-width: 16px;
-    min-height: 16px;
-    box-shadow: none;
-    border: none;
-}
-
-.toggle-row {
-    border-radius: var(--radius-md);
-    padding: 6px 8px;
-    margin: 2px 0;
-}
-
-.toggle-label {
-    font-size: 13px;
-    color: @col_on_surface;
-}
-
-.bottom-group-chevron {
-    background-color: transparent;
-    border: none;
-    border-radius: var(--radius-pill);
-    color: @col_on_surface_variant;
-    min-width: 28px;
-    min-height: 28px;
-    font-family: "Material Symbols Rounded";
-    font-size: 20px;
-    transition: -gtk-icon-transform 200ms var(--ease-emphasized-decel);
-}
-
-.bottom-group-chevron.collapsed {
-    -gtk-icon-transform: rotate(180deg);
 }
 
 /* ── Quick toggles ────────────────────────────────────────────────── */
@@ -951,17 +858,17 @@ scale.system-slider slider {
 }
 
 .quick-toggle {
-    background-color: alpha(@col_on_surface, 0.08);
-    border-radius: 28px;
+    background-color: alpha(@col_on_surface, var(--state-hover));
+    border-radius: var(--radius-full);
     padding: 16px 8px;
     min-width: 72px;
     min-height: 72px;
     border: none;
-    transition: background-color 200ms var(--ease-emphasized-decel);
+    transition: background-color var(--duration-short4) var(--ease-emphasized-decel);
 }
 
 .quick-toggle:hover {
-    background-color: alpha(@col_on_surface, 0.12);
+    background-color: alpha(@col_on_surface, var(--state-focus));
 }
 
 .quick-toggle:checked {
@@ -988,239 +895,7 @@ scale.system-slider slider {
 }
 
 .quick-toggle-button:active {
-    background-color: alpha(@col_primary, 0.2);
-}
-
-/* ── Pomodoro widget ──────────────────────────────────────────────── */
-
-.pomodoro-widget {
-    background-color: @col_surface_container;
-    border-radius: var(--radius-md);
-    padding: 12px;
-    margin: 4px 0;
-}
-
-.pomodoro-timer {
-    padding: 8px 0;
-}
-
-.pomodoro-phase {
-    font-size: 11px;
-    font-weight: 600;
-    color: @col_primary;
-}
-
-.pomodoro-time {
-    font-size: 28px;
-    font-weight: 300;
-    color: @col_on_surface;
-    font-variant-numeric: tabular-nums;
-}
-
-.pomodoro-sessions {
-    font-size: 12px;
-    color: @col_on_surface_variant;
-}
-
-.pomodoro-controls {
-    padding: 4px 0;
-}
-
-.pomodoro-btn {
-    background-color: transparent;
-    border: none;
-    border-radius: var(--radius-pill);
-    color: @col_on_surface;
-    min-width: 36px;
-    min-height: 36px;
-    transition: background-color 150ms var(--ease-standard-decel);
-}
-
-.pomodoro-btn:hover {
-    background-color: alpha(@col_on_surface, 0.08);
-}
-
-.pomodoro-btn .material-icon {
-    font-size: 20px;
-}
-
-/* ── Todo widget ──────────────────────────────────────────────────── */
-
-.todo-widget {
-    background-color: @col_surface_container;
-    border-radius: var(--radius-md);
-    padding: 12px;
-    margin: 4px 0;
-}
-
-.todo-clear-btn {
-    background-color: transparent;
-    border: none;
-    border-radius: var(--radius-pill);
-    color: @col_on_surface_variant;
-    min-width: 28px;
-    min-height: 28px;
-    transition: background-color 150ms var(--ease-standard-decel);
-}
-
-.todo-clear-btn:hover {
-    background-color: alpha(@col_on_surface, 0.08);
-}
-
-.todo-input-row {
-    margin-bottom: 8px;
-}
-
-.todo-entry {
-    background-color: @col_surface_container_high;
-    border-radius: var(--radius-pill);
-    padding: 8px 12px;
-    color: @col_on_surface;
-    font-size: 13px;
-    border: none;
-    caret-color: @col_primary;
-}
-
-.todo-entry:focus {
-    box-shadow: 0 0 0 2px @col_primary;
-}
-
-.todo-add-btn {
-    background-color: @col_primary;
-    color: @col_on_primary;
-    border-radius: var(--radius-pill);
-    min-width: 32px;
-    min-height: 32px;
-    border: none;
-    transition: background-color 150ms var(--ease-standard-decel);
-}
-
-.todo-add-btn:hover {
-    background-color: @col_primary_container;
-    color: @col_on_primary_container;
-}
-
-.todo-check {
-    background-color: transparent;
-    border: 2px solid @col_outline_variant;
-    border-radius: 6px;
-    min-width: 20px;
-    min-height: 20px;
-}
-
-.todo-check:checked {
-    background-color: @col_primary;
-    border-color: @col_primary;
-    color: @col_on_primary;
-}
-
-.todo-list {
-    padding: 0 4px;
-}
-
-.todo-item {
-    padding: 6px 4px;
-    border-radius: var(--radius-sm);
-    transition: background-color 150ms var(--ease-standard-decel);
-}
-
-.todo-item:hover {
-    background-color: alpha(@col_on_surface, 0.04);
-}
-
-.todo-text {
-    font-size: 13px;
-    color: @col_on_surface;
-}
-
-.todo-text.todo-done {
-    color: @col_outline;
-    text-decoration: line-through;
-}
-
-.todo-del-btn {
-    background-color: transparent;
-    border: none;
-    border-radius: var(--radius-pill);
-    color: @col_on_surface_variant;
-    min-width: 24px;
-    min-height: 24px;
-    opacity: 0;
-    transition: opacity 150ms;
-}
-
-.todo-item:hover .todo-del-btn {
-    opacity: 1;
-}
-
-.todo-del-btn:hover {
-    background-color: alpha(@col_error, 0.12);
-    color: @col_error;
-}
-
-/* ── Volume mixer ─────────────────────────────────────────────────── */
-
-.volume-mixer {
-    background-color: @col_surface_container;
-    border-radius: var(--radius-md);
-    padding: 12px;
-    margin: 4px 0;
-}
-
-.mixer-list {
-    padding: 4px;
-}
-
-.mixer-row {
-    padding: 6px 4px;
-    border-radius: var(--radius-sm);
-}
-
-.mixer-app-name {
-    font-size: 12px;
-    color: @col_on_surface;
-    min-width: 80px;
-}
-
-.mixer-vol-label {
-    font-size: 11px;
-    color: @col_on_surface_variant;
-    font-variant-numeric: tabular-nums;
-    min-width: 36px;
-}
-
-scale.mixer-slider trough {
-    background-color: @col_outline_variant;
-    border-radius: var(--radius-pill);
-    min-height: 4px;
-}
-
-scale.mixer-slider trough highlight {
-    background-color: @col_primary;
-    border-radius: var(--radius-pill);
-}
-
-scale.mixer-slider slider {
-    background-color: @col_primary;
-    border-radius: var(--radius-pill);
-    min-width: 14px;
-    min-height: 14px;
-    box-shadow: none;
-    border: none;
-}
-
-.mixer-mute-btn {
-    background-color: transparent;
-    border: none;
-    border-radius: var(--radius-pill);
-    color: @col_on_surface_variant;
-    min-width: 28px;
-    min-height: 28px;
-    transition: background-color 150ms var(--ease-standard-decel);
-}
-
-.mixer-mute-btn:hover {
-    background-color: alpha(@col_on_surface, 0.08);
+    background-color: alpha(@col_primary, var(--state-press));
 }
 
 /* ── Connectivity widgets (WiFi & Bluetooth) ─────────────────────────────── */
@@ -1234,12 +909,12 @@ scale.mixer-slider slider {
 
 .conn-section-header {
     padding: 10px 16px;
-    transition: background-color 150ms var(--ease-standard-decel);
+    transition: background-color var(--duration-short3) var(--ease-standard-decel);
     border-top: 1px solid alpha(@col_outline_variant, 0.3);
 }
 
 .conn-section-header:hover {
-    background-color: alpha(@col_on_surface, 0.04);
+    background-color: alpha(@col_on_surface, var(--state-hover));
 }
 
 .conn-section-title {
@@ -1257,7 +932,7 @@ scale.mixer-slider slider {
 .conn-section-arrow {
     font-size: 18px;
     color: @col_on_surface_variant;
-    transition: transform 200ms var(--ease-standard-decel);
+    transition: transform var(--duration-short4) var(--ease-standard-decel);
 }
 
 .conn-list {
@@ -1266,11 +941,11 @@ scale.mixer-slider slider {
 
 .conn-row {
     padding: 12px 16px;
-    transition: background-color 150ms var(--ease-standard-decel);
+    transition: background-color var(--duration-short3) var(--ease-standard-decel);
 }
 
 .conn-row:hover {
-    background-color: alpha(@col_on_surface, 0.06);
+    background-color: alpha(@col_on_surface, var(--state-hover));
 }
 
 .conn-row-connected {
@@ -1319,17 +994,12 @@ scale.mixer-slider slider {
     min-height: 28px;
     padding: 4px 12px 4px 4px;
     margin: 0 8px 8px 0;
-    transition: background-color 150ms var(--ease-standard-decel);
+    transition: background-color var(--duration-short3) var(--ease-standard-decel);
 }
 
 .conn-scan-btn:hover {
-    background-color: alpha(@col_primary, 0.08);
+    background-color: alpha(@col_primary, var(--state-hover));
     color: @col_primary;
-}
-
-.conn-confirm-btn {
-    color: @col_primary;
-    font-weight: 500;
 }
 
 /* ── On-screen keyboard ─────────────────────────────────────────────────────── */
@@ -1351,7 +1021,7 @@ scale.mixer-slider slider {
     min-width: 36px;
     min-height: 42px;
     color: @col_on_surface;
-    transition: background-color 80ms ease;
+    transition: background-color var(--duration-short1) ease;
     padding: 0 2px;
 }
 
@@ -1382,7 +1052,7 @@ scale.mixer-slider slider {
     background-color: transparent;
     min-width: 36px;
     min-height: 36px;
-    border-radius: 50%;
+    border-radius: var(--radius-pill);
 }
 
 .osk-key-label {
@@ -1404,14 +1074,6 @@ scale.mixer-slider slider {
 
 .crosshair-overlay {
     background-color: transparent;
-}
-
-/* ── Keyboard layout indicator (bar) ────────────────────────────────────────── */
-
-.kbd-layout {
-    font-size: 12px;
-    font-weight: 600;
-    color: @col_on_surface;
 }
 
 /* ── Resource indicator (bar) ───────────────────────────────────────────────── */
@@ -1439,13 +1101,13 @@ scale.mixer-slider slider {
     min-height: 100px;
     border: none;
     transition:
-        background-color 150ms var(--ease-emphasized-decel),
-        box-shadow 150ms var(--ease-emphasized-decel);
+        background-color var(--duration-short3) var(--ease-emphasized-decel),
+        box-shadow var(--duration-short3) var(--ease-emphasized-decel);
 }
 
 .session-btn:hover {
     background-color: @col_primary_container;
-    box-shadow: 0 4px 16px alpha(#000000, 0.2);
+    box-shadow: var(--elevation-2);
 }
 
 .session-btn .material-icon {
@@ -1484,7 +1146,7 @@ scale.mixer-slider slider {
 
 .lockscreen-entry {
     background-color: @col_surface_container;
-    border-radius: 28px;
+    border-radius: var(--radius-full);
     padding: 12px 24px;
     color: @col_on_surface;
     font-size: 14px;
@@ -1499,7 +1161,7 @@ scale.mixer-slider slider {
 }
 
 .lockscreen-entry.error {
-    animation: shake 300ms var(--ease-standard-decel);
+    animation: shake var(--duration-medium2) var(--ease-standard-decel);
     box-shadow: 0 0 0 2px @col_error;
 }
 
@@ -1519,7 +1181,7 @@ scale.mixer-slider slider {
     font-size: 14px;
     border: none;
     margin-top: 12px;
-    transition: background-color 150ms var(--ease-emphasized-decel);
+    transition: background-color var(--duration-short3) var(--ease-emphasized-decel);
 }
 
 .lockscreen-unlock-btn:hover {
@@ -1540,11 +1202,11 @@ scale.mixer-slider slider {
     padding: 8px 16px;
     font-size: 13px;
     color: @col_on_surface_variant;
-    transition: background-color 150ms var(--ease-standard-decel);
+    transition: background-color var(--duration-short3) var(--ease-standard-decel);
 }
 
 .settings-nav-item:hover {
-    background-color: alpha(@col_on_surface, 0.08);
+    background-color: alpha(@col_on_surface, var(--state-hover));
 }
 
 .settings-nav-label {
@@ -1565,25 +1227,7 @@ scale.mixer-slider slider {
     color: @col_on_surface;
 }
 
-scale.settings-scale trough {
-    background-color: @col_outline_variant;
-    border-radius: var(--radius-pill);
-    min-height: 4px;
-}
-
-scale.settings-scale trough highlight {
-    background-color: @col_primary;
-    border-radius: var(--radius-pill);
-}
-
-scale.settings-scale slider {
-    background-color: @col_primary;
-    border-radius: var(--radius-pill);
-    min-width: 16px;
-    min-height: 16px;
-    box-shadow: none;
-    border: none;
-}
+/* settings-scale uses .m3-scale (see M3 Component Primitives) */
 
 .settings-dropdown {
     background-color: @col_surface_container;
@@ -1628,38 +1272,20 @@ scale.settings-scale slider {
     color: @col_on_secondary_container;
 }
 
-.settings-content {
-    padding: 24px;
-    min-width: 300px;
-}
-
-.settings-section-title {
-    font-size: 11px;
-    font-weight: 600;
-    color: @col_primary;
-    margin-bottom: 8px;
-    margin-top: 16px;
-}
-
 .settings-row {
     border-radius: var(--radius-md);
     padding: 10px 12px;
     margin: 2px 0;
-    transition: background-color 150ms var(--ease-standard-decel);
+    transition: background-color var(--duration-short3) var(--ease-standard-decel);
 }
 
 .settings-row:hover {
-    background-color: alpha(@col_on_surface, 0.04);
+    background-color: alpha(@col_on_surface, var(--state-hover));
 }
 
 .settings-row-label {
     font-size: 13px;
     color: @col_on_surface;
-}
-
-.settings-row-sublabel {
-    font-size: 11px;
-    color: @col_subtext;
 }
 
 /* ── Clipboard panel ────────────────────────────────────────────────────────── */
@@ -1683,11 +1309,11 @@ scale.settings-scale slider {
     color: @col_on_surface_variant;
     min-width: 32px;
     min-height: 32px;
-    transition: background-color 150ms var(--ease-standard-decel);
+    transition: background-color var(--duration-short3) var(--ease-standard-decel);
 }
 
 .clipboard-clear-btn:hover {
-    background-color: alpha(@col_error, 0.12);
+    background-color: alpha(@col_error, var(--state-focus));
     color: @col_error;
 }
 
@@ -1700,7 +1326,7 @@ scale.settings-scale slider {
     border-radius: var(--radius-md);
     padding: 10px 12px;
     border: none;
-    transition: background-color 150ms var(--ease-emphasized-decel);
+    transition: background-color var(--duration-short3) var(--ease-emphasized-decel);
 }
 
 .clipboard-row:hover {
@@ -1738,7 +1364,7 @@ scale.settings-scale slider {
     border-radius: var(--radius-sm);
     min-width: 40px;
     min-height: 40px;
-    transition: background-color 100ms var(--ease-emphasized-decel);
+    transition: background-color var(--duration-short2) var(--ease-emphasized-decel);
 }
 
 .emoji-btn:hover {
@@ -1775,11 +1401,11 @@ scale.settings-scale slider {
     color: @col_on_surface_variant;
     min-width: 32px;
     min-height: 32px;
-    transition: background-color 150ms var(--ease-standard-decel);
+    transition: background-color var(--duration-short3) var(--ease-standard-decel);
 }
 
 .notes-action-btn:hover {
-    background-color: alpha(@col_on_surface, 0.08);
+    background-color: alpha(@col_on_surface, var(--state-hover));
 }
 
 .notes-text {
@@ -1838,10 +1464,10 @@ scale.settings-scale slider {
 
 .polkit-dialog {
     background-color: @col_surface_container;
-    border-radius: 28px;
+    border-radius: var(--radius-full);
     border: 1px solid alpha(@col_outline_variant, 0.3);
     padding: 24px;
-    box-shadow: 0 8px 32px alpha(#000000, 0.3);
+    box-shadow: var(--elevation-4);
 }
 
 .polkit-icon {
@@ -1885,11 +1511,11 @@ scale.settings-scale slider {
     font-size: 13px;
     color: @col_on_surface_variant;
     border: none;
-    transition: background-color 150ms var(--ease-standard-decel);
+    transition: background-color var(--duration-short3) var(--ease-standard-decel);
 }
 
 .polkit-cancel-btn:hover {
-    background-color: alpha(@col_on_surface, 0.08);
+    background-color: alpha(@col_on_surface, var(--state-hover));
 }
 
 .polkit-auth-btn {
@@ -1899,7 +1525,7 @@ scale.settings-scale slider {
     padding: 8px 20px;
     font-size: 13px;
     border: none;
-    transition: background-color 150ms var(--ease-standard-decel);
+    transition: background-color var(--duration-short3) var(--ease-standard-decel);
 }
 
 .polkit-auth-btn:hover {
@@ -1915,10 +1541,10 @@ scale.settings-scale slider {
 
 .m3-dialog {
     background-color: @col_surface_container_high;
-    border-radius: 28px;
+    border-radius: var(--radius-full);
     border: 1px solid alpha(@col_outline_variant, 0.3);
     padding: 24px;
-    box-shadow: 0 8px 32px alpha(#000000, 0.3);
+    box-shadow: var(--elevation-4);
     min-width: 280px;
 }
 
@@ -1947,11 +1573,11 @@ scale.settings-scale slider {
     font-weight: 500;
     color: @col_primary;
     border: none;
-    transition: background-color 150ms var(--ease-standard-decel);
+    transition: background-color var(--duration-short3) var(--ease-standard-decel);
 }
 
 .m3-dialog-btn:hover {
-    background-color: alpha(@col_on_surface, 0.08);
+    background-color: alpha(@col_on_surface, var(--state-hover));
 }
 
 /* ── M3 Dialog button variants ──────────────────────────────────────────────── */
@@ -1970,7 +1596,7 @@ scale.settings-scale slider {
 }
 
 .m3-dialog-btn-error:hover {
-    background-color: alpha(@col_error, 0.12);
+    background-color: alpha(@col_error, var(--state-focus));
 }
 
 /* ── M3 Dialog password entry ──────────────────────────────────────────────── */
@@ -2017,7 +1643,7 @@ scale.settings-scale slider {
 }
 
 .m3-password-eye:hover {
-    background-color: alpha(@col_on_surface, 0.08);
+    background-color: alpha(@col_on_surface, var(--state-hover));
     color: @col_on_surface;
 }
 
@@ -2034,7 +1660,7 @@ scale.settings-scale slider {
 
 .quick-toggle.loading {
     opacity: 0.6;
-    transition: opacity 100ms;
+    transition: opacity var(--duration-short2);
 }
 
 .conn-row-loading {

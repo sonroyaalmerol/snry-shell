@@ -124,6 +124,7 @@ func (s *Settings) buildAppearancePage() gtk.Widgetter {
 
 	fontScale := gtk.NewScaleWithRange(gtk.OrientationHorizontal, 0.5, 2.0, 0.1)
 	fontScale.AddCSSClass("settings-scale")
+	fontScale.AddCSSClass("m3-scale")
 	fontScale.SetDrawValue(true)
 	fontScale.SetHExpand(true)
 	fontScale.SetValue(s.cfg.FontScale)

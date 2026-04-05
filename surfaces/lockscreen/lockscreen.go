@@ -8,6 +8,7 @@ import (
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/sonroyaalmerol/snry-shell/internal/bus"
+	"github.com/sonroyaalmerol/snry-shell/internal/gtkutil"
 	"github.com/sonroyaalmerol/snry-shell/internal/layershell"
 	"github.com/sonroyaalmerol/snry-shell/internal/state"
 )
@@ -65,8 +66,7 @@ func (ls *LockScreen) build() {
 	entry.SetInputPurpose(gtk.InputPurposePassword)
 	entry.SetHAlign(gtk.AlignCenter)
 
-	unlockBtn := gtk.NewButtonWithLabel("Unlock")
-	unlockBtn.AddCSSClass("lockscreen-unlock-btn")
+	unlockBtn := gtkutil.M3FilledButton("Unlock", "lockscreen-unlock-btn")
 	unlockBtn.SetHAlign(gtk.AlignCenter)
 
 	root.Append(clock)

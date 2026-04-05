@@ -80,9 +80,7 @@ func (s *Session) buildBtn(a struct {
 	label  string
 	cmd    []string
 }) *gtk.Button {
-	btn := gtk.NewButton()
-	btn.SetCursorFromName("pointer")
-	btn.AddCSSClass("session-btn")
+	btn := gtkutil.M3FilledButton(a.label, "session-btn")
 
 	inner := gtk.NewBox(gtk.OrientationVertical, 0)
 	inner.SetHAlign(gtk.AlignCenter)

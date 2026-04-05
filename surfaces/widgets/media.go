@@ -104,9 +104,9 @@ func buildMediaGroupWithPrefix(b *bus.Bus, mprisSvc *mpris.Service, cssPrefix st
 	controls.SetHAlign(gtk.AlignCenter)
 	controls.SetMarginTop(4)
 
-	mc.prevBtn = gtkutil.MaterialButtonWithClass("skip_previous", cls("media-btn"))
-	mc.playBtn = gtkutil.MaterialButtonWithClass("play_arrow", cls("media-btn"), "play-pause")
-	mc.nextBtn = gtkutil.MaterialButtonWithClass("skip_next", cls("media-btn"))
+	mc.prevBtn = gtkutil.M3IconButton("skip_previous", cls("media-btn"))
+	mc.playBtn = gtkutil.M3IconButton("play_arrow", cls("media-btn"), "play-pause")
+	mc.nextBtn = gtkutil.M3IconButton("skip_next", cls("media-btn"))
 
 	mc.prevBtn.ConnectClicked(func() {
 		go mc.mprisSvc.Previous(mc.player.PlayerName)

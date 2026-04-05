@@ -6,6 +6,7 @@ import (
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/sonroyaalmerol/snry-shell/internal/bus"
+	"github.com/sonroyaalmerol/snry-shell/internal/gtkutil"
 	"github.com/sonroyaalmerol/snry-shell/internal/state"
 )
 
@@ -72,10 +73,7 @@ func (nl *notificationList) buildCard(n state.Notification) gtk.Widgetter {
 	appLabel.SetHAlign(gtk.AlignStart)
 	appLabel.SetHExpand(true)
 
-	closeBtn := gtk.NewButton()
-	closeBtn.SetCursorFromName("pointer")
-	closeBtn.AddCSSClass("notification-dismiss-btn")
-	closeBtn.SetLabel("✕")
+	closeBtn := gtkutil.M3IconButton("close", "notification-dismiss-btn")
 	closeBtn.ConnectClicked(func() {
 		parent := card.Parent()
 		if p, ok := parent.(*gtk.Box); ok {

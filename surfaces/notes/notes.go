@@ -46,10 +46,10 @@ func New(app *gtk.Application, b *bus.Bus) *Overlay {
 	title.SetHExpand(true)
 	title.SetHAlign(gtk.AlignStart)
 
-	clearBtn := gtkutil.MaterialButtonWithClass("delete", "notes-action-btn")
+	clearBtn := gtkutil.M3IconButton("delete", "notes-action-btn")
 	clearBtn.SetTooltipText("Clear")
 
-	saveBtn := gtkutil.MaterialButtonWithClass("save", "notes-action-btn")
+	saveBtn := gtkutil.M3IconButton("save", "notes-action-btn")
 	saveBtn.SetTooltipText("Save")
 
 	toolbar.Append(title)

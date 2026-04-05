@@ -49,7 +49,7 @@ func New(app *gtk.Application, b *bus.Bus) *Panel {
 		p.refresh(p.search.Text())
 	})
 
-	clearBtn := gtkutil.MaterialButtonWithClass("delete_sweep", "clipboard-clear-btn")
+	clearBtn := gtkutil.M3IconButton("delete_sweep", "clipboard-clear-btn")
 	clearBtn.SetTooltipText("Clear all")
 	clearBtn.ConnectClicked(func() {
 		go func() { _ = exec.Command("cliphist", "wipe").Run() }()

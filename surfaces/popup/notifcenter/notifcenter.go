@@ -3,6 +3,7 @@ package notifcenter
 import (
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/sonroyaalmerol/snry-shell/internal/bus"
+	"github.com/sonroyaalmerol/snry-shell/internal/gtkutil"
 	"github.com/sonroyaalmerol/snry-shell/internal/servicerefs"
 	"github.com/sonroyaalmerol/snry-shell/internal/surfaceutil"
 	"github.com/sonroyaalmerol/snry-shell/surfaces/widgets"
@@ -53,10 +54,7 @@ func New(app *gtk.Application, b *bus.Bus, refs *servicerefs.ServiceRefs, trigge
 	panel.Append(widgets.NewBluetoothWidget(nc.bus, refs, nc.win))
 
 	// Separator.
-	sep := gtk.NewBox(gtk.OrientationHorizontal, 0)
-	sep.AddCSSClass("popup-separator")
-	sep.SetMarginTop(4)
-	sep.SetMarginBottom(4)
+	sep := gtkutil.M3Divider()
 	panel.Append(sep)
 
 	// Middle: notifications, media, calendar.

@@ -47,6 +47,65 @@ func MaterialIcon(name string, classes ...string) *gtk.Label {
 	return l
 }
 
+// M3IconButton creates a standard M3 icon button with hover state.
+func M3IconButton(icon string, classes ...string) *gtk.Button {
+	btn := gtk.NewButton()
+	btn.AddCSSClass("m3-icon-btn")
+	for _, c := range classes {
+		btn.AddCSSClass(c)
+	}
+	btn.SetChild(MaterialIcon(icon))
+	btn.SetCursorFromName("pointer")
+	return btn
+}
+
+// M3FilledButton creates an M3 filled (primary) button with text label.
+func M3FilledButton(text string, classes ...string) *gtk.Button {
+	btn := gtk.NewButtonWithLabel(text)
+	btn.AddCSSClass("m3-filled-btn")
+	for _, c := range classes {
+		btn.AddCSSClass(c)
+	}
+	btn.SetCursorFromName("pointer")
+	return btn
+}
+
+// M3TextButton creates an M3 text (secondary) button.
+func M3TextButton(text string, classes ...string) *gtk.Button {
+	btn := gtk.NewButtonWithLabel(text)
+	btn.AddCSSClass("m3-text-btn")
+	for _, c := range classes {
+		btn.AddCSSClass(c)
+	}
+	btn.SetCursorFromName("pointer")
+	return btn
+}
+
+// M3Divider creates a horizontal separator line.
+func M3Divider() *gtk.Separator {
+	s := gtk.NewSeparator(gtk.OrientationHorizontal)
+	s.AddCSSClass("popup-separator")
+	return s
+}
+
+// M3PanelHeader creates a toolbar row with a title label and optional action buttons.
+func M3PanelHeader(title string, actions ...*gtk.Button) *gtk.Box {
+	box := gtk.NewBox(gtk.OrientationHorizontal, 0)
+	box.SetHExpand(true)
+
+	label := gtk.NewLabel(title)
+	label.AddCSSClass("notes-title")
+	label.SetHExpand(true)
+	label.SetHAlign(gtk.AlignStart)
+
+	box.Append(label)
+	for _, btn := range actions {
+		box.Append(btn)
+	}
+
+	return box
+}
+
 // newDialogBase creates the shared layer-shell overlay window, scrim, card, and
 // title label used by all M3 dialog types. Returns (win, card, close).
 func newDialogBase(parent *gtk.ApplicationWindow, title string) (*gtk.ApplicationWindow, *gtk.Box, func()) {
