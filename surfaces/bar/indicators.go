@@ -28,6 +28,7 @@ func clickableBarGroup(child gtk.Widgetter, b *bus.Bus, action string) gtk.Widge
 	box.AddCSSClass("bar-group")
 	box.AddCSSClass("bar-group-clickable")
 	box.SetVAlign(gtk.AlignCenter)
+	box.SetCursorFromName("pointer")
 	box.Append(child)
 
 	click := gtk.NewGestureClick()

@@ -126,6 +126,7 @@ func newWiFiRow(parent *gtk.ApplicationWindow, refs *servicerefs.ServiceRefs, ne
 
 		setLoading := func() {
 			row.AddCSSClass("conn-row-loading")
+				row.SetSensitive(false)
 			gtkutil.ClearChildren(&meta.Widget, meta.Remove)
 			meta.Append(gtkutil.MaterialIcon("progress_activity", "spinner-icon"))
 		}

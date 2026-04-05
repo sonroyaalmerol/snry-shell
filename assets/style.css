@@ -96,7 +96,6 @@
 }
 
 .bar-group-clickable {
-    cursor: pointer;
     transition: background-color 150ms ease;
 }
 
@@ -1231,12 +1230,10 @@ scale.mixer-slider slider {
     border-radius: var(--radius-xl);
     padding: 0;
     margin: 4px 0;
-    overflow: hidden;
 }
 
 .conn-section-header {
     padding: 10px 16px;
-    cursor: pointer;
     transition: background-color 150ms var(--ease-standard-decel);
     border-top: 1px solid alpha(@col_outline_variant, 0.3);
 }
@@ -1297,10 +1294,6 @@ scale.mixer-slider slider {
 .conn-row-label {
     font-size: 13px;
     color: @col_on_surface;
-}
-
-.conn-row-meta {
-    gap: 4px;
 }
 
 .conn-row-meta-icon {
@@ -1905,7 +1898,6 @@ scale.settings-scale slider {
     padding: 24px;
     box-shadow: 0 8px 32px alpha(#000000, 0.3);
     min-width: 280px;
-    max-width: 360px;
 }
 
 .m3-dialog-title {
@@ -1980,7 +1972,6 @@ scale.settings-scale slider {
     background-color: @col_surface_container_high;
     border-radius: var(--radius-md);
     margin-bottom: 16px;
-    overflow: hidden;
 }
 
 .m3-password-box:focus-within {
@@ -2021,11 +2012,9 @@ scale.settings-scale slider {
 
 .quick-toggle.loading {
     opacity: 0.6;
-    pointer-events: none;
     transition: opacity 100ms;
 }
 
 .conn-row-loading {
     opacity: 0.6;
-    pointer-events: none;
 }

@@ -324,6 +324,7 @@ func PasswordDialog(parent *gtk.ApplicationWindow, title, message, placeholder s
 func SectionHeader(title string, count int, revealer *gtk.Revealer, onScan func()) *gtk.Box {
 	box := gtk.NewBox(gtk.OrientationHorizontal, 8)
 	box.AddCSSClass("conn-section-header")
+	box.SetCursorFromName("pointer")
 
 	label := gtk.NewLabel(title)
 	label.AddCSSClass("conn-section-title")
