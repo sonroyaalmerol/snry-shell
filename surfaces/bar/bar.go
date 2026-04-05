@@ -14,6 +14,7 @@ type Bar struct {
 	bus         *bus.Bus
 	StatusGroup gtk.Widgetter
 	NotifPill   gtk.Widgetter
+	ClockGroup  gtk.Widgetter
 }
 
 // New creates and shows the bar window.
@@ -64,7 +65,6 @@ func (b *Bar) buildCenter(refs *servicerefs.ServiceRefs) gtk.Widgetter {
 func newClockGroup(b *bus.Bus) gtk.Widgetter {
 	box := gtk.NewBox(gtk.OrientationHorizontal, 4)
 	box.SetVAlign(gtk.AlignCenter)
-	box.Append(newMediaWidget(b))
 	box.Append(newClockWidget())
 	return box
 }
@@ -77,9 +77,12 @@ func (b *Bar) buildRight(refs *servicerefs.ServiceRefs) gtk.Widgetter {
 	pillBox := clickableBarGroup(newIndicatorPill(b.bus, refs), b.bus, "toggle-notif-center")
 	b.NotifPill = pillBox
 
+	clockGroup := clickableBarGroup(newClockGroup(b.bus), b.bus, "toggle-calendar")
+	b.ClockGroup = clockGroup
+
 	box.Append(pillBox)
 	box.Append(newTrayWidget(b.bus))
 	box.Append(barSeparator())
-	box.Append(barGroup(newClockGroup(b.bus)))
+	box.Append(clockGroup)
 	return box
 }

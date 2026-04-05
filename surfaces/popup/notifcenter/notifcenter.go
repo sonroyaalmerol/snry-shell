@@ -62,7 +62,7 @@ func New(app *gtk.Application, b *bus.Bus, refs *servicerefs.ServiceRefs, trigge
 		switch action {
 		case "toggle-notif-center":
 			glib.IdleAdd(func() { nc.Toggle() })
-		case "toggle-controls", "toggle-overview":
+		case "toggle-controls", "toggle-overview", "toggle-calendar":
 			if nc.win.Visible() {
 				glib.IdleAdd(func() { nc.win.SetVisible(false) })
 			}
@@ -105,7 +105,6 @@ func (nc *NotifCenter) build(refs *servicerefs.ServiceRefs, clickBg *gtk.Box) {
 	// Middle: notifications, media, calendar.
 	panel.Append(widgets.NewNotificationList(nc.bus))
 	panel.Append(widgets.BuildMediaGroup(nc.bus, refs.Mpris))
-	panel.Append(widgets.BuildCalendarGroup())
 
 	scroll.SetChild(panel)
 	root.Append(scroll)
