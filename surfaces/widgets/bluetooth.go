@@ -115,6 +115,7 @@ func deviceRank(d state.BluetoothDevice) int {
 func newBTDeviceRow(parent *gtk.ApplicationWindow, refs *servicerefs.ServiceRefs, dev state.BluetoothDevice, rescan func()) gtk.Widgetter {
 	row := gtk.NewBox(gtk.OrientationHorizontal, 12)
 	row.AddCSSClass("conn-row")
+		row.SetCursorFromName("pointer")
 	if dev.Connected {
 		row.AddCSSClass("conn-row-connected")
 	}

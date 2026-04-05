@@ -1267,7 +1267,6 @@ scale.mixer-slider slider {
 .conn-row {
     padding: 12px 16px;
     transition: background-color 150ms var(--ease-standard-decel);
-    cursor: pointer;
 }
 
 .conn-row:hover {
