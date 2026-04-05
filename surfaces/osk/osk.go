@@ -2,6 +2,7 @@
 package osk
 
 import (
+	"io"
 	"log"
 	"os/exec"
 	"strings"
@@ -37,9 +38,55 @@ var textInputClasses = []string{
 	"spotify", "firefox-esr",
 }
 
+// wtypeBridge manages a persistent wtype child process for fast character input.
+// Instead of spawning a new wtype process per keystroke (~20-50ms), characters
+// are written to the running process's stdin (~1ms). Special keys (BackSpace,
+// arrows) still use separate wtype invocations since stdin mode only handles text.
+type wtypeBridge struct {
+	cmd   *exec.Cmd
+	stdin io.WriteCloser
+	mu    sync.Mutex
+}
+
+func newWtypeBridge() (*wtypeBridge, error) {
+	cmd := exec.Command("wtype", "-d", "0", "-")
+	stdin, err := cmd.StdinPipe()
+	if err != nil {
+		return nil, err
+	}
+	if err := cmd.Start(); err != nil {
+		return nil, err
+	}
+	return &wtypeBridge{cmd: cmd, stdin: stdin}, nil
+}
+
+// typeChar writes a character to the persistent wtype stdin. The null byte
+// followed by newline is needed because wtype uses fgets internally — fgets
+// reads until '\n', and strlen stops at '\0', so wtype only processes the
+// character without interpreting the newline as Enter.
+func (w *wtypeBridge) typeChar(ch string) {
+	w.mu.Lock()
+	w.stdin.Write([]byte(ch + "\x00\n"))
+	w.mu.Unlock()
+}
+
+// typeKey runs a separate wtype process for special keys or modifier combos.
+// Slower than typeChar but only used for infrequent special keys.
+func (w *wtypeBridge) typeKey(args ...string) {
+	go func() { _ = exec.Command("wtype", args...).Run() }()
+}
+
+func (w *wtypeBridge) close() {
+	w.mu.Lock()
+	w.stdin.Close()
+	w.mu.Unlock()
+	w.cmd.Wait()
+}
+
 type OSK struct {
 	win       *gtk.ApplicationWindow
 	bus       *bus.Bus
+	wtype     *wtypeBridge
 	shift     bool
 	caps      bool
 	ctrlL     bool
@@ -47,10 +94,10 @@ type OSK struct {
 	hasTouch  bool
 	manualOff bool
 	visible   bool
-	keys      []*keyButton        // all character keys, for label updates
+	keys      []*keyButton         // all character keys, for label updates
 	modBtns   map[string]*gtk.Button // modifier name -> button widget
-	shiftBtns []*gtk.Button        // shift buttons for visual feedback
-	capsBtn   *gtk.Button          // caps button for visual feedback
+	shiftBtns []*gtk.Button         // shift buttons for visual feedback
+	capsBtn   *gtk.Button           // caps button for visual feedback
 	mu        sync.Mutex
 }
 
@@ -71,6 +118,14 @@ func New(app *gtk.Application, b *bus.Bus) *OSK {
 	})
 
 	osk := &OSK{win: win, bus: b, modBtns: make(map[string]*gtk.Button)}
+
+	// Start persistent wtype process for fast character input.
+	wb, err := newWtypeBridge()
+	if err != nil {
+		log.Printf("[OSK] warning: wtype persistent process failed to start: %v, falling back to per-key processes", err)
+	}
+	osk.wtype = wb
+
 	osk.build()
 	win.SetVisible(false)
 
@@ -101,7 +156,6 @@ func New(app *gtk.Application, b *bus.Bus) *OSK {
 		if !ok {
 			return
 		}
-		// Skip layer-shell surfaces that report their hex address as the class.
 		if isHexAddress(win.Class) {
 			return
 		}
@@ -145,8 +199,6 @@ func detectTouchDevice() bool {
 		log.Printf("[OSK] hyprctl devices also failed: %v", err)
 		return false
 	}
-	// hyprctl -j always has a "touch" key even with zero devices.
-	// Check for non-empty content inside the touch array.
 	raw := string(out)
 	idx := strings.Index(raw, `"touch"`)
 	if idx < 0 {
@@ -154,8 +206,6 @@ func detectTouchDevice() bool {
 		return false
 	}
 	rest := raw[idx:]
-	// The touch array starts after ": [". If the next meaningful char after
-	// whitespace is "]", the array is empty.
 	after := ""
 	if i := strings.Index(rest, ": ["); i >= 0 {
 		after = strings.TrimLeft(rest[i+3:], " \t\r\n")
@@ -165,9 +215,6 @@ func detectTouchDevice() bool {
 	return found
 }
 
-// isTextInputWindow returns true if the window class looks like an app that
-// commonly needs text input. Uses case-insensitive substring matching against
-// a known list of terminals, browsers, editors, and chat apps.
 func isTextInputWindow(class string) bool {
 	lower := strings.ToLower(class)
 	for _, match := range textInputClasses {
@@ -178,9 +225,6 @@ func isTextInputWindow(class string) bool {
 	return false
 }
 
-// isHexAddress returns true if the string looks like a hex window address
-// (e.g. "55efe174c4b0" or "0x55efe174c4b0"). These are layer-shell surfaces
-// that have no real class, emitted by Hyprland as spurious activewindow events.
 func isHexAddress(s string) bool {
 	if len(s) == 0 {
 		return true
@@ -193,16 +237,15 @@ func isHexAddress(s string) bool {
 	return true
 }
 
-// keyDef describes a single key on the on-screen keyboard.
 type keyDef struct {
-	label     string // display label
-	normal    string // character to type when not shifted
-	shifted   string // character to type when shifted
-	key       string // wtype key name (BackSpace, Tab, Return, space, Escape, Left, etc.)
-	mod       string // modifier to hold (Ctrl_L, Alt_L)
-	class     string // extra CSS class
-	action    string // "shift", "caps", or "" for none
-	repeatKey bool   // true for keys that should auto-repeat on hold (backspace, arrows)
+	label     string
+	normal    string
+	shifted   string
+	key       string // wtype key name (BackSpace, Tab, Return, Escape, Left, etc.)
+	mod       string
+	class     string
+	action    string
+	repeatKey bool
 }
 
 func (o *OSK) build() {
@@ -250,7 +293,7 @@ func (o *OSK) build() {
 		{normal: "0", shifted: ")"},
 		{normal: "-", shifted: "_"},
 		{normal: "=", shifted: "+"},
-		{label: "⌫", key: "BackSpace", class: "osk-key-wide", repeatKey: true},
+		{label: "⌫", key: "BackSpace", class: "osk-key-wide"},
 	}
 
 	row1 := []keyDef{
@@ -304,11 +347,11 @@ func (o *OSK) build() {
 	row4 := []keyDef{
 		{label: "Ctrl", mod: "Ctrl_L", class: "osk-key-wide"},
 		{label: "Alt", mod: "Alt_L", class: "osk-key-wide"},
-		{label: "", normal: " ", class: "osk-key-space", key: "space"},
-		{label: "←", key: "Left", class: "osk-key-arrow", repeatKey: true},
-		{label: "↓", key: "Down", class: "osk-key-arrow", repeatKey: true},
-		{label: "↑", key: "Up", class: "osk-key-arrow", repeatKey: true},
-		{label: "→", key: "Right", class: "osk-key-arrow", repeatKey: true},
+		{label: "", normal: " ", class: "osk-key-space"},
+		{label: "←", key: "Left", class: "osk-key-arrow"},
+		{label: "↓", key: "Down", class: "osk-key-arrow"},
+		{label: "↑", key: "Up", class: "osk-key-arrow"},
+		{label: "→", key: "Right", class: "osk-key-arrow"},
 	}
 
 	for _, row := range [][]keyDef{numRow, row1, row2, row3, row4} {
@@ -346,15 +389,14 @@ func (o *OSK) buildRow(parent *gtk.Box, defs []keyDef) {
 			mod := d.mod
 			o.modBtns[mod] = btn
 			btn.ConnectClicked(func() { o.toggleMod(mod) })
-		case d.repeatKey:
-			o.setupRepeatKey(btn, d)
 		default:
-			// Regular typable key.
 			kb := &keyButton{btn: btn, label: label, normal: d.normal, shifted: d.shifted}
 			if d.normal != "" || d.shifted != "" {
 				o.keys = append(o.keys, kb)
 			}
-			o.setupKey(btn, d, kb)
+			btn.ConnectClicked(func() {
+				o.typeKey(d, kb)
+			})
 		}
 
 		box.Append(btn)
@@ -363,48 +405,34 @@ func (o *OSK) buildRow(parent *gtk.Box, defs []keyDef) {
 	parent.Append(box)
 }
 
-// setupKey wires a regular (non-repeating) key. Uses ConnectClicked which
-// is reliable on both mouse and touch. CSS :active handles visual feedback.
-func (o *OSK) setupKey(btn *gtk.Button, d keyDef, kb *keyButton) {
-	btn.ConnectClicked(func() {
-		o.typeKey(d, kb)
-	})
-}
-
-// setupRepeatKey wires a key like backspace/arrows. Uses ConnectClicked
-// like regular keys for touch reliability. Hold-to-repeat is not supported
-// on GTK4 touch (GestureClick ConnectReleased never fires).
-func (o *OSK) setupRepeatKey(btn *gtk.Button, d keyDef) {
-	btn.ConnectClicked(func() {
-		o.typeKey(d, nil)
-	})
-}
-
 func (o *OSK) typeKey(d keyDef, kb *keyButton) {
 	o.mu.Lock()
-	args := o.modArgs()
-	if d.key != "" {
-		args = append(args, "-k", d.key)
-	} else if kb != nil {
-		args = append(args, o.activeChar(kb))
-	}
-	// Release all held modifiers under lock, before running wtype.
-	o.releaseAllModsLocked()
-	o.mu.Unlock()
 
-	if len(args) == 0 {
+	if d.key != "" {
+		// Special key (BackSpace, Tab, Return, arrows, Escape).
+		// Use separate wtype process (infrequent, overhead acceptable).
+		args := o.modArgs()
+		args = append(args, "-k", d.key)
+		o.releaseAllModsLocked()
+		o.mu.Unlock()
+		o.wtype.typeKey(args...)
 		return
 	}
 
-	// Run wtype asynchronously — it creates its own virtual keyboard
-	// per invocation so concurrent calls are safe. Running async prevents
-	// the UI from blocking if wtype is slow to connect to the Wayland display.
-	go func() {
-		_ = exec.Command("wtype", args...).Run()
-	}()
+	if kb == nil {
+		o.mu.Unlock()
+		return
+	}
+
+	// Regular character — resolve via shift/caps state and send to persistent
+	// wtype stdin. wtype handles shift internally when we send "A" vs "a".
+	ch := o.activeChar(kb)
+	o.releaseAllModsLocked()
+	o.mu.Unlock()
+
+	o.wtype.typeChar(ch)
 }
 
-// modArgs builds the wtype modifier-hold flags for currently active modifiers.
 func (o *OSK) modArgs() []string {
 	var args []string
 	if o.ctrlL {
@@ -483,8 +511,6 @@ func (o *OSK) toggleMod(mod string) {
 	o.mu.Unlock()
 }
 
-// updateModVisualsLocked updates the CSS class on all modifier/action buttons.
-// Caller must hold o.mu.
 func (o *OSK) updateModVisualsLocked() {
 	cls := "osk-key-active"
 	for _, btn := range o.shiftBtns {
@@ -518,8 +544,6 @@ func (o *OSK) updateModVisualsLocked() {
 	}
 }
 
-// releaseAllModsLocked releases all held modifiers and updates visuals.
-// Caller must hold o.mu.
 func (o *OSK) releaseAllModsLocked() {
 	if !o.shift && !o.ctrlL && !o.altL {
 		return
