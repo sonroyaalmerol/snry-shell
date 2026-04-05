@@ -95,12 +95,14 @@ func New(app *gtk.Application, b *bus.Bus) *OSK {
 	// Auto-show/hide based on active window class heuristic.
 	b.Subscribe(bus.TopicActiveWindow, func(e bus.Event) {
 		if osk.manualOff {
-			log.Printf("[OSK] activewindow ignored (manualOff)")
 			return
 		}
 		win, ok := e.Data.(state.ActiveWindow)
 		if !ok {
-			log.Printf("[OSK] activewindow event: unexpected type %T", e.Data)
+			return
+		}
+		// Skip layer-shell surfaces that report their hex address as the class.
+		if isHexAddress(win.Class) {
 			return
 		}
 		want := osk.hasTouch && isTextInputWindow(win.Class)
@@ -108,10 +110,10 @@ func New(app *gtk.Application, b *bus.Bus) *OSK {
 			win.Class, win.Title, osk.hasTouch, isTextInputWindow(win.Class), want, osk.visible)
 		glib.IdleAdd(func() {
 			if want && !osk.visible {
-				log.Printf("[OSK] auto-showing for window class=%q", win.Class)
+				log.Printf("[OSK] auto-showing for class=%q", win.Class)
 				osk.show()
 			} else if !want && osk.visible {
-				log.Printf("[OSK] auto-hiding, window class=%q is not a text input window", win.Class)
+				log.Printf("[OSK] auto-hiding, class=%q is not a text input window", win.Class)
 				osk.hide()
 			}
 		})
@@ -174,6 +176,21 @@ func isTextInputWindow(class string) bool {
 		}
 	}
 	return false
+}
+
+// isHexAddress returns true if the string looks like a hex window address
+// (e.g. "55efe174c4b0" or "0x55efe174c4b0"). These are layer-shell surfaces
+// that have no real class, emitted by Hyprland as spurious activewindow events.
+func isHexAddress(s string) bool {
+	if len(s) == 0 {
+		return true
+	}
+	for _, c := range s {
+		if !((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F') || c == 'x' || c == 'X') {
+			return false
+		}
+	}
+	return true
 }
 
 // keyDef describes a single key on the on-screen keyboard.
