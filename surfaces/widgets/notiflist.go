@@ -13,28 +13,25 @@ import (
 const maxNotifications = 20
 
 type notificationList struct {
-	scroll  *gtk.ScrolledWindow
-	box     *gtk.Box
-	bus     *bus.Bus
-	count   int
-	empty   *gtk.Box
+	box      *gtk.Box
+	bus      *bus.Bus
+	count    int
+	empty    *gtk.Box
 	hasNotif bool
 }
 
 func NewNotificationList(b *bus.Bus) gtk.Widgetter {
 	nl := &notificationList{
-		scroll: gtk.NewScrolledWindow(),
-		box:    gtk.NewBox(gtk.OrientationVertical, 4),
-		bus:    b,
+		box: gtk.NewBox(gtk.OrientationVertical, 4),
+		bus: b,
 	}
 	nl.box.AddCSSClass("notification-list")
-	nl.scroll.SetChild(nl.box)
-	nl.scroll.SetVExpand(true)
-	nl.scroll.SetPolicy(gtk.PolicyNever, gtk.PolicyAutomatic)
+	nl.box.SetVExpand(true)
 
 	// Empty state placeholder.
 	nl.empty = gtk.NewBox(gtk.OrientationVertical, 8)
 	nl.empty.AddCSSClass("notification-empty")
+	nl.empty.SetVExpand(true)
 	nl.empty.SetVAlign(gtk.AlignCenter)
 	nl.empty.SetHAlign(gtk.AlignCenter)
 	icon := gtkutil.MaterialIcon("notifications_none")
@@ -55,7 +52,7 @@ func NewNotificationList(b *bus.Bus) gtk.Widgetter {
 		})
 	})
 
-	return nl.scroll
+	return nl.box
 }
 
 func (nl *notificationList) prepend(n state.Notification) {
