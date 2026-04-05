@@ -26,7 +26,8 @@ const (
 )
 
 // getA11yBusAddr queries the session bus for the accessibility bus address.
-// If the bus isn't running yet, it attempts to auto-start it via DBus activation.
+// If the bus isn't running yet, it attempts to auto-start it via DBus activation
+// and retries with a short backoff.
 func getA11yBusAddr(sess *dbus.Conn) (string, error) {
 	var busAddr string
 	err := sess.Object("org.a11y.Bus", "/org/a11y/Bus").
@@ -43,15 +44,18 @@ func getA11yBusAddr(sess *dbus.Conn) (string, error) {
 		return "", err
 	}
 
-	// Retry after activation.
-	err = sess.Object("org.a11y.Bus", "/org/a11y/Bus").
-		Call("org.a11y.Bus.GetAddress", 0).Store(&busAddr)
-	if err != nil {
-		return "", err
+	// The daemon may need a moment to register on the bus.
+	for delay := 100 * time.Millisecond; delay <= 3*time.Second; delay *= 2 {
+		time.Sleep(delay)
+		err = sess.Object("org.a11y.Bus", "/org/a11y/Bus").
+			Call("org.a11y.Bus.GetAddress", 0).Store(&busAddr)
+		if err == nil {
+			log.Printf("[ATSPI2] a11y bus started after %v", delay)
+			return busAddr, nil
+		}
 	}
 
-	log.Printf("[ATSPI2] a11y bus auto-started at %s", busAddr)
-	return busAddr, nil
+	return "", err
 }
 
 var textRoles = map[uint32]bool{
@@ -133,13 +137,11 @@ func (w *Watcher) Run(ctx context.Context) {
 
 	// Health check: if no events arrive within 5s, AT-SPI2 is likely
 	// not working (apps not registered, bus misconfigured).
-	healthTimer := time.NewTimer(5 * time.Second)
-	go func() {
-		<-healthTimer.C
+	healthTimer := time.AfterFunc(5*time.Second, func() {
 		if !w.healthy {
 			log.Printf("[ATSPI2] no events received after 5s, marking as unhealthy")
 		}
-	}()
+	})
 
 	defer func() {
 		healthTimer.Stop()
@@ -157,7 +159,7 @@ func (w *Watcher) Run(ctx context.Context) {
 }
 
 func (w *Watcher) handleSignal(sig *dbus.Signal) {
-	// AT-SPI2 signals have format ((so)(so)(si)sv(ii)siibbbbb:
+	// AT-SPI2 signals have format ((so)(so)(si)sv(ii)siibbbbb):
 	//
 	//   Body[0]: (so) source application [bus_name, object_path]
 	//   Body[1]: (so) source object      [bus_name, object_path]
