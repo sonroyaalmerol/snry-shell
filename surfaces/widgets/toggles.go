@@ -8,19 +8,12 @@ import (
 	"github.com/sonroyaalmerol/snry-shell/internal/bus"
 	"github.com/sonroyaalmerol/snry-shell/internal/servicerefs"
 	"github.com/sonroyaalmerol/snry-shell/internal/state"
-	"github.com/sonroyaalmerol/snry-shell/internal/surfaceutil"
 )
 
-const (
-	quickToggleCols = 2
-	quickToggleRowH = 44
-	quickToggleGap  = 8
-)
+const quickToggleCols = 2
 
-// NewQuickToggles creates the quick toggle grid using ConstraintLayout
-// to ensure equal column widths. panelWidth is the available width for
-// the grid content (panel width minus margins).
-func NewQuickToggles(b *bus.Bus, refs *servicerefs.ServiceRefs, panelWidth int) gtk.Widgetter {
+// NewQuickToggles creates the quick toggle grid with equal-width columns.
+func NewQuickToggles(b *bus.Bus, refs *servicerefs.ServiceRefs) gtk.Widgetter {
 	box := gtk.NewBox(gtk.OrientationVertical, 8)
 	box.AddCSSClass("quick-toggles")
 
@@ -29,10 +22,12 @@ func NewQuickToggles(b *bus.Bus, refs *servicerefs.ServiceRefs, panelWidth int) 
 	label.SetHAlign(gtk.AlignStart)
 	box.Append(label)
 
-	layout := gtk.NewConstraintLayout()
-	root := gtk.NewBox(gtk.OrientationHorizontal, 0)
-	root.SetLayoutManager(layout)
-	root.AddCSSClass("quick-toggles-grid")
+	grid := gtk.NewGrid()
+	grid.AddCSSClass("quick-toggles-grid")
+	grid.SetColumnSpacing(8)
+	grid.SetRowSpacing(8)
+	grid.SetColumnHomogeneous(true)
+	grid.SetHExpand(true)
 
 	type toggleDef struct {
 		icon     string
@@ -108,13 +103,8 @@ func NewQuickToggles(b *bus.Bus, refs *servicerefs.ServiceRefs, panelWidth int) 
 		}},
 	}
 
-	type btnEntry struct {
-		btn gtk.Widgetter
-		def toggleDef
-		isPB bool
-	}
-	var btns []btnEntry
-
+	col := 0
+	row := 0
 	for _, t := range toggles {
 		if t.requires != "" && !binInPath(t.requires) {
 			continue
@@ -143,15 +133,17 @@ func NewQuickToggles(b *bus.Bus, refs *servicerefs.ServiceRefs, panelWidth int) 
 			btn.AddCSSClass("quick-toggle")
 			btn.AddCSSClass("quick-toggle-button")
 			btn.SetChild(inner)
+			btn.SetHExpand(true)
 			btn.ConnectClicked(func() {
 				toggle.toggle(true)
 			})
-			btns = append(btns, btnEntry{btn: btn, def: toggle, isPB: true})
+			grid.Attach(btn, col, row, 1, 1)
 		} else {
 			tb := gtk.NewToggleButton()
 			tb.SetCursorFromName("pointer")
 			tb.AddCSSClass("quick-toggle")
 			tb.SetChild(inner)
+			tb.SetHExpand(true)
 
 			settingState := false
 			tb.ConnectToggled(func() {
@@ -185,58 +177,16 @@ func NewQuickToggles(b *bus.Bus, refs *servicerefs.ServiceRefs, panelWidth int) 
 				})
 			}
 
-			btns = append(btns, btnEntry{btn: tb, def: toggle, isPB: false})
+			grid.Attach(tb, col, row, 1, 1)
+		}
+
+		col++
+		if col >= quickToggleCols {
+			col = 0
+			row++
 		}
 	}
 
-	// Add buttons as children and place them into the constraint layout.
-	strength := int(gtk.ConstraintStrengthRequired)
-	colWidth := float64(panelWidth-quickToggleGap*(quickToggleCols-1)) / float64(quickToggleCols)
-
-	var firstTarget gtk.ConstraintTargetter
-	for i, entry := range btns {
-		root.Append(entry.btn)
-
-		w := surfaceutil.AsWidget(entry.btn)
-		target := &w.ConstraintTarget
-		col := i % quickToggleCols
-		row := i / quickToggleCols
-
-		layout.AddConstraint(gtk.NewConstraintConstant(
-			target, gtk.ConstraintAttributeWidth, gtk.ConstraintRelationEq,
-			colWidth, strength))
-
-		layout.AddConstraint(gtk.NewConstraintConstant(
-			target, gtk.ConstraintAttributeLeft, gtk.ConstraintRelationEq,
-			float64(col)*(colWidth+float64(quickToggleGap)), strength))
-
-		layout.AddConstraint(gtk.NewConstraintConstant(
-			target, gtk.ConstraintAttributeTop, gtk.ConstraintRelationEq,
-			float64(row)*(float64(quickToggleRowH)+float64(quickToggleGap)), strength))
-
-		layout.AddConstraint(gtk.NewConstraintConstant(
-			target, gtk.ConstraintAttributeHeight, gtk.ConstraintRelationEq,
-			float64(quickToggleRowH), strength))
-
-		if firstTarget == nil {
-			firstTarget = target
-		} else {
-			layout.AddConstraint(gtk.NewConstraint(
-				target, gtk.ConstraintAttributeWidth, gtk.ConstraintRelationEq,
-				firstTarget, gtk.ConstraintAttributeWidth,
-				1.0, 0.0, strength))
-		}
-	}
-
-	// Set the overall grid height so the parent sizes correctly.
-	numRows := (len(btns) + quickToggleCols - 1) / quickToggleCols
-	totalH := numRows*quickToggleRowH + (numRows-1)*quickToggleGap
-	gridH := totalH
-	if gridH < 0 {
-		gridH = 0
-	}
-	root.SetSizeRequest(panelWidth, gridH)
-
-	box.Append(root)
+	box.Append(grid)
 	return box
 }
