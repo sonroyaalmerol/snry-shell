@@ -3,7 +3,6 @@
 package overview
 
 import (
-	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/sonroyaalmerol/snry-shell/internal/bus"
 	"github.com/sonroyaalmerol/snry-shell/internal/layershell"
@@ -14,7 +13,6 @@ import (
 // Overview is a full-screen overlay showing window previews and the launcher.
 type Overview struct {
 	win     *gtk.ApplicationWindow
-	bus     *bus.Bus
 	querier *hyprland.Querier
 	grid    *gridWidget
 }
@@ -28,27 +26,23 @@ func New(app *gtk.Application, b *bus.Bus, querier *hyprland.Querier) *Overview 
 		Namespace:    "snry-overview",
 	})
 
-	ov := &Overview{win: win, bus: b, querier: querier}
-	ov.build()
+	ov := &Overview{win: win, querier: querier}
+	ov.build(b)
 
 	// Hidden by default; toggled by control socket or keybind.
 	win.SetVisible(false)
 
-	ov.bus.Subscribe(bus.TopicSystemControls, func(e bus.Event) {
-		if e.Data == "toggle-overview" {
-			glib.IdleAdd(func() {
-				ov.Toggle()
-				if ov.win.Visible() {
-					ov.win.GrabFocus()
-				}
-			})
+	surfaceutil.AddToggleOnWithCallback(win, b, "toggle-overview", func() {
+		ov.Toggle()
+		if ov.win.Visible() {
+			ov.win.GrabFocus()
 		}
 	})
 
 	return ov
 }
 
-func (o *Overview) build() {
+func (o *Overview) build(b *bus.Bus) {
 	root := gtk.NewBox(gtk.OrientationVertical, 12)
 	root.AddCSSClass("overview")
 	root.SetMarginTop(48)
@@ -56,8 +50,8 @@ func (o *Overview) build() {
 	root.SetMarginStart(48)
 	root.SetMarginEnd(48)
 
-	root.Append(newSearchWidget(o.bus, o.hide))
-	gw := newGridWidget(o.bus, o.querier)
+	root.Append(newSearchWidget(b, o.hide))
+	gw := newGridWidget(b, o.querier)
 	o.grid = gw
 	root.Append(gw.scroll)
 

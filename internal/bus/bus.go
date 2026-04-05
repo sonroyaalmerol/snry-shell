@@ -22,7 +22,6 @@ const (
 	TopicSystemControls Topic = "systemcontrols"
 	TopicSessionAction  Topic = "session"
 	TopicScreenLock     Topic = "screenlock"
-	TopicSettings       Topic = "settings"
 	TopicResources        Topic = "resources"
 	TopicKeyboard         Topic = "keyboard"
 	TopicAudioMixer       Topic = "audiomixer"

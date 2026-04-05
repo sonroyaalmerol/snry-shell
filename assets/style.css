@@ -151,12 +151,6 @@ scale.m3-scale slider {
     box-shadow: none;
     border: none;
 }
-/* Size variants */
-scale.m3-scale-sm slider { min-width: 12px; min-height: 12px; }
-scale.m3-scale-thin trough { min-height: 3px; }
-/* OSD: invisible slider thumb */
-scale.m3-scale-osd slider { background-color: transparent; min-width: 0; min-height: 0; }
-
 /* Shared icon button base */
 .m3-icon-btn {
     background-color: transparent;
@@ -171,15 +165,6 @@ scale.m3-scale-osd slider { background-color: transparent; min-width: 0; min-hei
     background-color: alpha(@col_on_surface, var(--state-hover));
     color: @col_on_surface;
 }
-.m3-icon-btn.m3-icon-btn-error:hover {
-    background-color: alpha(@col_error, var(--state-focus));
-    color: @col_error;
-}
-/* Size variants */
-.m3-icon-btn-sm { min-width: 24px; min-height: 24px; }
-.m3-icon-btn-lg { min-width: 36px; min-height: 36px; }
-.m3-icon-btn-xl { min-width: 44px; min-height: 44px; }
-
 /* Shared filled button base */
 .m3-filled-btn {
     background-color: @col_primary;
@@ -426,12 +411,6 @@ scale.m3-scale-osd slider { background-color: transparent; min-width: 0; min-hei
 .search-result-row .app-description {
     font-size: 11px;
     color: @col_subtext;
-}
-
-.search-separator {
-    background-color: @col_outline_variant;
-    min-height: 1px;
-    margin: 4px 0;
 }
 
 .window-grid {
@@ -685,7 +664,7 @@ scale.m3-scale-osd slider { background-color: transparent; min-width: 0; min-hei
     color: @col_subtext;
 }
 
-/* media-progress uses .m3-scale .m3-scale-sm .m3-scale-thin (see M3 Component Primitives) */
+/* media-progress uses .m3-scale base (see M3 Component Primitives) */
 
 .media-btn {
     background-color: transparent;
@@ -835,17 +814,6 @@ scale.m3-scale-osd slider { background-color: transparent; min-width: 0; min-hei
 }
 
 /* control-scale uses .m3-scale base (see M3 Component Primitives) */
-
-.system-slider-row {
-    margin: 4px 0;
-}
-
-.system-slider-label {
-    font-family: "Material Symbols Rounded";
-    font-size: 18px;
-    color: @col_on_surface;
-    min-width: 28px;
-}
 
 /* ── Quick toggles ────────────────────────────────────────────────── */
 
@@ -1078,6 +1046,10 @@ scale.m3-scale-osd slider { background-color: transparent; min-width: 0; min-hei
 
 /* ── Resource indicator (bar) ───────────────────────────────────────────────── */
 
+.status-indicator {
+    color: @col_on_surface;
+}
+
 .resource-indicator {
     color: @col_on_surface;
 }
@@ -1267,11 +1239,6 @@ scale.m3-scale-osd slider { background-color: transparent; min-width: 0; min-hei
     min-width: 160px;
 }
 
-.settings-nav-item.active {
-    background-color: @col_secondary_container;
-    color: @col_on_secondary_container;
-}
-
 .settings-row {
     border-radius: var(--radius-md);
     padding: 10px 12px;
@@ -1281,11 +1248,6 @@ scale.m3-scale-osd slider { background-color: transparent; min-width: 0; min-hei
 
 .settings-row:hover {
     background-color: alpha(@col_on_surface, var(--state-hover));
-}
-
-.settings-row-label {
-    font-size: 13px;
-    color: @col_on_surface;
 }
 
 /* ── Clipboard panel ────────────────────────────────────────────────────────── */

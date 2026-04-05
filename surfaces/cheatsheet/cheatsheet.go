@@ -2,7 +2,6 @@
 package cheatsheet
 
 import (
-	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/sonroyaalmerol/snry-shell/internal/bus"
 	"github.com/sonroyaalmerol/snry-shell/internal/layershell"
@@ -34,7 +33,6 @@ var defaultKeybinds = []Keybind{
 // Cheatsheet is an overlay showing keybindings.
 type Cheatsheet struct {
 	win *gtk.ApplicationWindow
-	bus *bus.Bus
 }
 
 func New(app *gtk.Application, b *bus.Bus) *Cheatsheet {
@@ -46,15 +44,11 @@ func New(app *gtk.Application, b *bus.Bus) *Cheatsheet {
 		Namespace:    "snry-cheatsheet",
 	})
 
-	cs := &Cheatsheet{win: win, bus: b}
+	cs := &Cheatsheet{win: win}
 	cs.build()
 	win.SetVisible(false)
 
-	b.Subscribe(bus.TopicSystemControls, func(e bus.Event) {
-		if e.Data == "toggle-cheatsheet" {
-			glib.IdleAdd(func() { cs.Toggle() })
-		}
-	})
+	surfaceutil.AddToggleOnWithCallback(win, b, "toggle-cheatsheet", cs.Toggle)
 
 	return cs
 }

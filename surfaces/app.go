@@ -161,7 +161,7 @@ func Run() int {
 		overview.New(app, b, refs.Hyprland)
 		controls.New(app, b, refs, shellBar.StatusGroup)
 		notifcenter.New(app, b, refs, shellBar.NotifPill)
-		calendar.New(app, b, shellBar.ClockGroup)
+		calendar.New(app, b)
 		osd.New(app, b)
 		session.New(app, b)
 		corners.New(app, b)

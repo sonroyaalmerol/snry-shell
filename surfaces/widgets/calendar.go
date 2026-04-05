@@ -2,26 +2,13 @@ package widgets
 
 import (
 	"fmt"
-	"reflect"
 	"time"
 
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/sonroyaalmerol/snry-shell/internal/calendar"
 	"github.com/sonroyaalmerol/snry-shell/internal/gtkutil"
+	"github.com/sonroyaalmerol/snry-shell/internal/surfaceutil"
 )
-
-// baseWidget extracts the embedded *gtk.Widget via reflection.
-func baseWidget(w gtk.Widgetter) *gtk.Widget {
-	v := reflect.ValueOf(w)
-	if v.Kind() == reflect.Ptr {
-		v = v.Elem()
-	}
-	f := v.FieldByName("Widget")
-	if !f.IsValid() || !f.CanAddr() {
-		return nil
-	}
-	return f.Addr().Interface().(*gtk.Widget)
-}
 
 func BuildCalendarGroup() gtk.Widgetter {
 	box := gtk.NewBox(gtk.OrientationVertical, 0)
@@ -70,7 +57,7 @@ func BuildCalendarGroup() gtk.Widgetter {
 
 	buildGrid := func() {
 		for c := grid.FirstChild(); c != nil; {
-			widget := baseWidget(c)
+			widget := surfaceutil.AsWidget(c)
 				var next gtk.Widgetter
 				if widget != nil {
 					next = widget.NextSibling()

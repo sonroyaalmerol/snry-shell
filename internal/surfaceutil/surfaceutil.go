@@ -57,14 +57,22 @@ func AddToggleOnWithFocus(b *bus.Bus, win *gtk.ApplicationWindow, action string)
 	})
 }
 
+func AddToggleOnWithCallback(win *gtk.ApplicationWindow, b *bus.Bus, action string, onToggle func()) {
+	b.Subscribe(bus.TopicSystemControls, func(e bus.Event) {
+		if e.Data == action {
+			glib.IdleAdd(onToggle)
+		}
+	})
+}
+
 func FormatTime(seconds float64) string {
 	s := int(seconds)
 	return fmt.Sprintf("%d:%02d", s/60, s%60)
 }
 
-// asWidget extracts the embedded *gtk.Widget from any gtk.Widgetter
-// using reflection, since baseWidget() is unexported.
-func asWidget(w gtk.Widgetter) *gtk.Widget {
+// AsWidget extracts the embedded *gtk.Widget from any gtk.Widgetter
+// using reflection.
+func AsWidget(w gtk.Widgetter) *gtk.Widget {
 	v := reflect.ValueOf(w)
 	if v.Kind() == reflect.Ptr {
 		v = v.Elem()
@@ -84,7 +92,7 @@ func asWidget(w gtk.Widgetter) *gtk.Widget {
 func WidgetXRelativeToRoot(w gtk.Widgetter) int {
 	x := 0
 	for current := w; current != nil; {
-		widget := asWidget(current)
+		widget := AsWidget(current)
 		if widget == nil {
 			break
 		}
@@ -101,7 +109,7 @@ func WidgetXRelativeToRoot(w gtk.Widgetter) int {
 
 // WidgetWidth returns the allocation width of a widget.
 func WidgetWidth(w gtk.Widgetter) int {
-	widget := asWidget(w)
+	widget := AsWidget(w)
 	if widget == nil {
 		return 0
 	}

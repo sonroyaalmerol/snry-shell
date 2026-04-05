@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/diamondburned/gotk4/pkg/cairo"
-	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/sonroyaalmerol/snry-shell/internal/bus"
 	"github.com/sonroyaalmerol/snry-shell/internal/layershell"
@@ -95,11 +94,7 @@ func New(app *gtk.Application, b *bus.Bus) *RegionSelector {
 
 	win.SetChild(area)
 
-	b.Subscribe(bus.TopicSystemControls, func(e bus.Event) {
-		if e.Data == "toggle-region-selector" {
-			glib.IdleAdd(func() { win.SetVisible(!win.Visible()) })
-		}
-	})
+	surfaceutil.AddToggleOn(b, win, "toggle-region-selector")
 
 	// Escape to cancel.
 	surfaceutil.AddEscapeToClose(win)
