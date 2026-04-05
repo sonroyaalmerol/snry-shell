@@ -13,7 +13,6 @@ type Bar struct {
 	win         *gtk.ApplicationWindow
 	bus         *bus.Bus
 	StatusGroup gtk.Widgetter
-	ClockGroup  gtk.Widgetter
 	NotifPill   gtk.Widgetter
 }
 
@@ -59,11 +58,10 @@ func (b *Bar) buildCenter(refs *servicerefs.ServiceRefs) gtk.Widgetter {
 	// Workspaces group (not clickable — has its own interactive buttons).
 	wsGroup := barGroup(newWorkspacesWidget(b.bus, refs.Hyprland))
 
-	// Clock + media group.
-	clockGroup := clickableBarGroup(newClockGroup(b.bus), b.bus, "toggle-calendar-media")
+	// Clock + media group (non-clickable display).
+	clockGroup := barGroup(newClockGroup(b.bus))
 
 	b.StatusGroup = statusGroup
-	b.ClockGroup = clockGroup
 
 	box.Append(statusGroup)
 	box.Append(barSeparator())

@@ -44,7 +44,6 @@ import (
 	"github.com/sonroyaalmerol/snry-shell/surfaces/osk"
 	"github.com/sonroyaalmerol/snry-shell/surfaces/overview"
 	"github.com/sonroyaalmerol/snry-shell/surfaces/polkit"
-	"github.com/sonroyaalmerol/snry-shell/surfaces/popup/calendarmedia"
 	"github.com/sonroyaalmerol/snry-shell/surfaces/popup/controls"
 	"github.com/sonroyaalmerol/snry-shell/surfaces/popup/notifcenter"
 	"github.com/sonroyaalmerol/snry-shell/surfaces/recorder"
@@ -135,7 +134,6 @@ func Run() int {
 		shellBar := bar.New(app, b, refs)
 		overview.New(app, b, refs.Hyprland)
 		controls.New(app, b, refs, shellBar.StatusGroup)
-		calendarmedia.New(app, b, refs, shellBar.ClockGroup)
 		notifcenter.New(app, b, refs, shellBar.NotifPill)
 		dock.New(app, b)
 		osd.New(app, b)

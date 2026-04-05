@@ -376,6 +376,12 @@
     background-color: transparent;
 }
 
+.popup-separator {
+    background-color: alpha(@col_outline, 0.15);
+    min-height: 1px;
+    border-radius: var(--radius-full, 9999px);
+}
+
 .popup-scroll > scrollbar {
     background-color: transparent;
     opacity: 0;

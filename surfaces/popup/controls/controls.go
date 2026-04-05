@@ -60,7 +60,7 @@ func New(app *gtk.Application, b *bus.Bus, refs *servicerefs.ServiceRefs, trigge
 		switch action {
 		case "toggle-controls":
 			glib.IdleAdd(func() { c.Toggle() })
-		case "toggle-calendar-media", "toggle-notif-center":
+		case "toggle-notif-center":
 			if c.win.Visible() {
 				glib.IdleAdd(func() { c.win.SetVisible(false) })
 			}
