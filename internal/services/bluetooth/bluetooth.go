@@ -94,17 +94,25 @@ func (s *Service) poll() error {
 }
 
 // SetPowered enables or disables the Bluetooth adapter.
-// State updates are handled by D-Bus PropertiesChanged signals in Run().
+// If powering off and BlueZ is busy (discovery running), it stops discovery first.
+// On error, re-polls to publish the actual state so the UI reverts correctly.
 func (s *Service) SetPowered(enabled bool) error {
 	log.Printf("[BT] SetPowered(%v) called", enabled)
 	obj := s.conn.Object(bluezService, bluezAdapter)
 	err := obj.SetProperty(bluezIface+".Powered", dbus.MakeVariant(enabled))
-	if err != nil {
-		log.Printf("[BT] SetPowered(%v) SetProperty error: %v", enabled, err)
-	} else {
-		log.Printf("[BT] SetPowered(%v) SetProperty succeeded", enabled)
+	if err != nil && !enabled {
+		// BlueZ returns "Busy" if discovery is running; stop it and retry.
+		log.Printf("[BT] SetPowered(false) failed (%v), stopping discovery and retrying", err)
+		_ = obj.Call(bluezIface+".StopDiscovery", 0).Err
+		err = obj.SetProperty(bluezIface+".Powered", dbus.MakeVariant(false))
 	}
-	return err
+	if err != nil {
+		log.Printf("[BT] SetPowered(%v) failed: %v — re-polling to publish actual state", enabled, err)
+		_ = s.poll()
+		return err
+	}
+	log.Printf("[BT] SetPowered(%v) succeeded", enabled)
+	return nil
 }
 
 // StartScan requests a Bluetooth device discovery scan.
