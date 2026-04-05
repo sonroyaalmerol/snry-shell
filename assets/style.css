@@ -144,11 +144,11 @@ scale.m3-scale trough highlight {
     border-radius: var(--radius-pill);
 }
 scale.m3-scale slider {
-    background-color: @col_on_primary;
+    background-color: @col_primary;
     border-radius: 50%;
-    min-width: 14px;
-    min-height: 14px;
-    border: 2px solid @col_primary;
+    min-width: 16px;
+    min-height: 16px;
+    border: none;
     box-shadow: none;
 }
 /* Shared icon button base */
