@@ -47,14 +47,12 @@ func (b *Bar) build(refs *servicerefs.ServiceRefs) {
 func (b *Bar) buildLeft(refs *servicerefs.ServiceRefs) gtk.Widgetter {
 	box := gtk.NewBox(gtk.OrientationHorizontal, 0)
 	box.SetVAlign(gtk.AlignCenter)
+	box.SetHExpand(true)
 
 	statusGroup := clickableBarGroup(newStatusWidgetGroup(b.bus, refs), b.bus, "toggle-controls")
 	b.StatusGroup = statusGroup
 
-	titleWidget := newWindowTitleWidget(b.bus)
-	titleWidget.(*gtk.Box).SetHExpand(true)
-
-	box.Append(titleWidget)
+	box.Append(newWindowTitleWidget(b.bus))
 	box.Append(barSeparator())
 	box.Append(statusGroup)
 	return box
