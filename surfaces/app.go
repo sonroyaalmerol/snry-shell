@@ -3,6 +3,7 @@ package surfaces
 import (
 	"context"
 	"fmt"
+	"log"
 	"net"
 	"os"
 
@@ -56,6 +57,7 @@ import (
 // Run creates the GTK application, initialises all services, wires every
 // surface and enters the main loop.
 func Run() int {
+	log.Println("snry-shell: Run() starting")
 	b := bus.New()
 	app := gtk.NewApplication("sh.snry.shell", 0)
 
@@ -121,12 +123,12 @@ func Run() int {
 	if err := forced.Apply([]hyprland.ForcedConfig{
 		{Option: "decoration:rounding", Value: "12"},
 	}); err != nil {
-		fmt.Fprintf(os.Stderr, "forced config: %v\n", err)
+		log.Printf("[SHELL] forced config error: %v", err)
 	} else {
-		fmt.Fprintf(os.Stderr, "forced config: applied decoration:rounding=12\n")
+		log.Printf("[SHELL] forced config: applied decoration:rounding=12")
 	}
 	defer func() {
-		fmt.Fprintf(os.Stderr, "forced config: restoring original values\n")
+		log.Printf("[SHELL] forced config: restoring original values")
 		forced.Restore()
 	}()
 	// Subscribe to tray item activation.

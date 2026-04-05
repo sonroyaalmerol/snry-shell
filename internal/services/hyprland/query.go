@@ -3,6 +3,7 @@ package hyprland
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"strconv"
 	"strings"
 
@@ -108,7 +109,11 @@ func (q *Querier) SwitchWorkspace(id int) error {
 
 // SetKeyword sets a Hyprland config option at runtime.
 func (q *Querier) SetKeyword(option, value string) error {
-	_, err := q.cmd.Run("keyword", option, value)
+	log.Printf("[HYPRLAND] keyword %s %s", option, value)
+	out, err := q.cmd.Run("keyword", option, value)
+	if err != nil {
+		log.Printf("[HYPRLAND] keyword error: %s, output: %s", err, string(out))
+	}
 	return err
 }
 
@@ -121,12 +126,16 @@ type hyprOption struct {
 
 // GetOption returns the current value of a Hyprland config option as a string.
 func (q *Querier) GetOption(option string) (string, error) {
+	log.Printf("[HYPRLAND] getoption %s", option)
 	out, err := q.cmd.Run("getoption", option)
 	if err != nil {
+		log.Printf("[HYPRLAND] getoption error: %s, output: %s", err, string(out))
 		return "", fmt.Errorf("hyprctl getoption %s: %w", option, err)
 	}
+	log.Printf("[HYPRLAND] getoption %s raw output: %s", option, string(out))
 	var opt hyprOption
 	if err := json.Unmarshal(out, &opt); err != nil {
+		log.Printf("[HYPRLAND] getoption parse error: %s", err)
 		return "", fmt.Errorf("parse getoption %s: %w", option, err)
 	}
 	if opt.Str != "" {
