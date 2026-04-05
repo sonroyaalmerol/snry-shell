@@ -2,19 +2,24 @@
 package osk
 
 import (
+	"log"
 	"os/exec"
+	"strings"
 
+	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/sonroyaalmerol/snry-shell/internal/bus"
 	"github.com/sonroyaalmerol/snry-shell/internal/layershell"
-	"github.com/sonroyaalmerol/snry-shell/internal/surfaceutil"
 )
 
 type OSK struct {
-	win    *gtk.ApplicationWindow
-	bus    *bus.Bus
-	shift  bool
-	caps   bool
+	win         *gtk.ApplicationWindow
+	bus         *bus.Bus
+	shift       bool
+	caps        bool
+	hasTouch    bool
+	manualOff   bool // user explicitly toggled off
+	visible     bool
 }
 
 func New(app *gtk.Application, b *bus.Bus) *OSK {
@@ -31,9 +36,59 @@ func New(app *gtk.Application, b *bus.Bus) *OSK {
 	osk.build()
 	win.SetVisible(false)
 
-	surfaceutil.AddToggleOn(b, win, "toggle-osk")
+	osk.hasTouch = detectTouchDevice()
+
+	// Manual toggle via quick settings or bus event.
+	b.Subscribe(bus.TopicSystemControls, func(e bus.Event) {
+		if e.Data == "toggle-osk" {
+			glib.IdleAdd(func() {
+				if osk.visible {
+					osk.manualOff = true
+					osk.hide()
+				} else {
+					osk.manualOff = false
+					osk.show()
+				}
+			})
+		}
+	})
+
+	// Auto-show on active window change when touch device is present.
+	if osk.hasTouch {
+		b.Subscribe(bus.TopicActiveWindow, func(e bus.Event) {
+			glib.IdleAdd(func() {
+				if !osk.manualOff && !osk.visible {
+					osk.show()
+				}
+			})
+		})
+		log.Printf("[OSK] touch device detected, auto-trigger enabled")
+	}
 
 	return osk
+}
+
+func (o *OSK) show() {
+	o.win.SetVisible(true)
+	o.visible = true
+}
+
+func (o *OSK) hide() {
+	o.win.SetVisible(false)
+	o.visible = false
+}
+
+// detectTouchDevice checks if a touch input device exists via libinput list.
+func detectTouchDevice() bool {
+	out, err := exec.Command("libinput", "list-devices").Output()
+	if err != nil {
+		out, err = exec.Command("hyprctl", "devices", "-j").Output()
+		if err != nil {
+			return false
+		}
+		return strings.Contains(string(out), "touch")
+	}
+	return strings.Contains(string(out), "touch")
 }
 
 type keyDef struct {

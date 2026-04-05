@@ -165,6 +165,14 @@ func NewQuickToggles(b *bus.Bus, refs *servicerefs.ServiceRefs) gtk.Widgetter {
 				go func() { _ = exec.Command("hyprpicker").Run() }()
 			},
 		},
+		{
+			icon:   "keyboard",
+			label:  "On-Screen Keyboard",
+			button: true,
+			toggle: func(_ bool) {
+				b.Publish(bus.TopicSystemControls, "toggle-osk")
+			},
+		},
 	}
 
 	for _, t := range toggles {
