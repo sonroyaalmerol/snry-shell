@@ -858,6 +858,8 @@ scale.m3-scale slider {
     font-size: 13px;
     font-weight: 500;
     color: @col_on_surface_variant;
+    white-space: normal;
+    word-break: break-word;
 }
 
 .quick-toggle:checked .quick-toggle-label {
