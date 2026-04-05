@@ -95,25 +95,27 @@ func New(app *gtk.Application, b *bus.Bus) *OSK {
 	// Auto-show/hide based on active window class heuristic.
 	b.Subscribe(bus.TopicActiveWindow, func(e bus.Event) {
 		if osk.manualOff {
+			log.Printf("[OSK] activewindow ignored (manualOff)")
 			return
 		}
 		win, ok := e.Data.(state.ActiveWindow)
 		if !ok {
+			log.Printf("[OSK] activewindow event: unexpected type %T", e.Data)
 			return
 		}
 		want := osk.hasTouch && isTextInputWindow(win.Class)
+		log.Printf("[OSK] activewindow: class=%q title=%q hasTouch=%v isText=%v want=%v visible=%v",
+			win.Class, win.Title, osk.hasTouch, isTextInputWindow(win.Class), want, osk.visible)
 		glib.IdleAdd(func() {
 			if want && !osk.visible {
+				log.Printf("[OSK] auto-showing for window class=%q", win.Class)
 				osk.show()
 			} else if !want && osk.visible {
+				log.Printf("[OSK] auto-hiding, window class=%q is not a text input window", win.Class)
 				osk.hide()
 			}
 		})
 	})
-
-	if osk.hasTouch {
-		log.Printf("[OSK] touch device detected, auto-trigger enabled")
-	}
 
 	return osk
 }
@@ -130,14 +132,35 @@ func (o *OSK) hide() {
 
 func detectTouchDevice() bool {
 	out, err := exec.Command("libinput", "list-devices").Output()
-	if err != nil {
-		out, err = exec.Command("hyprctl", "devices", "-j").Output()
-		if err != nil {
-			return false
-		}
-		return strings.Contains(string(out), "touch")
+	if err == nil {
+		found := strings.Contains(string(out), "touch")
+		log.Printf("[OSK] touch detect (libinput): %v", found)
+		return found
 	}
-	return strings.Contains(string(out), "touch")
+	log.Printf("[OSK] libinput not available, falling back to hyprctl")
+	out, err = exec.Command("hyprctl", "devices", "-j").Output()
+	if err != nil {
+		log.Printf("[OSK] hyprctl devices also failed: %v", err)
+		return false
+	}
+	// hyprctl -j always has a "touch" key even with zero devices.
+	// Check for non-empty content inside the touch array.
+	raw := string(out)
+	idx := strings.Index(raw, `"touch"`)
+	if idx < 0 {
+		log.Printf("[OSK] touch detect (hyprctl): no touch key in output")
+		return false
+	}
+	rest := raw[idx:]
+	// The touch array starts after ": [". If the next meaningful char after
+	// whitespace is "]", the array is empty.
+	after := ""
+	if i := strings.Index(rest, ": ["); i >= 0 {
+		after = strings.TrimLeft(rest[i+3:], " \t\r\n")
+	}
+	found := len(after) > 0 && after[0] != ']'
+	log.Printf("[OSK] touch detect (hyprctl): %v", found)
+	return found
 }
 
 // isTextInputWindow returns true if the window class looks like an app that
