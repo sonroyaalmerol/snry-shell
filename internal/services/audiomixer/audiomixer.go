@@ -1,8 +1,10 @@
 package audiomixer
 
 import (
+	"bufio"
 	"context"
 	"fmt"
+	"log"
 	"strconv"
 	"strings"
 	"time"
@@ -13,20 +15,55 @@ import (
 )
 
 type Service struct {
-	runner runner.Runner
-	bus    *bus.Bus
+	runner   runner.Runner
+	streamer runner.StreamReader
+	bus      *bus.Bus
 }
 
-func New(r runner.Runner, b *bus.Bus) *Service {
-	return &Service{runner: r, bus: b}
+func New(r runner.Runner, sr runner.StreamReader, b *bus.Bus) *Service {
+	return &Service{runner: r, streamer: sr, bus: b}
 }
 
 func NewWithDefaults(b *bus.Bus) *Service {
-	return New(runner.New(), b)
+	return New(runner.New(), runner.NewStreamReader(), b)
 }
 
 func (s *Service) Run(ctx context.Context) error {
-	return runner.PollLoop(ctx, 2*time.Second, s.publish)
+	s.publish()
+
+	rc, err := s.streamer.Stream("pactl", "subscribe")
+	if err != nil {
+		log.Printf("[audiomixer] pactl subscribe unavailable, falling back to polling: %v", err)
+		return runner.PollLoop(ctx, 2*time.Second, s.publish)
+	}
+	defer rc.Close()
+
+	sc := bufio.NewScanner(rc)
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
+		if !sc.Scan() {
+			if err := sc.Err(); err != nil {
+				return err
+			}
+			return nil
+		}
+		line := sc.Text()
+		if !strings.Contains(line, "sink-input") || !strings.Contains(line, "change") {
+			continue
+		}
+		time.Sleep(50 * time.Millisecond)
+		for sc.Scan() {
+			next := sc.Text()
+			if !strings.Contains(next, "sink-input") || !strings.Contains(next, "change") {
+				break
+			}
+		}
+		s.publish()
+	}
 }
 
 func (s *Service) publish() {
