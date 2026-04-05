@@ -44,6 +44,14 @@ func NewWiFiWidget(b *bus.Bus, refs *servicerefs.ServiceRefs) gtk.Widgetter {
 	revealer.SetRevealChild(true)
 	revealer.SetChild(listBox)
 
+	// Section header.
+	sectionHeader := gtkutil.SectionHeader("Available networks", 0, revealer, func() {
+		if refs.Network != nil {
+			go refs.Network.ScanWiFi()
+		}
+	})
+	box.Append(sectionHeader)
+
 	box.Append(revealer)
 
 	// Scan button.
@@ -57,14 +65,6 @@ func NewWiFiWidget(b *bus.Bus, refs *servicerefs.ServiceRefs) gtk.Widgetter {
 	scanBtnWrapper.SetHAlign(gtk.AlignEnd)
 	scanBtnWrapper.Append(scanBtn)
 	box.Append(scanBtnWrapper)
-
-	// Section header.
-	sectionHeader := gtkutil.SectionHeader("Available networks", 0, revealer, func() {
-		if refs.Network != nil {
-			go refs.Network.ScanWiFi()
-		}
-	})
-	box.Append(sectionHeader)
 
 	// Switch toggles WiFi on/off.
 	if refs.Network != nil {
