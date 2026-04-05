@@ -49,17 +49,11 @@ func barSeparator() gtk.Widgetter {
 	return sep
 }
 
-// newIndicatorPill creates the grouped indicator pill (notifications, wifi, bluetooth).
-func newIndicatorPill(b *bus.Bus, refs *servicerefs.ServiceRefs) gtk.Widgetter {
-	box := gtk.NewBox(gtk.OrientationHorizontal, 0)
-	box.AddCSSClass("indicator-pill")
-	box.SetVAlign(gtk.AlignCenter)
-
-	// Notification count.
+// newNotificationIcon returns a single notification icon with unread badge.
+func newNotificationIcon(b *bus.Bus) gtk.Widgetter {
 	var count atomic.Int32
-	notiIcon := gtkutil.MaterialIcon("notifications")
-	notiIcon.AddCSSClass("indicator-icon")
-	box.Append(notiIcon)
+	icon := gtkutil.MaterialIcon("notifications")
+	icon.AddCSSClass("indicator-icon")
 
 	b.Subscribe(bus.TopicNotification, func(e bus.Event) {
 		if e.Data == nil {
@@ -73,34 +67,38 @@ func newIndicatorPill(b *bus.Bus, refs *servicerefs.ServiceRefs) gtk.Widgetter {
 				if c > 99 {
 					c = 99
 				}
-				notiIcon.SetText(fmt.Sprintf("notifications_active (%d)", c))
+				icon.SetText(fmt.Sprintf("notifications_active (%d)", c))
 			} else {
-				notiIcon.SetText("notifications")
+				icon.SetText("notifications")
 			}
 		})
 	})
+	return icon
+}
 
-	// Network icon.
-	netIcon := gtkutil.MaterialIcon("wifi_off")
-	netIcon.AddCSSClass("indicator-icon")
-	box.Append(netIcon)
+// newWifiIcon returns a single wifi status icon.
+func newWifiIcon(b *bus.Bus) gtk.Widgetter {
+	icon := gtkutil.MaterialIcon("wifi_off")
+	icon.AddCSSClass("indicator-icon")
 
 	b.Subscribe(bus.TopicNetwork, func(e bus.Event) {
 		ns := e.Data.(state.NetworkState)
 		glib.IdleAdd(func() {
 			if ns.Connected {
-				netIcon.SetText("wifi")
+				icon.SetText("wifi")
 			} else {
-				netIcon.SetText("wifi_off")
+				icon.SetText("wifi_off")
 			}
 		})
 	})
+	return icon
+}
 
-	// Bluetooth icon.
-	btIcon := gtkutil.MaterialIcon("bluetooth_disabled")
-	btIcon.AddCSSClass("indicator-icon")
-	btIcon.SetVisible(refs.Bluetooth != nil)
-	box.Append(btIcon)
+// newBluetoothIcon returns a single bluetooth status icon.
+func newBluetoothIcon(b *bus.Bus, refs *servicerefs.ServiceRefs) gtk.Widgetter {
+	icon := gtkutil.MaterialIcon("bluetooth_disabled")
+	icon.AddCSSClass("indicator-icon")
+	icon.SetVisible(refs.Bluetooth != nil)
 
 	b.Subscribe(bus.TopicBluetooth, func(e bus.Event) {
 		bs, ok := e.Data.(state.BluetoothState)
@@ -110,17 +108,16 @@ func newIndicatorPill(b *bus.Bus, refs *servicerefs.ServiceRefs) gtk.Widgetter {
 		glib.IdleAdd(func() {
 			if bs.Powered {
 				if bs.Connected {
-					btIcon.SetText("bluetooth_connected")
+					icon.SetText("bluetooth_connected")
 				} else {
-					btIcon.SetText("bluetooth")
+					icon.SetText("bluetooth")
 				}
 			} else {
-				btIcon.SetText("bluetooth_disabled")
+				icon.SetText("bluetooth_disabled")
 			}
 		})
 	})
-
-	return box
+	return icon
 }
 
 // newStatusWidgetGroup returns the grouped status indicators (resources, volume, brightness, battery, keyboard).

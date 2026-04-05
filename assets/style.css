@@ -306,23 +306,12 @@ scale.m3-scale slider {
     color: @col_on_surface;
 }
 
-/* ── Indicator pill (right zone) ─────────────────────────────────────────────── */
-
-.indicator-pill {
-    background-color: @col_surface_container;
-    border-radius: var(--radius-pill);
-    padding: 2px 10px;
-    transition: background-color var(--duration-short3) var(--ease-standard-decel);
-}
-
-.indicator-pill:hover {
-    background-color: alpha(@col_surface_container_high, 0.7);
-}
+/* ── Individual indicator icons (right zone) ──────────────────────────────────── */
 
 .indicator-icon {
     font-size: 19px;
     color: @col_on_surface;
-    padding: 0 6px;
+    padding: 0 4px;
 }
 
 /* Status values inside bar groups */

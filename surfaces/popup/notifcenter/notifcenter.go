@@ -12,11 +12,10 @@ import (
 
 const (
 	panelMargin = 12
-	panelWidth  = 420
+	panelWidth  = 360
 )
 
-// NotifCenter is a unified popup showing quick settings, WiFi, Bluetooth,
-// notifications, media, and calendar.
+// NotifCenter is a popup showing notifications and media controls.
 type NotifCenter struct {
 	win     *gtk.ApplicationWindow
 	bus     *bus.Bus
@@ -30,8 +29,8 @@ func New(app *gtk.Application, b *bus.Bus, refs *servicerefs.ServiceRefs, trigge
 	win, _, root := surfaceutil.NewPopupPanel(app, b, surfaceutil.PopupPanelConfig{
 		Name:      "snry-notif-center",
 		Namespace: "snry-notif-center",
-		CloseOn:   []string{"toggle-controls", "toggle-overview", "toggle-calendar"},
-		Align:     gtk.AlignStart,
+		CloseOn:   []string{"toggle-controls", "toggle-wifi", "toggle-bluetooth", "toggle-calendar", "toggle-overview"},
+		Align:     gtk.AlignEnd,
 	})
 
 	nc := &NotifCenter{win: win, bus: b, refs: refs, trigger: trigger, root: root}
@@ -49,12 +48,9 @@ func New(app *gtk.Application, b *bus.Bus, refs *servicerefs.ServiceRefs, trigge
 	scroll.SetPropagateNaturalHeight(true)
 
 	content := gtk.NewBox(gtk.OrientationVertical, 8)
-	content.Append(widgets.NewQuickToggles(nc.bus, refs))
-	content.Append(widgets.NewWiFiWidget(nc.bus, refs, nc.win))
-	content.Append(widgets.NewBluetoothWidget(nc.bus, refs, nc.win))
-	content.Append(gtkutil.M3Divider())
 	content.Append(widgets.NewNotificationList(nc.bus))
-	content.Append(widgets.BuildMediaGroup(nc.bus, refs.Mpris))
+	content.Append(gtkutil.M3Divider())
+	content.Append(widgets.BuildMediaGroup(nc.bus, nc.refs.Mpris))
 
 	scroll.SetChild(content)
 	panel.Append(scroll)
@@ -74,9 +70,6 @@ func (nc *NotifCenter) Toggle() {
 		nc.win.SetVisible(false)
 	} else {
 		surfaceutil.PositionUnderTrigger(nc.root, nc.trigger, panelWidth, panelMargin)
-		if nc.refs.Network != nil {
-			go nc.refs.Network.ScanWiFi()
-		}
 		nc.win.SetVisible(true)
 	}
 }

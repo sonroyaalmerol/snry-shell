@@ -10,11 +10,13 @@ import (
 
 // Bar is the top-edge status bar surface.
 type Bar struct {
-	win         *gtk.ApplicationWindow
-	bus         *bus.Bus
-	StatusGroup gtk.Widgetter
-	NotifPill   gtk.Widgetter
-	ClockGroup  gtk.Widgetter
+	win          *gtk.ApplicationWindow
+	bus          *bus.Bus
+	StatusGroup  gtk.Widgetter
+	NotifTrigger gtk.Widgetter
+	WifiTrigger  gtk.Widgetter
+	BtTrigger    gtk.Widgetter
+	ClockGroup   gtk.Widgetter
 }
 
 // New creates and shows the bar window.
@@ -69,18 +71,26 @@ func newClockGroup(b *bus.Bus) gtk.Widgetter {
 	return box
 }
 
-// Right: indicator pill + system tray + clock.
+// Right: individual indicator icons + system tray + clock.
 func (b *Bar) buildRight(refs *servicerefs.ServiceRefs) gtk.Widgetter {
 	box := gtk.NewBox(gtk.OrientationHorizontal, 6)
 	box.SetVAlign(gtk.AlignCenter)
 
-	pillBox := clickableBarGroup(newIndicatorPill(b.bus, refs), b.bus, "toggle-notif-center")
-	b.NotifPill = pillBox
+	notif := clickableBarGroup(newNotificationIcon(b.bus), b.bus, "toggle-notif-center")
+	b.NotifTrigger = notif
+
+	wifi := clickableBarGroup(newWifiIcon(b.bus), b.bus, "toggle-wifi")
+	b.WifiTrigger = wifi
+
+	bt := clickableBarGroup(newBluetoothIcon(b.bus, refs), b.bus, "toggle-bluetooth")
+	b.BtTrigger = bt
 
 	clockGroup := clickableBarGroup(newClockGroup(b.bus), b.bus, "toggle-calendar")
 	b.ClockGroup = clockGroup
 
-	box.Append(pillBox)
+	box.Append(notif)
+	box.Append(wifi)
+	box.Append(bt)
 	box.Append(newTrayWidget(b.bus))
 	box.Append(barSeparator())
 	box.Append(clockGroup)

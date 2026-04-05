@@ -1,4 +1,4 @@
-package controls
+package bluetooth
 
 import (
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
@@ -11,27 +11,28 @@ import (
 
 const (
 	panelMargin = 12
-	panelWidth  = 350
+	panelWidth  = 360
 )
 
-// Controls is a popup dialog showing volume and brightness controls.
-type Controls struct {
+// Bluetooth is a popup showing the Bluetooth device picker.
+type Bluetooth struct {
 	win     *gtk.ApplicationWindow
 	bus     *bus.Bus
+	refs    *servicerefs.ServiceRefs
 	trigger gtk.Widgetter
 	root    *gtk.Box
 }
 
-// New creates and hides the controls popup anchored to the given trigger widget.
-func New(app *gtk.Application, b *bus.Bus, refs *servicerefs.ServiceRefs, trigger gtk.Widgetter) *Controls {
+// New creates and hides the Bluetooth popup anchored to the given trigger widget.
+func New(app *gtk.Application, b *bus.Bus, refs *servicerefs.ServiceRefs, trigger gtk.Widgetter) *Bluetooth {
 	win, _, root := surfaceutil.NewPopupPanel(app, b, surfaceutil.PopupPanelConfig{
-		Name:      "snry-controls",
-		Namespace: "snry-controls",
-		CloseOn:   []string{"toggle-notif-center", "toggle-wifi", "toggle-bluetooth", "toggle-calendar", "toggle-overview"},
-		Align:     gtk.AlignStart,
+		Name:      "snry-bluetooth",
+		Namespace: "snry-bluetooth",
+		CloseOn:   []string{"toggle-controls", "toggle-notif-center", "toggle-wifi", "toggle-calendar", "toggle-overview"},
+		Align:     gtk.AlignEnd,
 	})
 
-	c := &Controls{win: win, bus: b, trigger: trigger, root: root}
+	bt := &Bluetooth{win: win, bus: b, refs: refs, trigger: trigger, root: root}
 
 	panel := gtk.NewBox(gtk.OrientationVertical, 8)
 	panel.AddCSSClass("popup-panel")
@@ -45,24 +46,24 @@ func New(app *gtk.Application, b *bus.Bus, refs *servicerefs.ServiceRefs, trigge
 	scroll.SetMaxContentHeight(500)
 	scroll.SetPropagateNaturalHeight(true)
 
-	scroll.SetChild(widgets.BuildQuickControls(c.bus, refs))
+	scroll.SetChild(widgets.NewBluetoothWidget(bt.bus, refs, bt.win))
 	panel.Append(scroll)
 	root.Append(panel)
 
 	b.Subscribe(bus.TopicSystemControls, func(e bus.Event) {
-		if e.Data == "toggle-controls" {
-			glib.IdleAdd(func() { c.Toggle() })
+		if e.Data == "toggle-bluetooth" {
+			glib.IdleAdd(func() { bt.Toggle() })
 		}
 	})
 
-	return c
+	return bt
 }
 
-func (c *Controls) Toggle() {
-	if c.win.Visible() {
-		c.win.SetVisible(false)
+func (bt *Bluetooth) Toggle() {
+	if bt.win.Visible() {
+		bt.win.SetVisible(false)
 	} else {
-		surfaceutil.PositionUnderTrigger(c.root, c.trigger, panelWidth, panelMargin)
-		c.win.SetVisible(true)
+		surfaceutil.PositionUnderTrigger(bt.root, bt.trigger, panelWidth, panelMargin)
+		bt.win.SetVisible(true)
 	}
 }
