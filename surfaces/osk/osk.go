@@ -2,7 +2,6 @@
 package osk
 
 import (
-	"io"
 	"log"
 	"os/exec"
 	"strings"
@@ -13,6 +12,7 @@ import (
 	"github.com/sonroyaalmerol/snry-shell/internal/bus"
 	"github.com/sonroyaalmerol/snry-shell/internal/layershell"
 	"github.com/sonroyaalmerol/snry-shell/internal/state"
+	"github.com/sonroyaalmerol/snry-shell/internal/uinput"
 )
 
 // textInputClasses lists window classes (case-insensitive substring match)
@@ -38,55 +38,10 @@ var textInputClasses = []string{
 	"spotify", "firefox-esr",
 }
 
-// wtypeBridge manages a persistent wtype child process for fast character input.
-// Instead of spawning a new wtype process per keystroke (~20-50ms), characters
-// are written to the running process's stdin (~1ms). Special keys (BackSpace,
-// arrows) still use separate wtype invocations since stdin mode only handles text.
-type wtypeBridge struct {
-	cmd   *exec.Cmd
-	stdin io.WriteCloser
-	mu    sync.Mutex
-}
-
-func newWtypeBridge() (*wtypeBridge, error) {
-	cmd := exec.Command("wtype", "-d", "0", "-")
-	stdin, err := cmd.StdinPipe()
-	if err != nil {
-		return nil, err
-	}
-	if err := cmd.Start(); err != nil {
-		return nil, err
-	}
-	return &wtypeBridge{cmd: cmd, stdin: stdin}, nil
-}
-
-// typeChar writes a character to the persistent wtype stdin. The null byte
-// followed by newline is needed because wtype uses fgets internally — fgets
-// reads until '\n', and strlen stops at '\0', so wtype only processes the
-// character without interpreting the newline as Enter.
-func (w *wtypeBridge) typeChar(ch string) {
-	w.mu.Lock()
-	w.stdin.Write([]byte(ch + "\x00\n"))
-	w.mu.Unlock()
-}
-
-// typeKey runs a separate wtype process for special keys or modifier combos.
-// Slower than typeChar but only used for infrequent special keys.
-func (w *wtypeBridge) typeKey(args ...string) {
-	go func() { _ = exec.Command("wtype", args...).Run() }()
-}
-
-func (w *wtypeBridge) close() {
-	w.mu.Lock()
-	w.stdin.Close()
-	w.mu.Unlock()
-	w.cmd.Wait()
-}
-
 type OSK struct {
 	win       *gtk.ApplicationWindow
 	bus       *bus.Bus
-	wtype     *wtypeBridge
+	ui        *uinput.Bridge // direct socket to ydotoold (zero overhead)
 	shift     bool
 	caps      bool
 	ctrlL     bool
@@ -119,12 +74,12 @@ func New(app *gtk.Application, b *bus.Bus) *OSK {
 
 	osk := &OSK{win: win, bus: b, modBtns: make(map[string]*gtk.Button)}
 
-	// Start persistent wtype process for fast character input.
-	wb, err := newWtypeBridge()
+	// Connect to ydotool daemon socket for zero-overhead key input.
+	ui, err := uinput.New()
 	if err != nil {
-		log.Printf("[OSK] warning: wtype persistent process failed to start: %v, falling back to per-key processes", err)
+		log.Printf("[OSK] warning: ydotool daemon not available (%v), falling back to wtype", err)
 	}
-	osk.wtype = wb
+	osk.ui = ui
 
 	osk.build()
 	win.SetVisible(false)
@@ -410,12 +365,9 @@ func (o *OSK) typeKey(d keyDef, kb *keyButton) {
 
 	if d.key != "" {
 		// Special key (BackSpace, Tab, Return, arrows, Escape).
-		// Use separate wtype process (infrequent, overhead acceptable).
-		args := o.modArgs()
-		args = append(args, "-k", d.key)
+		o.ui.TypeKey(d.key, o.ctrlL, o.altL, o.shift)
 		o.releaseAllModsLocked()
 		o.mu.Unlock()
-		o.wtype.typeKey(args...)
 		return
 	}
 
@@ -424,27 +376,12 @@ func (o *OSK) typeKey(d keyDef, kb *keyButton) {
 		return
 	}
 
-	// Regular character — resolve via shift/caps state and send to persistent
-	// wtype stdin. wtype handles shift internally when we send "A" vs "a".
+	// Regular character — resolve via shift/caps state.
 	ch := o.activeChar(kb)
 	o.releaseAllModsLocked()
 	o.mu.Unlock()
 
-	o.wtype.typeChar(ch)
-}
-
-func (o *OSK) modArgs() []string {
-	var args []string
-	if o.ctrlL {
-		args = append(args, "-M", "ctrl")
-	}
-	if o.altL {
-		args = append(args, "-M", "alt")
-	}
-	if o.shift {
-		args = append(args, "-M", "shift")
-	}
-	return args
+	o.ui.TypeChar(ch, o.ctrlL, o.altL)
 }
 
 func (o *OSK) activeChar(kb *keyButton) string {
