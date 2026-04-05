@@ -208,6 +208,7 @@ func NewQuickToggles(b *bus.Bus, refs *servicerefs.ServiceRefs) gtk.Widgetter {
 			btn.AddCSSClass("quick-toggle")
 			btn.AddCSSClass("quick-toggle-button")
 			btn.SetChild(inner)
+			btn.SetHExpand(true)
 			btn.ConnectClicked(func() {
 				toggle.toggle(true)
 			})
@@ -217,6 +218,7 @@ func NewQuickToggles(b *bus.Bus, refs *servicerefs.ServiceRefs) gtk.Widgetter {
 			btn.SetCursorFromName("pointer")
 			btn.AddCSSClass("quick-toggle")
 			btn.SetChild(inner)
+			btn.SetHExpand(true)
 
 			settingState := false
 			btn.ConnectToggled(func() {

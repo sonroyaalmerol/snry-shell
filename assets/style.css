@@ -825,6 +825,10 @@ scale.m3-scale slider {
     padding: 8px;
 }
 
+.quick-toggles-grid > button {
+    min-width: 0;
+}
+
 .quick-toggle {
     background-color: alpha(@col_on_surface, var(--state-hover));
     border-radius: var(--radius-md);
