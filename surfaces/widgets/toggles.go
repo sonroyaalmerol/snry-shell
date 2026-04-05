@@ -12,9 +12,9 @@ import (
 )
 
 const (
-	quickToggleCols  = 2
-	quickToggleRowH  = 44
-	quickToggleGap   = 8
+	quickToggleCols = 2
+	quickToggleRowH = 44
+	quickToggleGap  = 8
 )
 
 // NewQuickToggles creates the quick toggle grid using ConstraintLayout
@@ -30,6 +30,9 @@ func NewQuickToggles(b *bus.Bus, refs *servicerefs.ServiceRefs, panelWidth int) 
 	box.Append(label)
 
 	layout := gtk.NewConstraintLayout()
+	root := gtk.NewBox(gtk.OrientationHorizontal, 0)
+	root.SetLayoutManager(layout)
+	root.AddCSSClass("quick-toggles-grid")
 
 	type toggleDef struct {
 		icon     string
@@ -106,9 +109,9 @@ func NewQuickToggles(b *bus.Bus, refs *servicerefs.ServiceRefs, panelWidth int) 
 	}
 
 	type btnEntry struct {
-		btn  gtk.Widgetter
-		def  toggleDef
-		isPB bool // is push button (vs toggle)
+		btn gtk.Widgetter
+		def toggleDef
+		isPB bool
 	}
 	var btns []btnEntry
 
@@ -186,33 +189,31 @@ func NewQuickToggles(b *bus.Bus, refs *servicerefs.ServiceRefs, panelWidth int) 
 		}
 	}
 
-	// Place buttons into the constraint layout with equal-width columns.
+	// Add buttons as children and place them into the constraint layout.
 	strength := int(gtk.ConstraintStrengthRequired)
-	colWidth := float64(panelWidth - quickToggleGap*(quickToggleCols-1)) / float64(quickToggleCols)
+	colWidth := float64(panelWidth-quickToggleGap*(quickToggleCols-1)) / float64(quickToggleCols)
 
 	var firstTarget gtk.ConstraintTargetter
 	for i, entry := range btns {
+		root.Append(entry.btn)
+
 		w := surfaceutil.AsWidget(entry.btn)
 		target := &w.ConstraintTarget
 		col := i % quickToggleCols
 		row := i / quickToggleCols
 
-		// Fixed width = colWidth for all buttons.
 		layout.AddConstraint(gtk.NewConstraintConstant(
 			target, gtk.ConstraintAttributeWidth, gtk.ConstraintRelationEq,
 			colWidth, strength))
 
-		// Position: left = col * (colWidth + gap).
 		layout.AddConstraint(gtk.NewConstraintConstant(
 			target, gtk.ConstraintAttributeLeft, gtk.ConstraintRelationEq,
 			float64(col)*(colWidth+float64(quickToggleGap)), strength))
 
-		// Position: top = row * (rowHeight + gap).
 		layout.AddConstraint(gtk.NewConstraintConstant(
 			target, gtk.ConstraintAttributeTop, gtk.ConstraintRelationEq,
 			float64(row)*(float64(quickToggleRowH)+float64(quickToggleGap)), strength))
 
-		// Fixed height.
 		layout.AddConstraint(gtk.NewConstraintConstant(
 			target, gtk.ConstraintAttributeHeight, gtk.ConstraintRelationEq,
 			float64(quickToggleRowH), strength))
@@ -220,7 +221,6 @@ func NewQuickToggles(b *bus.Bus, refs *servicerefs.ServiceRefs, panelWidth int) 
 		if firstTarget == nil {
 			firstTarget = target
 		} else {
-			// Equal width: this button's width == first button's width.
 			layout.AddConstraint(gtk.NewConstraint(
 				target, gtk.ConstraintAttributeWidth, gtk.ConstraintRelationEq,
 				firstTarget, gtk.ConstraintAttributeWidth,
@@ -228,19 +228,15 @@ func NewQuickToggles(b *bus.Bus, refs *servicerefs.ServiceRefs, panelWidth int) 
 		}
 	}
 
-	// Set the overall grid height so the parent knows our size.
+	// Set the overall grid height so the parent sizes correctly.
 	numRows := (len(btns) + quickToggleCols - 1) / quickToggleCols
 	totalH := numRows*quickToggleRowH + (numRows-1)*quickToggleGap
-	gridH := float64(totalH)
+	gridH := totalH
 	if gridH < 0 {
 		gridH = 0
 	}
+	root.SetSizeRequest(panelWidth, gridH)
 
-	root := gtk.NewBox(gtk.OrientationHorizontal, 0)
-	root.SetLayoutManager(layout)
-	root.SetSizeRequest(panelWidth, int(gridH))
-	root.AddCSSClass("quick-toggles-grid")
 	box.Append(root)
-
 	return box
 }
