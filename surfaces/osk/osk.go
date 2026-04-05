@@ -226,10 +226,13 @@ func (o *OSK) build() {
 	closeLabel.AddCSSClass("osk-key-label")
 	closeLabel.AddCSSClass("material-icon")
 	closeBtn.SetChild(closeLabel)
-	closeBtn.ConnectClicked(func() {
+	closeGesture := gtk.NewGestureClick()
+	closeGesture.ConnectPressed(func(int, float64, float64) {
+		closeGesture.SetState(gtk.EventSequenceClaimed)
 		o.manualOff = true
 		o.hide()
 	})
+	closeBtn.AddController(closeGesture)
 	topRow.Append(closeBtn)
 	root.Append(topRow)
 
@@ -333,27 +336,42 @@ func (o *OSK) buildRow(parent *gtk.Box, defs []keyDef) {
 		label.AddCSSClass("osk-key-label")
 		btn.SetChild(label)
 
+		// Use GestureClick on capture phase so the key fires immediately
+		// on touch-down. ConnectClicked waits for full gesture recognition
+		// (press + release) which intermittently drops touch events.
+		gesture := gtk.NewGestureClick()
+		gesture.ConnectPressed(func(int, float64, float64) {
+			gesture.SetState(gtk.EventSequenceClaimed)
+		})
+
 		switch {
 		case d.action == "shift":
 			o.shiftBtns = append(o.shiftBtns, btn)
-			btn.ConnectClicked(func() { o.toggleShift() })
+			gesture.ConnectReleased(func(int, float64, float64) {
+				o.toggleShift()
+			})
 		case d.action == "caps":
 			o.capsBtn = btn
-			btn.ConnectClicked(func() { o.toggleCaps() })
+			gesture.ConnectReleased(func(int, float64, float64) {
+				o.toggleCaps()
+			})
 		case d.mod != "":
 			mod := d.mod
 			o.modBtns[mod] = btn
-			btn.ConnectClicked(func() { o.toggleMod(mod) })
+			gesture.ConnectReleased(func(int, float64, float64) {
+				o.toggleMod(mod)
+			})
 		default:
 			kb := &keyButton{btn: btn, label: label, normal: d.normal, shifted: d.shifted}
 			if d.normal != "" || d.shifted != "" {
 				o.keys = append(o.keys, kb)
 			}
-			btn.ConnectClicked(func() {
+			gesture.ConnectReleased(func(int, float64, float64) {
 				o.typeKey(d, kb)
 			})
 		}
 
+		btn.AddController(gesture)
 		box.Append(btn)
 	}
 
