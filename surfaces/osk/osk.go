@@ -223,7 +223,6 @@ func (o *OSK) build() {
 	topRow.Append(spacer)
 
 	closeBtn := gtk.NewButton()
-	closeBtn.SetCursorFromName("pointer")
 	closeBtn.AddCSSClass("osk-key-close")
 	closeLabel := gtk.NewLabel("close")
 	closeLabel.AddCSSClass("osk-key-label")
@@ -328,7 +327,6 @@ func (o *OSK) buildRow(parent *gtk.Box, defs []keyDef) {
 
 	for _, d := range defs {
 		btn := gtk.NewButton()
-		btn.SetCursorFromName("pointer")
 		btn.AddCSSClass("osk-key")
 		if d.class != "" {
 			btn.AddCSSClass(d.class)
@@ -384,25 +382,26 @@ func (o *OSK) setupRepeatKey(btn *gtk.Button, d keyDef) {
 
 func (o *OSK) typeKey(d keyDef, kb *keyButton) {
 	o.mu.Lock()
-	defer o.mu.Unlock()
-
 	args := o.modArgs()
 	if d.key != "" {
 		args = append(args, "-k", d.key)
 	} else if kb != nil {
 		args = append(args, o.activeChar(kb))
 	}
+	// Release all held modifiers under lock, before running wtype.
+	o.releaseAllModsLocked()
+	o.mu.Unlock()
 
 	if len(args) == 0 {
 		return
 	}
 
-	// Run synchronously — wtype is fast (sub-ms) and sequential execution
-	// avoids race conditions with modifier state.
-	_ = exec.Command("wtype", args...).Run()
-
-	// After typing a non-modifier key, release all held modifiers.
-	o.releaseAllModsLocked()
+	// Run wtype asynchronously — it creates its own virtual keyboard
+	// per invocation so concurrent calls are safe. Running async prevents
+	// the UI from blocking if wtype is slow to connect to the Wayland display.
+	go func() {
+		_ = exec.Command("wtype", args...).Run()
+	}()
 }
 
 // modArgs builds the wtype modifier-hold flags for currently active modifiers.

@@ -1367,10 +1367,6 @@ scale.mixer-slider slider {
     min-width: 46px;
 }
 
-.osk-key:hover {
-    background-color: @col_surface_container_high;
-}
-
 .osk-key:active {
     background-color: @col_primary_container;
     color: @col_on_primary_container;
@@ -1387,10 +1383,6 @@ scale.mixer-slider slider {
     min-width: 36px;
     min-height: 36px;
     border-radius: 50%;
-}
-
-.osk-key-close:hover {
-    background-color: alpha(@col_on_surface, 0.08);
 }
 
 .osk-key-label {
