@@ -41,21 +41,23 @@ func New(app *gtk.Application, b *bus.Bus, refs *servicerefs.ServiceRefs, trigge
 	panel.SetMarginStart(panelMargin)
 	panel.SetMarginEnd(panelMargin)
 	panel.SetSizeRequest(panelWidth, -1)
-	panel.AddCSSClass("popup-scrollable")
 
-	// Top: quick settings, WiFi, Bluetooth.
-	panel.Append(widgets.NewQuickToggles(nc.bus, refs))
-	panel.Append(widgets.NewWiFiWidget(nc.bus, refs, nc.win))
-	panel.Append(widgets.NewBluetoothWidget(nc.bus, refs, nc.win))
+	scroll := gtk.NewScrolledWindow()
+	scroll.SetPolicy(gtk.PolicyNever, gtk.PolicyAutomatic)
+	scroll.AddCSSClass("popup-scroll")
+	scroll.SetMaxContentHeight(800)
+	scroll.SetPropagateNaturalHeight(true)
 
-	// Separator.
-	sep := gtkutil.M3Divider()
-	panel.Append(sep)
+	content := gtk.NewBox(gtk.OrientationVertical, 8)
+	content.Append(widgets.NewQuickToggles(nc.bus, refs))
+	content.Append(widgets.NewWiFiWidget(nc.bus, refs, nc.win))
+	content.Append(widgets.NewBluetoothWidget(nc.bus, refs, nc.win))
+	content.Append(gtkutil.M3Divider())
+	content.Append(widgets.NewNotificationList(nc.bus))
+	content.Append(widgets.BuildMediaGroup(nc.bus, refs.Mpris))
 
-	// Middle: notifications, media, calendar.
-	panel.Append(widgets.NewNotificationList(nc.bus))
-	panel.Append(widgets.BuildMediaGroup(nc.bus, refs.Mpris))
-
+	scroll.SetChild(content)
+	panel.Append(scroll)
 	root.Append(panel)
 
 	b.Subscribe(bus.TopicSystemControls, func(e bus.Event) {
