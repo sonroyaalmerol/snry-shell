@@ -25,6 +25,35 @@ const (
 	roleDateEditor  = 27 // date entry
 )
 
+// getA11yBusAddr queries the session bus for the accessibility bus address.
+// If the bus isn't running yet, it attempts to auto-start it via DBus activation.
+func getA11yBusAddr(sess *dbus.Conn) (string, error) {
+	var busAddr string
+	err := sess.Object("org.a11y.Bus", "/org/a11y/Bus").
+		Call("org.a11y.Bus.GetAddress", 0).Store(&busAddr)
+	if err == nil {
+		return busAddr, nil
+	}
+
+	// Attempt to auto-start the a11y bus via DBus activation.
+	log.Printf("[ATSPI2] bus not running, attempting auto-start")
+	startErr := sess.Object("org.freedesktop.DBus", "/org/freedesktop/DBus").
+		Call("org.freedesktop.DBus.StartServiceByName", 0, "org.a11y.Bus").Store(nil)
+	if startErr != nil {
+		return "", err
+	}
+
+	// Retry after activation.
+	err = sess.Object("org.a11y.Bus", "/org/a11y/Bus").
+		Call("org.a11y.Bus.GetAddress", 0).Store(&busAddr)
+	if err != nil {
+		return "", err
+	}
+
+	log.Printf("[ATSPI2] a11y bus auto-started at %s", busAddr)
+	return busAddr, nil
+}
+
 var textRoles = map[uint32]bool{
 	roleEntry: true, rolePasswordText: true, roleTerminal: true,
 	roleText: true, roleSpinButton: true, roleParagraph: true,
@@ -51,9 +80,7 @@ func New(b *bus.Bus) (*Watcher, error) {
 	}
 	defer sess.Close()
 
-	var busAddr string
-	err = sess.Object("org.a11y.Bus", "/org/a11y/Bus").
-		Call("org.a11y.Bus.GetAddress", 0).Store(&busAddr)
+	busAddr, err := getA11yBusAddr(sess)
 	if err != nil {
 		log.Printf("[ATSPI2] cannot get a11y bus address: %v", err)
 		return nil, nil
