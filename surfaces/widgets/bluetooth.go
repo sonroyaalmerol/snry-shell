@@ -11,8 +11,8 @@ import (
 	"github.com/sonroyaalmerol/snry-shell/internal/state"
 )
 
-// NewBluetoothWidget creates an Android 16-style Bluetooth panel with toggle,
-// paired/available sections, and confirmation dialogs.
+// NewBluetoothWidget creates an Android 16-style Bluetooth panel with a
+// single flat device list and confirmation dialogs.
 func NewBluetoothWidget(b *bus.Bus, refs *servicerefs.ServiceRefs, parent *gtk.ApplicationWindow) gtk.Widgetter {
 	box := gtk.NewBox(gtk.OrientationVertical, 0)
 	box.AddCSSClass("conn-widget")
@@ -27,31 +27,19 @@ func NewBluetoothWidget(b *bus.Bus, refs *servicerefs.ServiceRefs, parent *gtk.A
 		}
 	}
 
-	// Available devices section.
-	availableListBox := gtk.NewBox(gtk.OrientationVertical, 0)
-	availableListBox.AddCSSClass("conn-list")
-	availableRevealer := gtk.NewRevealer()
-	availableRevealer.SetTransitionType(gtk.RevealerTransitionTypeSlideDown)
-	availableRevealer.SetTransitionDuration(250)
-	availableRevealer.SetRevealChild(true)
-	availableRevealer.SetChild(availableListBox)
+	// Single device list.
+	listBox := gtk.NewBox(gtk.OrientationVertical, 0)
+	listBox.AddCSSClass("conn-list")
 
-	availableHeader := gtkutil.SectionHeader("Available devices", 0, availableRevealer, rescan)
-	box.Append(availableHeader)
-	box.Append(availableRevealer)
+	revealer := gtk.NewRevealer()
+	revealer.SetTransitionType(gtk.RevealerTransitionTypeSlideDown)
+	revealer.SetTransitionDuration(250)
+	revealer.SetRevealChild(true)
+	revealer.SetChild(listBox)
 
-	// Paired devices section.
-	pairedListBox := gtk.NewBox(gtk.OrientationVertical, 0)
-	pairedListBox.AddCSSClass("conn-list")
-	pairedRevealer := gtk.NewRevealer()
-	pairedRevealer.SetTransitionType(gtk.RevealerTransitionTypeSlideDown)
-	pairedRevealer.SetTransitionDuration(250)
-	pairedRevealer.SetRevealChild(true)
-	pairedRevealer.SetChild(pairedListBox)
-
-	pairedHeader := gtkutil.SectionHeader("Paired devices", 0, pairedRevealer, nil)
-	box.Append(pairedHeader)
-	box.Append(pairedRevealer)
+	sectionHeader := gtkutil.SectionHeader("Devices", 0, revealer, rescan)
+	box.Append(sectionHeader)
+	box.Append(revealer)
 
 	// Scan button.
 	scanBtn := gtk.NewButton()
@@ -84,31 +72,44 @@ func NewBluetoothWidget(b *bus.Bus, refs *servicerefs.ServiceRefs, parent *gtk.A
 			return
 		}
 		glib.IdleAdd(func() {
-			gtkutil.ClearChildren(&pairedListBox.Widget, pairedListBox.Remove)
-			gtkutil.ClearChildren(&availableListBox.Widget, availableListBox.Remove)
+			gtkutil.ClearChildren(&listBox.Widget, listBox.Remove)
 
-			pairedCount := 0
-			availableCount := 0
+			// Sort: connected first, then paired, then available.
+			sorted := make([]state.BluetoothDevice, len(devices))
+			copy(sorted, devices)
+			sortDevices(sorted)
 
-			for _, dev := range devices {
-				if dev.Paired {
-					pairedCount++
-					row := newBTDeviceRow(parent, refs, dev, rescan)
-					pairedListBox.Append(row)
-				} else {
-					availableCount++
-					row := newBTDeviceRow(parent, refs, dev, rescan)
-					availableListBox.Append(row)
-				}
+			for _, dev := range sorted {
+				row := newBTDeviceRow(parent, refs, dev, rescan)
+				listBox.Append(row)
 			}
 
-			gtkutil.UpdateSectionHeader(pairedHeader, pairedCount)
-			gtkutil.UpdateSectionHeader(availableHeader, availableCount)
+			gtkutil.UpdateSectionHeader(sectionHeader, len(devices))
 			restoreScanBtn()
 		})
 	})
 
 	return box
+}
+
+func sortDevices(devices []state.BluetoothDevice) {
+	for i := 0; i < len(devices); i++ {
+		for j := i + 1; j < len(devices); j++ {
+			if deviceRank(devices[j]) < deviceRank(devices[i]) {
+				devices[i], devices[j] = devices[j], devices[i]
+			}
+		}
+	}
+}
+
+func deviceRank(d state.BluetoothDevice) int {
+	if d.Connected {
+		return 0
+	}
+	if d.Paired {
+		return 1
+	}
+	return 2
 }
 
 func newBTDeviceRow(parent *gtk.ApplicationWindow, refs *servicerefs.ServiceRefs, dev state.BluetoothDevice, rescan func()) gtk.Widgetter {
