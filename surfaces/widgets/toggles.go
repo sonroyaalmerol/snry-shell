@@ -11,7 +11,9 @@ import (
 	"github.com/sonroyaalmerol/snry-shell/internal/state"
 )
 
-// newQuickToggles creates the Android-style quick toggle grid.
+const quickToggleCols = 2
+
+// NewQuickToggles creates the quick toggle grid.
 func NewQuickToggles(b *bus.Bus, refs *servicerefs.ServiceRefs) gtk.Widgetter {
 	box := gtk.NewBox(gtk.OrientationVertical, 8)
 	box.AddCSSClass("quick-toggles")
@@ -21,12 +23,11 @@ func NewQuickToggles(b *bus.Bus, refs *servicerefs.ServiceRefs) gtk.Widgetter {
 	label.SetHAlign(gtk.AlignStart)
 	box.Append(label)
 
-	grid := gtk.NewFlowBox()
+	grid := gtk.NewGrid()
 	grid.AddCSSClass("quick-toggles-grid")
 	grid.SetColumnSpacing(8)
 	grid.SetRowSpacing(8)
-	grid.SetMaxChildrenPerLine(4)
-	grid.SetSelectionMode(gtk.SelectionNone)
+	grid.SetHExpand(true)
 
 	type toggleDef struct {
 		icon     string
@@ -175,6 +176,8 @@ func NewQuickToggles(b *bus.Bus, refs *servicerefs.ServiceRefs) gtk.Widgetter {
 		},
 	}
 
+	col := 0
+	row := 0
 	for _, t := range toggles {
 		// Skip toggles whose external dependency is not installed.
 		if t.requires != "" && !binInPath(t.requires) {
@@ -182,8 +185,8 @@ func NewQuickToggles(b *bus.Bus, refs *servicerefs.ServiceRefs) gtk.Widgetter {
 		}
 		toggle := t
 
-		inner := gtk.NewBox(gtk.OrientationVertical, 2)
-		inner.SetHAlign(gtk.AlignCenter)
+		inner := gtk.NewBox(gtk.OrientationHorizontal, 8)
+		inner.SetHAlign(gtk.AlignFill)
 
 		icon := gtk.NewLabel(toggle.icon)
 		icon.AddCSSClass("material-icon")
@@ -191,12 +194,15 @@ func NewQuickToggles(b *bus.Bus, refs *servicerefs.ServiceRefs) gtk.Widgetter {
 
 		lbl := gtk.NewLabel(toggle.label)
 		lbl.AddCSSClass("quick-toggle-label")
+		lbl.SetHExpand(true)
+		lbl.SetHAlign(gtk.AlignStart)
+		lbl.SetVAlign(gtk.AlignCenter)
+		lbl.SetXAlign(0)
 
 		inner.Append(icon)
 		inner.Append(lbl)
 
 		if toggle.button {
-			// One-shot action button (no toggle state).
 			btn := gtk.NewButton()
 			btn.SetCursorFromName("pointer")
 			btn.AddCSSClass("quick-toggle")
@@ -205,55 +211,57 @@ func NewQuickToggles(b *bus.Bus, refs *servicerefs.ServiceRefs) gtk.Widgetter {
 			btn.ConnectClicked(func() {
 				toggle.toggle(true)
 			})
-			grid.Append(btn)
-			continue
-		}
+			grid.Attach(btn, col, row, 1, 1)
+		} else {
+			btn := gtk.NewToggleButton()
+			btn.SetCursorFromName("pointer")
+			btn.AddCSSClass("quick-toggle")
+			btn.SetChild(inner)
 
-		btn := gtk.NewToggleButton()
-		btn.SetCursorFromName("pointer")
-		btn.AddCSSClass("quick-toggle")
-		btn.SetChild(inner)
-
-		settingState := false
-		btn.ConnectToggled(func() {
-			log.Printf("[TOGGLE] %s ConnectToggled: Active=%v, settingState=%v", toggle.label, btn.Active(), settingState)
-			if settingState {
-				return
-			}
-			btn.AddCSSClass("loading")
-			// Failsafe: remove loading class after 3s if no bus event does it
-			// (e.g. SetPowered succeeds but BlueZ emits no signal).
-			glib.TimeoutAdd(uint(3000), func() bool {
-				btn.RemoveCSSClass("loading")
-				return false
-			})
-			toggle.toggle(btn.Active())
-		})
-
-		// Track state via subscription if topic is set.
-		if toggle.topic != "" {
-			topic := toggle.topic
-			b.Subscribe(topic, func(e bus.Event) {
-				log.Printf("[TOGGLE] %s bus event: %+v", toggle.label, e.Data)
-				glib.IdleAdd(func() {
-					log.Printf("[TOGGLE] %s IdleAdd: setting settingState=true, current Active=%v", toggle.label, btn.Active())
-					settingState = true
-					switch v := e.Data.(type) {
-					case state.NetworkState:
-						btn.SetActive(v.WirelessEnabled)
-					case state.BluetoothState:
-						btn.SetActive(v.Powered)
-					case bool:
-						btn.SetActive(v)
-					}
-					log.Printf("[TOGGLE] %s IdleAdd: now Active=%v, setting settingState=false", toggle.label, btn.Active())
-					settingState = false
+			settingState := false
+			btn.ConnectToggled(func() {
+				log.Printf("[TOGGLE] %s ConnectToggled: Active=%v, settingState=%v", toggle.label, btn.Active(), settingState)
+				if settingState {
+					return
+				}
+				btn.AddCSSClass("loading")
+				glib.TimeoutAdd(uint(3000), func() bool {
 					btn.RemoveCSSClass("loading")
+					return false
 				})
+				toggle.toggle(btn.Active())
 			})
+
+			if toggle.topic != "" {
+				topic := toggle.topic
+				b.Subscribe(topic, func(e bus.Event) {
+					log.Printf("[TOGGLE] %s bus event: %+v", toggle.label, e.Data)
+					glib.IdleAdd(func() {
+						log.Printf("[TOGGLE] %s IdleAdd: setting settingState=true, current Active=%v", toggle.label, btn.Active())
+						settingState = true
+						switch v := e.Data.(type) {
+						case state.NetworkState:
+							btn.SetActive(v.WirelessEnabled)
+						case state.BluetoothState:
+							btn.SetActive(v.Powered)
+						case bool:
+							btn.SetActive(v)
+						}
+						log.Printf("[TOGGLE] %s IdleAdd: now Active=%v, setting settingState=false", toggle.label, btn.Active())
+						settingState = false
+						btn.RemoveCSSClass("loading")
+					})
+				})
+			}
+
+			grid.Attach(btn, col, row, 1, 1)
 		}
 
-		grid.Append(btn)
+		col++
+		if col >= quickToggleCols {
+			col = 0
+			row++
+		}
 	}
 
 	box.Append(grid)
