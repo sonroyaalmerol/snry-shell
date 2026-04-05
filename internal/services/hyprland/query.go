@@ -117,14 +117,8 @@ func (q *Querier) SetKeyword(option, value string) error {
 	return err
 }
 
-// hyprOption is the JSON output of `hyprctl getoption <name>`.
-type hyprOption struct {
-	Str   string  `json:"str"`
-	Int   int     `json:"int"`
-	Float float64 `json:"float"`
-}
-
 // GetOption returns the current value of a Hyprland config option as a string.
+// Output format: "int: 10\nset: true" or "str: value\nset: true"
 func (q *Querier) GetOption(option string) (string, error) {
 	log.Printf("[HYPRLAND] getoption %s", option)
 	out, err := q.cmd.Run("getoption", option)
@@ -133,16 +127,11 @@ func (q *Querier) GetOption(option string) (string, error) {
 		return "", fmt.Errorf("hyprctl getoption %s: %w", option, err)
 	}
 	log.Printf("[HYPRLAND] getoption %s raw output: %s", option, string(out))
-	var opt hyprOption
-	if err := json.Unmarshal(out, &opt); err != nil {
-		log.Printf("[HYPRLAND] getoption parse error: %s", err)
-		return "", fmt.Errorf("parse getoption %s: %w", option, err)
+
+	line := strings.SplitN(strings.TrimSpace(string(out)), "\n", 2)[0]
+	// Format: "type: value"
+	if idx := strings.Index(line, ": "); idx >= 0 {
+		return strings.TrimSpace(line[idx+2:]), nil
 	}
-	if opt.Str != "" {
-		return opt.Str, nil
-	}
-	if opt.Int != 0 {
-		return strconv.Itoa(opt.Int), nil
-	}
-	return fmt.Sprintf("%g", opt.Float), nil
+	return strings.TrimSpace(line), nil
 }
