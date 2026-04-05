@@ -160,6 +160,14 @@ func NewPopupPanel(app *gtk.Application, b *bus.Bus, cfg PopupPanelConfig) (*gtk
 		win.SetVisible(false)
 	})
 	clickBg.AddController(clickGesture)
+	// Block scroll events from reaching the window, which would shift
+	// the entire overlay. ScrolledWindows inside the panel handle their
+	// own scrolling via capture/target; unconsumed events bubble up
+	// here and get swallowed.
+	scrollCtrl := gtk.NewEventControllerScroll(gtk.EventControllerScrollVertical | gtk.EventControllerScrollHorizontal)
+	scrollCtrl.SetPropagationPhase(gtk.PhaseBubble)
+	scrollCtrl.ConnectScroll(func(_ float64, _ float64) bool { return true })
+	clickBg.AddController(scrollCtrl)
 
 	root := gtk.NewBox(gtk.OrientationHorizontal, 0)
 	root.AddCSSClass("popup-overlay")
