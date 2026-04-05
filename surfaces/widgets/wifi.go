@@ -183,11 +183,11 @@ func signalStrengthIcon(signal int) string {
 	case signal >= 80:
 		return "signal_wifi_4_bar"
 	case signal >= 60:
-		return "signal_wifi_3_bar"
+		return "network_wifi_3_bar"
 	case signal >= 40:
-		return "signal_wifi_2_bar"
+		return "wifi_2_bar"
 	case signal >= 20:
-		return "signal_wifi_1_bar"
+		return "wifi_1_bar"
 	default:
 		return "signal_wifi_0_bar"
 	}
