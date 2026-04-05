@@ -834,6 +834,25 @@ scale.m3-scale slider {
     padding: 4px 0;
 }
 
+.quick-power-btn {
+    background: transparent;
+    border: none;
+    border-radius: var(--radius-full);
+    padding: 4px;
+    min-width: 32px;
+    min-height: 32px;
+    color: @col_on_surface_variant;
+    transition: background-color var(--duration-short3) var(--ease-standard-decel);
+}
+
+.quick-power-btn:hover {
+    background-color: alpha(@col_on_surface, var(--state-hover));
+}
+
+.quick-power-btn:active {
+    background-color: alpha(@col_on_surface, var(--state-press));
+}
+
 .quick-toggles-grid {
     padding: 8px;
 }

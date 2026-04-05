@@ -6,6 +6,7 @@ import (
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/sonroyaalmerol/snry-shell/internal/bus"
+	"github.com/sonroyaalmerol/snry-shell/internal/gtkutil"
 	"github.com/sonroyaalmerol/snry-shell/internal/servicerefs"
 	"github.com/sonroyaalmerol/snry-shell/internal/state"
 )
@@ -17,10 +18,29 @@ func NewQuickToggles(b *bus.Bus, refs *servicerefs.ServiceRefs) gtk.Widgetter {
 	box := gtk.NewBox(gtk.OrientationVertical, 8)
 	box.AddCSSClass("quick-toggles")
 
+	header := gtk.NewBox(gtk.OrientationHorizontal, 0)
+	header.SetHExpand(true)
+
 	label := gtk.NewLabel("Quick Settings")
 	label.AddCSSClass("notif-group-header")
 	label.SetHAlign(gtk.AlignStart)
-	box.Append(label)
+	label.SetVAlign(gtk.AlignCenter)
+	label.SetHExpand(true)
+
+	powerBtn := gtk.NewButton()
+	powerBtn.AddCSSClass("quick-power-btn")
+	powerBtn.SetTooltipText("Power menu")
+	powerBtn.SetHAlign(gtk.AlignEnd)
+	powerBtn.SetVAlign(gtk.AlignCenter)
+	powerBtn.SetCursorFromName("pointer")
+	powerBtn.SetChild(gtkutil.MaterialIcon("power_settings_new"))
+	powerBtn.ConnectClicked(func() {
+		b.Publish(bus.TopicSystemControls, "toggle-session")
+	})
+
+	header.Append(label)
+	header.Append(powerBtn)
+	box.Append(header)
 
 	grid := gtk.NewGrid()
 	grid.AddCSSClass("quick-toggles-grid")
