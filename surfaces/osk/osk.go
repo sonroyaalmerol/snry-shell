@@ -361,6 +361,9 @@ func (o *OSK) buildRow(parent *gtk.Box, defs []keyDef) {
 }
 
 func (o *OSK) typeKey(d keyDef, kb *keyButton) {
+	if o.ui == nil {
+		return
+	}
 	o.mu.Lock()
 
 	if d.key != "" {
