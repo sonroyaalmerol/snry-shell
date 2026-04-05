@@ -120,14 +120,6 @@ func newBluetoothIcon(b *bus.Bus, refs *servicerefs.ServiceRefs) gtk.Widgetter {
 	return icon
 }
 
-// newStatusIcon returns a single icon that opens the control panel.
-func newStatusIcon(b *bus.Bus) gtk.Widgetter {
-	icon := gtkutil.MaterialIcon("tune")
-	icon.AddCSSClass("indicator-icon")
-	icon.SetTooltipText("Controls")
-	return icon
-}
-
 // newBatteryIndicator returns a battery icon + percentage, hidden if no battery.
 func newBatteryIndicator(b *bus.Bus) gtk.Widgetter {
 	revealer := gtk.NewRevealer()

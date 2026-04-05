@@ -216,21 +216,25 @@ func NewQuickToggles(b *bus.Bus, refs *servicerefs.ServiceRefs) gtk.Widgetter {
 		})
 	})
 
-	brightnessRow := gtk.NewBox(gtk.OrientationHorizontal, 8)
-	brightnessRow.AddCSSClass("quick-slider-row")
+	sliderGrid := gtk.NewGrid()
+	sliderGrid.SetColumnSpacing(8)
+	sliderGrid.SetRowSpacing(8)
+	sliderGrid.SetHExpand(true)
 
+	// Brightness row (row 0).
 	brightnessIcon := gtk.NewLabel("brightness_high")
 	brightnessIcon.AddCSSClass("material-icon")
 	brightnessIcon.AddCSSClass("quick-slider-icon")
+	brightnessIcon.SetVAlign(gtk.AlignCenter)
 
 	brightnessLabel := gtk.NewLabel("Brightness")
 	brightnessLabel.AddCSSClass("quick-slider-label")
 	brightnessLabel.SetHAlign(gtk.AlignStart)
+	brightnessLabel.SetVAlign(gtk.AlignCenter)
 
-	brightnessRow.Append(brightnessIcon)
-	brightnessRow.Append(brightnessLabel)
-	brightnessRow.Append(brightnessScale)
-	box.Append(brightnessRow)
+	sliderGrid.Attach(brightnessIcon, 0, 0, 1, 1)
+	sliderGrid.Attach(brightnessLabel, 1, 0, 1, 1)
+	sliderGrid.Attach(brightnessScale, 2, 0, 1, 1)
 
 	// Volume slider.
 	volumeScale := gtk.NewScaleWithRange(gtk.OrientationHorizontal, 0, 1, 0.01)
@@ -243,21 +247,22 @@ func NewQuickToggles(b *bus.Bus, refs *servicerefs.ServiceRefs) gtk.Widgetter {
 		return false
 	})
 
-	volumeRow := gtk.NewBox(gtk.OrientationHorizontal, 8)
-	volumeRow.AddCSSClass("quick-slider-row")
-
+	// Volume row (row 1).
 	volumeIcon := gtk.NewLabel("volume_up")
 	volumeIcon.AddCSSClass("material-icon")
 	volumeIcon.AddCSSClass("quick-slider-icon")
+	volumeIcon.SetVAlign(gtk.AlignCenter)
 
 	volumeLabel := gtk.NewLabel("Volume")
 	volumeLabel.AddCSSClass("quick-slider-label")
 	volumeLabel.SetHAlign(gtk.AlignStart)
+	volumeLabel.SetVAlign(gtk.AlignCenter)
 
-	volumeRow.Append(volumeIcon)
-	volumeRow.Append(volumeLabel)
-	volumeRow.Append(volumeScale)
-	box.Append(volumeRow)
+	sliderGrid.Attach(volumeIcon, 0, 1, 1, 1)
+	sliderGrid.Attach(volumeLabel, 1, 1, 1, 1)
+	sliderGrid.Attach(volumeScale, 2, 1, 1, 1)
+
+	box.Append(sliderGrid)
 
 	return box
 }
