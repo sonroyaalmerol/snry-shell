@@ -365,32 +365,36 @@ func (o *OSK) buildRow(parent *gtk.Box, defs []keyDef) {
 	parent.Append(box)
 }
 
-// setupKey wires a regular (non-repeating) key with press/release visual feedback.
+// setupKey wires a regular (non-repeating) key. Uses ConnectClicked which
+// is reliable on both mouse and touch. CSS :active handles visual feedback.
 func (o *OSK) setupKey(btn *gtk.Button, d keyDef, kb *keyButton) {
-	gesture := gtk.NewGestureClick()
-	gesture.SetButton(1)
-	gesture.SetPropagationLimit(gtk.LimitNone)
-	gesture.ConnectPressed(func(int, float64, float64) {
-		btn.AddCSSClass("osk-key-pressed")
+	btn.ConnectClicked(func() {
 		o.typeKey(d, kb)
 	})
-	gesture.ConnectReleased(func(int, float64, float64) {
-		btn.RemoveCSSClass("osk-key-pressed")
-	})
-	btn.AddController(gesture)
 }
 
 // setupRepeatKey wires a key that auto-repeats while held (backspace, arrows).
+// Uses GestureClick for press/release but includes a failsafe max duration
+// since ConnectReleased may not fire reliably on touch.
 func (o *OSK) setupRepeatKey(btn *gtk.Button, d keyDef) {
 	var cancelled bool
 
 	gesture := gtk.NewGestureClick()
 	gesture.SetButton(1)
 	gesture.SetPropagationLimit(gtk.LimitNone)
+
+	stop := func() {
+		if !cancelled {
+			cancelled = true
+			glib.IdleAdd(func() { btn.RemoveCSSClass("osk-key-pressed") })
+		}
+	}
+
 	gesture.ConnectPressed(func(int, float64, float64) {
-		btn.AddCSSClass("osk-key-pressed")
 		cancelled = false
+		glib.IdleAdd(func() { btn.AddCSSClass("osk-key-pressed") })
 		o.typeKey(d, nil)
+
 		// Start repeat after initial delay (400ms).
 		glib.TimeoutAdd(400, func() bool {
 			if cancelled {
@@ -407,11 +411,19 @@ func (o *OSK) setupRepeatKey(btn *gtk.Button, d keyDef) {
 			})
 			return false
 		})
+
+		// Failsafe: force-stop repeat after 3 seconds in case
+		// ConnectReleased never fires (known GTK4 touch issue).
+		glib.TimeoutAdd(3000, func() bool {
+			stop()
+			return false
+		})
 	})
+
 	gesture.ConnectReleased(func(int, float64, float64) {
-		btn.RemoveCSSClass("osk-key-pressed")
-		cancelled = true
+		stop()
 	})
+
 	btn.AddController(gesture)
 }
 
