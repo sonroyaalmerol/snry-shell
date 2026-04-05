@@ -3,7 +3,7 @@ package bluetooth
 import (
 	"context"
 	"fmt"
-	"time"
+	"sync"
 
 	"github.com/godbus/dbus/v5"
 	"github.com/sonroyaalmerol/snry-shell/internal/bus"
@@ -20,6 +20,7 @@ const (
 type Service struct {
 	conn dbusutil.DBusConn
 	bus  *bus.Bus
+	mu   sync.Mutex // serializes poll() — godbus BusObject is not thread-safe
 }
 
 func New(conn *dbus.Conn, b *bus.Bus) *Service {
@@ -56,6 +57,9 @@ func (s *Service) Run(ctx context.Context) error {
 }
 
 func (s *Service) poll() error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	obj := s.conn.Object(bluezService, bluezAdapter)
 	poweredV, err := obj.GetProperty(bluezIface + ".Powered")
 	if err != nil {
@@ -81,16 +85,10 @@ func (s *Service) poll() error {
 }
 
 // SetPowered enables or disables the Bluetooth adapter.
+// State updates are handled by D-Bus PropertiesChanged signals in Run().
 func (s *Service) SetPowered(enabled bool) error {
 	obj := s.conn.Object(bluezService, bluezAdapter)
-	err := obj.SetProperty(bluezIface+".Powered", dbus.MakeVariant(enabled))
-	// Re-poll after a delay to ensure the toggle reflects the actual state,
-	// even if BlueZ doesn't emit a PropertiesChanged signal.
-	go func() {
-		time.Sleep(1 * time.Second)
-		_ = s.poll()
-	}()
-	return err
+	return obj.SetProperty(bluezIface+".Powered", dbus.MakeVariant(enabled))
 }
 
 // StartScan requests a Bluetooth device discovery scan.
