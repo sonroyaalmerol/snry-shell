@@ -28,7 +28,7 @@ func New(app *gtk.Application, b *bus.Bus, refs *servicerefs.ServiceRefs, trigge
 	win, _, root := surfaceutil.NewPopupPanel(app, b, surfaceutil.PopupPanelConfig{
 		Name:      "snry-calendar",
 		Namespace: "snry-calendar",
-		CloseOn:   []string{"toggle-controls", "toggle-notif-center", "toggle-wifi", "toggle-bluetooth", "toggle-overview"},
+		CloseOn:   []string{"toggle-notif-center", "toggle-wifi", "toggle-bluetooth", "toggle-overview"},
 		Align:     gtk.AlignEnd,
 	})
 

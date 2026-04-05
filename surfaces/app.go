@@ -47,7 +47,6 @@ import (
 	"github.com/sonroyaalmerol/snry-shell/surfaces/polkit"
 	popupbluetooth "github.com/sonroyaalmerol/snry-shell/surfaces/popup/bluetooth"
 	"github.com/sonroyaalmerol/snry-shell/surfaces/popup/calendar"
-	"github.com/sonroyaalmerol/snry-shell/surfaces/popup/controls"
 	"github.com/sonroyaalmerol/snry-shell/surfaces/popup/notifcenter"
 	"github.com/sonroyaalmerol/snry-shell/surfaces/popup/wifi"
 	"github.com/sonroyaalmerol/snry-shell/surfaces/recorder"
@@ -161,7 +160,6 @@ func Run() int {
 
 		shellBar := bar.New(app, b, refs)
 		overview.New(app, b, refs.Hyprland)
-		controls.New(app, b, refs, shellBar.StatusGroup)
 		notifcenter.New(app, b, refs, shellBar.NotifTrigger)
 		wifi.New(app, b, refs, shellBar.WifiTrigger)
 		popupbluetooth.New(app, b, refs, shellBar.BtTrigger)

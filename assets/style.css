@@ -881,6 +881,23 @@ scale.m3-scale slider {
     background-color: alpha(@col_primary, var(--state-press));
 }
 
+/* ── Quick setting sliders ──────────────────────────────────────────────────── */
+
+.quick-slider-row {
+    padding: 0 8px 2px;
+}
+
+.quick-slider-icon {
+    font-size: 20px;
+    color: @col_on_surface_variant;
+}
+
+.quick-slider-label {
+    font-size: 13px;
+    font-weight: 500;
+    color: @col_on_surface_variant;
+}
+
 /* ── Connectivity widgets (WiFi & Bluetooth) ─────────────────────────────── */
 
 .conn-widget {

@@ -10,9 +10,8 @@ import (
 
 // Bar is the top-edge status bar surface.
 type Bar struct {
-	win          *gtk.ApplicationWindow
-	bus          *bus.Bus
-	StatusGroup  gtk.Widgetter
+	win         *gtk.ApplicationWindow
+	bus         *bus.Bus
 	NotifTrigger gtk.Widgetter
 	WifiTrigger  gtk.Widgetter
 	BtTrigger    gtk.Widgetter
@@ -45,17 +44,12 @@ func (b *Bar) build(refs *servicerefs.ServiceRefs) {
 	b.win.SetChild(root)
 }
 
-// Left: window title + status toggle + keyboard layout.
+// Left: window title + keyboard layout.
 func (b *Bar) buildLeft(refs *servicerefs.ServiceRefs) gtk.Widgetter {
 	box := gtk.NewBox(gtk.OrientationHorizontal, 0)
 	box.SetVAlign(gtk.AlignCenter)
 
-	statusGroup := clickableBarGroup(newStatusIcon(b.bus), b.bus, "toggle-controls")
-	b.StatusGroup = statusGroup
-
 	box.Append(newWindowTitleWidget(b.bus))
-	box.Append(barSeparator())
-	box.Append(statusGroup)
 	box.Append(barSeparator())
 	box.Append(newKeyboardIndicator(b.bus, refs.Hyprland))
 	return box

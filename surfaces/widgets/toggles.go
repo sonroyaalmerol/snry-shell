@@ -188,5 +188,76 @@ func NewQuickToggles(b *bus.Bus, refs *servicerefs.ServiceRefs) gtk.Widgetter {
 	}
 
 	box.Append(grid)
+
+	// Brightness slider.
+	brightnessScale := gtk.NewScaleWithRange(gtk.OrientationHorizontal, 0, 1, 0.01)
+	brightnessScale.AddCSSClass("quick-slider")
+	brightnessScale.AddCSSClass("m3-scale")
+	brightnessScale.SetDrawValue(false)
+	brightnessScale.SetHExpand(true)
+
+	settingBrightness := false
+	brightnessScale.ConnectChangeValue(func(_ gtk.ScrollType, value float64) bool {
+		if !settingBrightness {
+			refs.Brightness.SetBrightness(value)
+		}
+		return false
+	})
+
+	b.Subscribe(bus.TopicBrightness, func(e bus.Event) {
+		bs, ok := e.Data.(state.BrightnessState)
+		if !ok || bs.Max == 0 {
+			return
+		}
+		glib.IdleAdd(func() {
+			settingBrightness = true
+			brightnessScale.SetValue(float64(bs.Current) / float64(bs.Max))
+			settingBrightness = false
+		})
+	})
+
+	brightnessRow := gtk.NewBox(gtk.OrientationHorizontal, 8)
+	brightnessRow.AddCSSClass("quick-slider-row")
+
+	brightnessIcon := gtk.NewLabel("brightness_high")
+	brightnessIcon.AddCSSClass("material-icon")
+	brightnessIcon.AddCSSClass("quick-slider-icon")
+
+	brightnessLabel := gtk.NewLabel("Brightness")
+	brightnessLabel.AddCSSClass("quick-slider-label")
+	brightnessLabel.SetHAlign(gtk.AlignStart)
+
+	brightnessRow.Append(brightnessIcon)
+	brightnessRow.Append(brightnessLabel)
+	brightnessRow.Append(brightnessScale)
+	box.Append(brightnessRow)
+
+	// Volume slider.
+	volumeScale := gtk.NewScaleWithRange(gtk.OrientationHorizontal, 0, 1, 0.01)
+	volumeScale.AddCSSClass("quick-slider")
+	volumeScale.AddCSSClass("m3-scale")
+	volumeScale.SetDrawValue(false)
+	volumeScale.SetHExpand(true)
+	volumeScale.ConnectChangeValue(func(_ gtk.ScrollType, value float64) bool {
+		refs.Audio.SetVolume(value)
+		return false
+	})
+
+	volumeRow := gtk.NewBox(gtk.OrientationHorizontal, 8)
+	volumeRow.AddCSSClass("quick-slider-row")
+
+	volumeIcon := gtk.NewLabel("volume_up")
+	volumeIcon.AddCSSClass("material-icon")
+	volumeIcon.AddCSSClass("quick-slider-icon")
+
+	volumeLabel := gtk.NewLabel("Volume")
+	volumeLabel.AddCSSClass("quick-slider-label")
+	volumeLabel.SetHAlign(gtk.AlignStart)
+
+	volumeRow.Append(volumeIcon)
+	volumeRow.Append(volumeLabel)
+	volumeRow.Append(volumeScale)
+	box.Append(volumeRow)
+
 	return box
 }
