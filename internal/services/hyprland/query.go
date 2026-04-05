@@ -105,3 +105,35 @@ func (q *Querier) SwitchWorkspace(id int) error {
 	_, err := q.cmd.Run("dispatch", "workspace", strconv.Itoa(id))
 	return err
 }
+
+// SetKeyword sets a Hyprland config option at runtime.
+func (q *Querier) SetKeyword(option, value string) error {
+	_, err := q.cmd.Run("keyword", option, value)
+	return err
+}
+
+// hyprOption is the JSON output of `hyprctl getoption <name>`.
+type hyprOption struct {
+	Str   string  `json:"str"`
+	Int   int     `json:"int"`
+	Float float64 `json:"float"`
+}
+
+// GetOption returns the current value of a Hyprland config option as a string.
+func (q *Querier) GetOption(option string) (string, error) {
+	out, err := q.cmd.Run("getoption", option)
+	if err != nil {
+		return "", fmt.Errorf("hyprctl getoption %s: %w", option, err)
+	}
+	var opt hyprOption
+	if err := json.Unmarshal(out, &opt); err != nil {
+		return "", fmt.Errorf("parse getoption %s: %w", option, err)
+	}
+	if opt.Str != "" {
+		return opt.Str, nil
+	}
+	if opt.Int != 0 {
+		return strconv.Itoa(opt.Int), nil
+	}
+	return fmt.Sprintf("%g", opt.Float), nil
+}

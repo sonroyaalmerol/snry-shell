@@ -115,6 +115,15 @@ func Run() int {
 		go upower.New(sysConn, b).Run(ctx)
 	}
 
+
+	// Force Hyprland config values while shell is alive, restore on exit.
+	forced := hyprland.NewForcedConfigs(refs.Hyprland)
+	if err := forced.Apply([]hyprland.ForcedConfig{
+		{Option: "decoration:rounding", Value: "12"},
+	}); err != nil {
+		fmt.Fprintf(os.Stderr, "forced config: %v\n", err)
+	}
+	defer forced.Restore()
 	// Subscribe to tray item activation.
 	b.Subscribe(bus.TopicTrayActivate, func(ev bus.Event) {
 		if id, ok := ev.Data.(string); ok {
