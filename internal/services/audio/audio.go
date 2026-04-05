@@ -1,8 +1,10 @@
 package audio
 
 import (
+	"bufio"
 	"context"
 	"fmt"
+	"log"
 	"strconv"
 	"strings"
 	"time"
@@ -13,20 +15,57 @@ import (
 )
 
 type Service struct {
-	runner runner.Runner
-	bus    *bus.Bus
+	runner   runner.Runner
+	streamer runner.StreamReader
+	bus      *bus.Bus
 }
 
-func New(r runner.Runner, b *bus.Bus) *Service {
-	return &Service{runner: r, bus: b}
+func New(r runner.Runner, sr runner.StreamReader, b *bus.Bus) *Service {
+	return &Service{runner: r, streamer: sr, bus: b}
 }
 
 func NewWithDefaults(b *bus.Bus) *Service {
-	return New(runner.New(), b)
+	return New(runner.New(), runner.NewStreamReader(), b)
 }
 
 func (s *Service) Run(ctx context.Context) error {
-	return runner.PollLoop(ctx, 200*time.Millisecond, s.poll)
+	s.poll()
+
+	rc, err := s.streamer.Stream("pactl", "subscribe")
+	if err != nil {
+		log.Printf("[audio] pactl subscribe unavailable, falling back to polling: %v", err)
+		return runner.PollLoop(ctx, 200*time.Millisecond, s.poll)
+	}
+	defer rc.Close()
+
+	sc := bufio.NewScanner(rc)
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
+		if !sc.Scan() {
+			if err := sc.Err(); err != nil {
+				return err
+			}
+			return nil
+		}
+		line := sc.Text()
+		if !strings.Contains(line, "sink") || !strings.Contains(line, "change") {
+			continue
+		}
+		// Debounce: wait for rapid successive events to settle.
+		time.Sleep(50 * time.Millisecond)
+		// Drain buffered lines.
+		for sc.Scan() {
+			next := sc.Text()
+			if !strings.Contains(next, "sink") || !strings.Contains(next, "change") {
+				break
+			}
+		}
+		s.poll()
+	}
 }
 
 func (s *Service) poll() {
@@ -64,7 +103,7 @@ func ParseWpctlVolume(output string) (state.AudioSink, error) {
 	return state.AudioSink{Volume: vol, Muted: muted}, nil
 }
 
-// SetVolume sets the default sink volume. v is 0.0–1.0.
+// SetVolume sets the default sink volume. v is 0.0-1.0.
 func (s *Service) SetVolume(v float64) error {
 	pct := fmt.Sprintf("%.0f%%", v*100)
 	_, err := s.runner.Output("wpctl", "set-volume", "@DEFAULT_SINK@", pct)

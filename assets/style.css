@@ -212,7 +212,7 @@ scale.m3-scale slider {
 }
 
 .bar-group-clickable {
-    transition: background-color var(--duration-short3) ease;
+    transition: background-color var(--duration-short2) var(--ease-standard-decel);
 }
 
 .bar-group-clickable:hover {
@@ -241,9 +241,8 @@ scale.m3-scale slider {
     margin: 0 1px;
     color: @col_on_surface_variant;
     transition:
-        background-color var(--duration-short4) var(--ease-emphasized-decel),
-        min-width        var(--duration-medium1) var(--ease-emphasized-decel),
-        color            var(--duration-short4) var(--ease-emphasized-decel);
+        background-color var(--duration-short2) var(--ease-standard-decel),
+        color            var(--duration-short2) var(--ease-standard-decel);
 }
 
 .workspace-pill-label {
@@ -991,7 +990,6 @@ scale.m3-scale slider {
     min-width: 36px;
     min-height: 44px;
     color: @col_on_surface;
-    transition: background-color var(--duration-short2) var(--ease-standard-decel);
     padding: 0 4px;
 }
 

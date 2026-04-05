@@ -2,6 +2,8 @@ package audio_test
 
 import (
 	"context"
+	"io"
+	"strings"
 	"testing"
 	"time"
 
@@ -52,6 +54,18 @@ func (f *fakeRunner) Output(args ...string) ([]byte, error) {
 
 func (f *fakeRunner) Run(args ...string) error { return nil }
 
+type fakeStreamReader struct {
+	data string
+	err  error
+}
+
+func (f *fakeStreamReader) Stream(args ...string) (io.ReadCloser, error) {
+	if f.err != nil {
+		return nil, f.err
+	}
+	return io.NopCloser(strings.NewReader(f.data)), nil
+}
+
 func TestServicePublishesAudioEvent(t *testing.T) {
 	b := bus.New()
 	var got state.AudioSink
@@ -60,7 +74,8 @@ func TestServicePublishesAudioEvent(t *testing.T) {
 	})
 
 	runner := &fakeRunner{output: "Volume: 0.60"}
-	svc := audio.New(runner, b)
+	streamer := &fakeStreamReader{data: ""}
+	svc := audio.New(runner, streamer, b)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
 	defer cancel()

@@ -16,6 +16,7 @@ import (
 type Service struct {
 	runner runner.Runner
 	bus    *bus.Bus
+	last   state.BrightnessState
 }
 
 func New(r runner.Runner, b *bus.Bus) *Service {
@@ -27,7 +28,8 @@ func NewWithDefaults(b *bus.Bus) *Service {
 }
 
 func (s *Service) Run(ctx context.Context) error {
-	return runner.PollLoop(ctx, time.Second, s.poll)
+	s.poll()
+	return runner.PollLoop(ctx, 2*time.Second, s.poll)
 }
 
 func (s *Service) poll() {
@@ -35,6 +37,10 @@ func (s *Service) poll() {
 	if err != nil {
 		return
 	}
+	if bs.Current == s.last.Current && bs.Max == s.last.Max {
+		return
+	}
+	s.last = bs
 	s.bus.Publish(bus.TopicBrightness, bs)
 }
 

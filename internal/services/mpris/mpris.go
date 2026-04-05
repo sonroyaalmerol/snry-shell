@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/godbus/dbus/v5"
 	"github.com/sonroyaalmerol/snry-shell/internal/bus"
@@ -42,6 +43,12 @@ func (s *Service) Run(ctx context.Context) error {
 		"type='signal',interface='org.freedesktop.DBus.Properties',member='PropertiesChanged'",
 	)
 
+	// Subscribe to Seeked signal for position updates without polling.
+	s.conn.BusObject().Call(
+		"org.freedesktop.DBus.AddMatch", 0,
+		"type='signal',interface='org.mpris.MediaPlayer2.Player',member='Seeked'",
+	)
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -56,9 +63,15 @@ func (s *Service) Run(ctx context.Context) error {
 }
 
 func (s *Service) handleSignal(sig *dbus.Signal) {
-	if sig.Name != "org.freedesktop.DBus.Properties.PropertiesChanged" {
-		return
+	switch sig.Name {
+	case "org.freedesktop.DBus.Properties.PropertiesChanged":
+		s.handlePropertiesChanged(sig)
+	case "org.mpris.MediaPlayer2.Player.Seeked":
+		s.handleSeeked(sig)
 	}
+}
+
+func (s *Service) handlePropertiesChanged(sig *dbus.Signal) {
 	if len(sig.Body) < 2 {
 		return
 	}
@@ -79,6 +92,22 @@ func (s *Service) handleSignal(sig *dbus.Signal) {
 
 	player := s.parseChangedProps(wellKnown, changed)
 	s.bus.Publish(bus.TopicMedia, player)
+}
+
+func (s *Service) handleSeeked(sig *dbus.Signal) {
+	if len(sig.Body) < 1 {
+		return
+	}
+	pos, ok := sig.Body[0].(int64)
+	if !ok {
+		return
+	}
+	wellKnown := s.resolvePlayerName(string(sig.Sender))
+	s.bus.Publish(bus.TopicMediaTick, state.MediaTick{
+		PlayerName: wellKnown,
+		Position:   float64(pos) / 1e6,
+		At:         time.Now(),
+	})
 }
 
 func (s *Service) parseChangedProps(sender string, props map[string]dbus.Variant) state.MediaPlayer {

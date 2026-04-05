@@ -3,6 +3,7 @@ package resources
 import (
 	"bufio"
 	"context"
+	"math"
 	"os"
 	"strconv"
 	"strings"
@@ -31,6 +32,8 @@ type Service struct {
 	reader    FileReader
 	prevIdle  uint64
 	prevTotal uint64
+	lastCPU   float64
+	lastRAM   float64
 }
 
 func New(reader FileReader, b *bus.Bus) *Service {
@@ -38,17 +41,23 @@ func New(reader FileReader, b *bus.Bus) *Service {
 }
 
 func (s *Service) Run(ctx context.Context) error {
-	s.readCPU()
+	cpu := s.readCPU()
+	ram := s.readRAM()
+	s.lastCPU = cpu
+	s.lastRAM = ram
+	s.bus.Publish(bus.TopicResources, state.ResourceState{CPU: cpu, RAM: ram})
 	return runner.PollLoop(ctx, 2*time.Second, s.publish)
 }
 
 func (s *Service) publish() {
 	cpu := s.readCPU()
 	ram := s.readRAM()
-	s.bus.Publish(bus.TopicResources, state.ResourceState{
-		CPU: cpu,
-		RAM: ram,
-	})
+	if math.Abs(cpu-s.lastCPU) < 1 && math.Abs(ram-s.lastRAM) < 1 {
+		return
+	}
+	s.lastCPU = cpu
+	s.lastRAM = ram
+	s.bus.Publish(bus.TopicResources, state.ResourceState{CPU: cpu, RAM: ram})
 }
 
 func (s *Service) readCPU() float64 {

@@ -184,7 +184,7 @@ func (mc *mediaControls) startTicker(playing bool) {
 	ctx, cancel := context.WithCancel(context.Background())
 	mc.tickerCtx = cancel
 	go func() {
-		ticker := time.NewTicker(time.Second)
+		ticker := time.NewTicker(5 * time.Second)
 		defer ticker.Stop()
 		for {
 			select {
