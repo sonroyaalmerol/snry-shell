@@ -7,6 +7,7 @@ package atspi2
 import (
 	"context"
 	"log"
+	"os/exec"
 	"time"
 
 	"github.com/godbus/dbus/v5"
@@ -27,7 +28,7 @@ const (
 
 // getA11yBusAddr queries the session bus for the accessibility bus address.
 // If the bus isn't running yet, it attempts to auto-start it via DBus activation
-// and retries with a short backoff.
+// or by launching at-spi-bus-launcher directly, then polls with backoff.
 func getA11yBusAddr(sess *dbus.Conn) (string, error) {
 	var busAddr string
 	err := sess.Object("org.a11y.Bus", "/org/a11y/Bus").
@@ -41,9 +42,16 @@ func getA11yBusAddr(sess *dbus.Conn) (string, error) {
 	var startReply uint32
 	startErr := sess.Object("org.freedesktop.DBus", "/org/freedesktop/DBus").
 		Call("org.freedesktop.DBus.StartServiceByName", 0, "org.a11y.Bus", uint32(0)).Store(&startReply)
-	log.Printf("[ATSPI2] StartServiceByName reply=%d err=%v", startReply, startErr)
 	if startErr != nil {
-		return "", err
+		// DBus activation failed entirely — try launching the daemon directly.
+		log.Printf("[ATSPI2] DBus activation failed (%v), trying direct launch", startErr)
+		exec.Command("at-spi-bus-launcher", "--launch-immediately").Start()
+	} else if startReply == 2 {
+		// DBUS_START_REPLY_ALREADY_RUNNING but object not available —
+		// launcher likely exited because toolkit-accessibility is disabled.
+		// Launch it ourselves with --launch-immediately to bypass that check.
+		log.Printf("[ATSPI2] service claims already running but bus not available, launching directly")
+		exec.Command("at-spi-bus-launcher", "--launch-immediately").Start()
 	}
 
 	// The daemon may need a moment to register on the bus.
