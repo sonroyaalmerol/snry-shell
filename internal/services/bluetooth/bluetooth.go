@@ -52,6 +52,11 @@ func (s *Service) Run(ctx context.Context) error {
 			if !ok {
 				return nil
 			}
+			// godbus delivers ALL matching signals to every registered channel,
+			// so we must filter here to ignore non-BlueZ signals (e.g. NetworkManager).
+			if sig.Path != bluezAdapter || sig.Sender != bluezService {
+				continue
+			}
 			log.Printf("[BT] Run: received D-Bus signal: %v", sig)
 			_ = s.poll()
 		}
