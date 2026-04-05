@@ -32,6 +32,7 @@ func NewQuickToggles(b *bus.Bus, refs *servicerefs.ServiceRefs) gtk.Widgetter {
 		label    string
 		topic    bus.Topic
 		requires string // binary name; empty string means no external dep
+		button   bool   // if true, render as a regular button (one-shot action)
 		toggle   func(active bool)
 	}
 
@@ -147,8 +148,9 @@ func NewQuickToggles(b *bus.Bus, refs *servicerefs.ServiceRefs) gtk.Widgetter {
 		},
 		// ── Tools ──
 		{
-			icon:  "screenshot",
-			label: "Screenshot",
+			icon:   "screenshot",
+			label:  "Screenshot",
+			button: true,
 			toggle: func(_ bool) {
 				b.Publish(bus.TopicSystemControls, "toggle-region-selector")
 			},
@@ -157,6 +159,7 @@ func NewQuickToggles(b *bus.Bus, refs *servicerefs.ServiceRefs) gtk.Widgetter {
 			icon:     "colorize",
 			label:    "Color Pick",
 			requires: "hyprpicker",
+			button:   true,
 			toggle: func(_ bool) {
 				go func() { _ = exec.Command("hyprpicker").Run() }()
 			},
@@ -169,8 +172,6 @@ func NewQuickToggles(b *bus.Bus, refs *servicerefs.ServiceRefs) gtk.Widgetter {
 			continue
 		}
 		toggle := t
-		btn := gtk.NewToggleButton()
-		btn.AddCSSClass("quick-toggle")
 
 		inner := gtk.NewBox(gtk.OrientationVertical, 2)
 		inner.SetHAlign(gtk.AlignCenter)
@@ -184,6 +185,22 @@ func NewQuickToggles(b *bus.Bus, refs *servicerefs.ServiceRefs) gtk.Widgetter {
 
 		inner.Append(icon)
 		inner.Append(lbl)
+
+		if toggle.button {
+			// One-shot action button (no toggle state).
+			btn := gtk.NewButton()
+			btn.AddCSSClass("quick-toggle")
+			btn.AddCSSClass("quick-toggle-button")
+			btn.SetChild(inner)
+			btn.ConnectClicked(func() {
+				toggle.toggle(true)
+			})
+			grid.Append(btn)
+			continue
+		}
+
+		btn := gtk.NewToggleButton()
+		btn.AddCSSClass("quick-toggle")
 		btn.SetChild(inner)
 
 		btn.ConnectToggled(func() {

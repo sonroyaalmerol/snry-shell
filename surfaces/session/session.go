@@ -9,6 +9,7 @@ import (
 
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/sonroyaalmerol/snry-shell/internal/bus"
+	"github.com/sonroyaalmerol/snry-shell/internal/gtkutil"
 	"github.com/sonroyaalmerol/snry-shell/internal/layershell"
 	"github.com/sonroyaalmerol/snry-shell/internal/state"
 	"github.com/sonroyaalmerol/snry-shell/internal/surfaceutil"
@@ -101,14 +102,23 @@ func (s *Session) buildBtn(a struct {
 	action := a
 	cmd := a.cmd
 	btn.ConnectClicked(func() {
-		s.bus.Publish(bus.TopicSessionAction, action.action)
-		s.win.SetVisible(false)
-		go func() {
-			time.Sleep(200 * time.Millisecond)
-			if err := exec.Command(cmd[0], cmd[1:]...).Run(); err != nil {
-				log.Printf("session: %s: %v", cmd[0], err)
-			}
-		}()
+		gtkutil.ConfirmDialog(
+			s.win,
+			a.icon,
+			a.label,
+			"",
+			a.label,
+			func() {
+				s.bus.Publish(bus.TopicSessionAction, action.action)
+				s.win.SetVisible(false)
+				go func() {
+					time.Sleep(200 * time.Millisecond)
+					if err := exec.Command(cmd[0], cmd[1:]...).Run(); err != nil {
+						log.Printf("session: %s: %v", cmd[0], err)
+					}
+				}()
+			},
+		)
 	})
 	return btn
 }

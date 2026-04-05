@@ -984,6 +984,10 @@ scale.system-slider slider {
     color: @col_on_secondary_container;
 }
 
+.quick-toggle-button:active {
+    background-color: alpha(@col_primary, 0.2);
+}
+
 /* ── Pomodoro widget ──────────────────────────────────────────────── */
 
 .pomodoro-widget {
