@@ -1,6 +1,7 @@
 package controls
 
 import (
+	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/sonroyaalmerol/snry-shell/internal/bus"
 	"github.com/sonroyaalmerol/snry-shell/internal/servicerefs"
@@ -23,10 +24,9 @@ type Controls struct {
 
 // New creates and hides the controls popup anchored to the given trigger widget.
 func New(app *gtk.Application, b *bus.Bus, refs *servicerefs.ServiceRefs, trigger gtk.Widgetter) *Controls {
-	win, clickBg, root := surfaceutil.NewPopupPanel(app, b, surfaceutil.PopupPanelConfig{
+	win, _, root := surfaceutil.NewPopupPanel(app, b, surfaceutil.PopupPanelConfig{
 		Name:      "snry-controls",
 		Namespace: "snry-controls",
-		Action:    "toggle-controls",
 		CloseOn:   []string{"toggle-notif-center", "toggle-calendar"},
 		Align:     gtk.AlignStart,
 	})
@@ -49,8 +49,12 @@ func New(app *gtk.Application, b *bus.Bus, refs *servicerefs.ServiceRefs, trigge
 
 	scroll.SetChild(panel)
 	root.Append(scroll)
-	clickBg.Append(root)
-	c.win.SetChild(clickBg)
+
+	b.Subscribe(bus.TopicSystemControls, func(e bus.Event) {
+		if e.Data == "toggle-controls" {
+			glib.IdleAdd(func() { c.Toggle() })
+		}
+	})
 
 	return c
 }

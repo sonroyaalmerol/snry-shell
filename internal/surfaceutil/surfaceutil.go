@@ -131,13 +131,14 @@ func MonitorWidth() int {
 type PopupPanelConfig struct {
 	Name      string      // window name (e.g. "snry-controls")
 	Namespace string      // layer-shell namespace
-	Action    string      // toggle action (e.g. "toggle-controls")
 	CloseOn   []string    // sibling actions that dismiss this panel
 	Align     gtk.Align   // horizontal alignment of the panel (AlignStart or AlignEnd)
 }
 
 // NewPopupPanel creates a fullscreen overlay window with click-to-close scrim,
-// escape-to-close, top margin, and toggle/close-on-sibling subscriptions.
+// escape-to-close, top margin, and close-on-sibling subscriptions.
+// The caller is responsible for subscribing to its own toggle action (including
+// any positioning logic via PositionUnderTrigger).
 // Returns (win, clickBg, root) where clickBg is the scrim for appending panel content
 // and root is the positioned container.
 func NewPopupPanel(app *gtk.Application, b *bus.Bus, cfg PopupPanelConfig) (*gtk.ApplicationWindow, *gtk.Box, *gtk.Box) {
@@ -183,9 +184,6 @@ func NewPopupPanel(app *gtk.Application, b *bus.Bus, cfg PopupPanelConfig) (*gtk
 
 	b.Subscribe(bus.TopicSystemControls, func(e bus.Event) {
 		action, _ := e.Data.(string)
-		if action == cfg.Action {
-			glib.IdleAdd(func() { win.SetVisible(!win.Visible()) })
-		}
 		for _, closeAction := range cfg.CloseOn {
 			if action == closeAction && win.Visible() {
 				glib.IdleAdd(func() { win.SetVisible(false) })

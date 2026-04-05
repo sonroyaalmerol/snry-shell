@@ -1,6 +1,7 @@
 package notifcenter
 
 import (
+	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/sonroyaalmerol/snry-shell/internal/bus"
 	"github.com/sonroyaalmerol/snry-shell/internal/gtkutil"
@@ -26,10 +27,9 @@ type NotifCenter struct {
 
 // New creates and hides the notification center popup anchored to the given trigger widget.
 func New(app *gtk.Application, b *bus.Bus, refs *servicerefs.ServiceRefs, trigger gtk.Widgetter) *NotifCenter {
-	win, clickBg, root := surfaceutil.NewPopupPanel(app, b, surfaceutil.PopupPanelConfig{
+	win, _, root := surfaceutil.NewPopupPanel(app, b, surfaceutil.PopupPanelConfig{
 		Name:      "snry-notif-center",
 		Namespace: "snry-notif-center",
-		Action:    "toggle-notif-center",
 		CloseOn:   []string{"toggle-controls", "toggle-overview", "toggle-calendar"},
 		Align:     gtk.AlignStart,
 	})
@@ -63,8 +63,12 @@ func New(app *gtk.Application, b *bus.Bus, refs *servicerefs.ServiceRefs, trigge
 
 	scroll.SetChild(panel)
 	root.Append(scroll)
-	clickBg.Append(root)
-	nc.win.SetChild(clickBg)
+
+	b.Subscribe(bus.TopicSystemControls, func(e bus.Event) {
+		if e.Data == "toggle-notif-center" {
+			glib.IdleAdd(func() { nc.Toggle() })
+		}
+	})
 
 	return nc
 }
