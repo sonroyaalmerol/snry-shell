@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
+	"github.com/sonroyaalmerol/snry-shell/internal/layershell"
 )
 
 func ClearChildren(parent *gtk.Widget, remove func(gtk.Widgetter)) {
@@ -40,35 +41,59 @@ func MaterialIcon(name string) *gtk.Label {
 	return l
 }
 
-// ConfirmDialog shows an M3-styled confirmation dialog. Calls onConfirm if accepted.
+// ConfirmDialog shows an M3-styled confirmation dialog as a layer-shell overlay.
+// Calls onConfirm if the action button is clicked, or dismisses on outside click / Escape.
 func ConfirmDialog(parent *gtk.ApplicationWindow, icon, title, message, action string, onConfirm func()) {
-	win := gtk.NewWindow()
-	win.SetModal(true)
-	win.SetDecorated(false)
-	win.SetTransientFor(&parent.Window)
-	win.SetName("snry-m3-dialog")
+	win := layershell.NewWindow(parent.Application(), layershell.WindowConfig{
+		Name:          "snry-m3-dialog",
+		Layer:         layershell.LayerOverlay,
+		Anchors:       layershell.FullscreenAnchors(),
+		KeyboardMode:  layershell.KeyboardModeOnDemand,
+		ExclusiveZone: -1,
+		Namespace:     "snry-m3-dialog",
+	})
 
-	root := gtk.NewBox(gtk.OrientationVertical, 0)
-	root.AddCSSClass("m3-dialog")
+	close := func() { win.SetVisible(false) }
+
+	// Scrim background — clicking it dismisses the dialog.
+	scrim := gtk.NewBox(gtk.OrientationVertical, 0)
+	scrim.AddCSSClass("m3-dialog-scrim")
+	scrim.SetHExpand(true)
+	scrim.SetVExpand(true)
+	clickGesture := gtk.NewGestureClick()
+	clickGesture.SetButton(1)
+	clickGesture.SetPropagationLimit(gtk.LimitNone)
+	clickGesture.ConnectReleased(func(_ int, _ float64, _ float64) {
+		close()
+	})
+	scrim.AddController(clickGesture)
+
+	// Centered dialog card.
+	centerBox := gtk.NewBox(gtk.OrientationVertical, 0)
+	centerBox.SetHAlign(gtk.AlignCenter)
+	centerBox.SetVAlign(gtk.AlignCenter)
+
+	card := gtk.NewBox(gtk.OrientationVertical, 0)
+	card.AddCSSClass("m3-dialog")
 
 	if icon != "" {
 		iconLabel := MaterialIcon(icon)
 		iconLabel.AddCSSClass("m3-dialog-icon")
-		root.Append(iconLabel)
+		card.Append(iconLabel)
 	}
 
 	titleLabel := gtk.NewLabel(title)
 	titleLabel.AddCSSClass("m3-dialog-title")
 	titleLabel.SetWrap(true)
 	titleLabel.SetXAlign(0)
-	root.Append(titleLabel)
+	card.Append(titleLabel)
 
 	if message != "" {
 		msgLabel := gtk.NewLabel(message)
 		msgLabel.AddCSSClass("m3-dialog-content")
 		msgLabel.SetWrap(true)
 		msgLabel.SetXAlign(0)
-		root.Append(msgLabel)
+		card.Append(msgLabel)
 	}
 
 	btnBox := gtk.NewBox(gtk.OrientationHorizontal, 8)
@@ -79,20 +104,30 @@ func ConfirmDialog(parent *gtk.ApplicationWindow, icon, title, message, action s
 
 	actionBtn := gtk.NewButtonWithLabel(action)
 	actionBtn.AddCSSClass("m3-dialog-btn")
-	actionBtn.AddCSSClass("m3-dialog-btn-primary")
 
 	btnBox.Append(cancelBtn)
 	btnBox.Append(actionBtn)
-	root.Append(btnBox)
-	win.SetChild(root)
+	card.Append(btnBox)
 
-	cancelBtn.ConnectClicked(func() { win.Close() })
+	// Claim clicks on the card so they don't propagate to the scrim.
+	cardClick := gtk.NewGestureClick()
+	cardClick.SetButton(1)
+	cardClick.ConnectPressed(func(_ int, _ float64, _ float64) {
+		cardClick.SetState(gtk.EventSequenceClaimed)
+	})
+	card.AddController(cardClick)
+
+	centerBox.Append(card)
+	scrim.Append(centerBox)
+	win.SetChild(scrim)
+
+	cancelBtn.ConnectClicked(close)
 	actionBtn.ConnectClicked(func() {
-		win.Close()
+		close()
 		onConfirm()
 	})
 
-	win.Present()
+	win.SetVisible(true)
 }
 
 // SectionHeader creates a clickable header for a collapsible section.

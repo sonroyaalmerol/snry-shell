@@ -1955,6 +1955,10 @@ scale.settings-scale slider {
 
 /* ── M3 AlertDialog ───────────────────────────────────────────────────────────── */
 
+.m3-dialog-scrim {
+    background-color: alpha(#000000, 0.32);
+}
+
 .m3-dialog {
     background-color: @col_surface_container_high;
     border-radius: 28px;
