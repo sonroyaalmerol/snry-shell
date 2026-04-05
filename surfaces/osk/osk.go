@@ -36,6 +36,9 @@ func New(app *gtk.Application, b *bus.Bus) *OSK {
 	osk.build()
 	win.SetVisible(false)
 
+	// Set a generous exclusive zone so the OSK does not overlap windows.
+	layershell.SetExclusiveZone(win, 280)
+
 	osk.hasTouch = detectTouchDevice()
 
 	// Manual toggle via quick settings or bus event.
@@ -103,9 +106,9 @@ type keyDef struct {
 func (o *OSK) build() {
 	root := gtk.NewBox(gtk.OrientationVertical, 0)
 	root.AddCSSClass("osk")
+	root.SetHAlign(gtk.AlignFill)
 	root.SetVAlign(gtk.AlignEnd)
 	root.SetHExpand(true)
-	root.SetVExpand(true)
 
 	numRow := []keyDef{
 		{label: "Esc", action: (*OSK).typeEscape},
@@ -189,12 +192,10 @@ func (o *OSK) build() {
 }
 
 func (o *OSK) buildRow(parent *gtk.Box, defs []keyDef) {
-	outer := gtk.NewBox(gtk.OrientationHorizontal, 0)
-	outer.AddCSSClass("osk-row")
-	outer.SetHExpand(true)
-
-	center := gtk.NewBox(gtk.OrientationHorizontal, 3)
-	center.SetHAlign(gtk.AlignCenter)
+	box := gtk.NewBox(gtk.OrientationHorizontal, 3)
+	box.AddCSSClass("osk-row")
+	box.SetHExpand(true)
+	box.SetHAlign(gtk.AlignCenter)
 
 	for _, k := range defs {
 		btn := gtk.NewButton()
@@ -215,11 +216,10 @@ func (o *OSK) buildRow(parent *gtk.Box, defs []keyDef) {
 			}
 		})
 
-		center.Append(btn)
+		box.Append(btn)
 	}
 
-	outer.Append(center)
-	parent.Append(outer)
+	parent.Append(box)
 }
 
 func (o *OSK) activeChar(k keyDef) string {
