@@ -16,22 +16,24 @@ import (
 )
 
 type OSK struct {
-	win       *gtk.ApplicationWindow
-	bus       *bus.Bus
-	ui        *uinput.Bridge
-	shift     bool
-	caps      bool
-	ctrlL     bool
-	altL      bool
-	hasTouch  bool
-	manualOff bool
-	visible   bool
-	keys      []*keyButton          // all character keys, for label updates
-	modBtns   map[string]*gtk.Button // modifier name -> button widget
-	shiftBtns []*gtk.Button         // shift buttons for visual feedback
-	capsBtn   *gtk.Button           // caps button for visual feedback
-	mu        sync.Mutex
-	debounce  *time.Timer           // coalesces rapid focus events
+	win           *gtk.ApplicationWindow
+	bus           *bus.Bus
+	ui            *uinput.Bridge
+	shift         bool
+	caps          bool
+	ctrlL         bool
+	altL          bool
+	hasTouch      bool
+	manualOff     bool
+	visible       bool
+	fullscreen    bool
+	exclusiveZone int
+	keys          []*keyButton          // all character keys, for label updates
+	modBtns       map[string]*gtk.Button // modifier name -> button widget
+	shiftBtns     []*gtk.Button         // shift buttons for visual feedback
+	capsBtn       *gtk.Button           // caps button for visual feedback
+	mu            sync.Mutex
+	debounce      *time.Timer           // coalesces rapid focus events
 }
 
 type keyButton struct {
@@ -62,7 +64,8 @@ func New(app *gtk.Application, b *bus.Bus) *OSK {
 	osk.build()
 	win.SetVisible(false)
 
-	layershell.SetExclusiveZone(win, 280)
+	osk.exclusiveZone = 280
+	layershell.SetExclusiveZone(win, osk.exclusiveZone)
 
 	osk.hasTouch = detectTouchDevice()
 
@@ -93,6 +96,19 @@ func New(app *gtk.Application, b *bus.Bus) *OSK {
 			osk.manualOff = false // field lost focus, allow auto-show next time
 		}
 		osk.scheduleFocusUpdate(isText)
+	})
+
+	// Drop exclusive zone when a window goes fullscreen so the OSK
+	// overlays on top instead of pushing content up.
+	b.Subscribe(bus.TopicFullscreen, func(e bus.Event) {
+		fs, ok := e.Data.(bool)
+		if !ok {
+			return
+		}
+		glib.IdleAdd(func() {
+			osk.fullscreen = fs
+			osk.updateExclusiveZone()
+		})
 	})
 
 	return osk
@@ -129,6 +145,14 @@ func (o *OSK) show() {
 func (o *OSK) hide() {
 	o.win.SetVisible(false)
 	o.visible = false
+}
+
+func (o *OSK) updateExclusiveZone() {
+	if o.fullscreen {
+		layershell.SetExclusiveZone(o.win, -1)
+	} else {
+		layershell.SetExclusiveZone(o.win, o.exclusiveZone)
+	}
 }
 
 func detectTouchDevice() bool {

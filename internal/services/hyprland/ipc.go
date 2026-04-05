@@ -145,6 +145,9 @@ func (s *Service) handleEvent(event, data string) {
 
 	case "layoutchanged":
 		s.bus.Publish(bus.TopicKeyboard, data)
+
+	case "fullscreen":
+		s.bus.Publish(bus.TopicFullscreen, data == "1")
 	}
 }
 

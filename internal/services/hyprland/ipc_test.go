@@ -81,9 +81,27 @@ func TestUnknownEventIgnored(t *testing.T) {
 	b.Subscribe(bus.TopicActiveWindow, func(e bus.Event) { called = true })
 	b.Subscribe(bus.TopicWorkspaces, func(e bus.Event) { called = true })
 
-	runService(t, "fullscreen>>1\nmonitor>>DP-1\n", b)
+	runService(t, "monitor>>DP-1\nchangefloating>>0x12345\n", b)
 
 	if called {
 		t.Fatal("unknown events should not trigger subscribed topics")
+	}
+}
+
+func TestFullscreenEvent(t *testing.T) {
+	b := bus.New()
+	var got bool
+	b.Subscribe(bus.TopicFullscreen, func(e bus.Event) {
+		got = e.Data.(bool)
+	})
+
+	runService(t, "fullscreen>>1\n", b)
+	if !got {
+		t.Fatal("expected fullscreen=true")
+	}
+
+	runService(t, "fullscreen>>0\n", b)
+	if got {
+		t.Fatal("expected fullscreen=false")
 	}
 }
