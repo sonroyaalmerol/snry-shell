@@ -3,8 +3,10 @@ package gtkutil
 import (
 	"fmt"
 
+	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/sonroyaalmerol/snry-shell/internal/layershell"
+	"github.com/sonroyaalmerol/snry-shell/internal/surfaceutil"
 )
 
 func ClearChildren(parent *gtk.Widget, remove func(gtk.Widgetter)) {
@@ -119,7 +121,197 @@ func ConfirmDialog(parent *gtk.ApplicationWindow, icon, title, message, action s
 		onConfirm()
 	})
 
+	surfaceutil.AddEscapeToClose(win)
 	win.SetVisible(true)
+}
+
+// ActionDialogAction describes a single action button in an ActionDialog.
+type ActionDialogAction struct {
+	Label    string
+	CSSClass string
+	OnClick  func()
+}
+
+// ActionDialog shows an M3-styled dialog with multiple action buttons as a
+// layer-shell overlay.
+func ActionDialog(parent *gtk.ApplicationWindow, icon, title, message string, actions []ActionDialogAction) {
+	win := layershell.NewWindow(parent.Application(), layershell.WindowConfig{
+		Name:          "snry-m3-action-dialog",
+		Layer:         layershell.LayerOverlay,
+		Anchors:       layershell.FullscreenAnchors(),
+		KeyboardMode:  layershell.KeyboardModeOnDemand,
+		ExclusiveZone: -1,
+		Namespace:     "snry-m3-dialog",
+	})
+
+	close := func() { win.SetVisible(false) }
+
+	// Scrim background.
+	scrim := gtk.NewBox(gtk.OrientationVertical, 0)
+	scrim.AddCSSClass("m3-dialog-scrim")
+	scrim.SetHExpand(true)
+	scrim.SetVExpand(true)
+	clickGesture := gtk.NewGestureClick()
+	clickGesture.SetButton(1)
+	clickGesture.SetPropagationLimit(gtk.LimitNone)
+	clickGesture.ConnectReleased(func(_ int, _ float64, _ float64) { close() })
+	scrim.AddController(clickGesture)
+
+	// Centered dialog card.
+	centerBox := gtk.NewBox(gtk.OrientationVertical, 0)
+	centerBox.SetHAlign(gtk.AlignCenter)
+	centerBox.SetVAlign(gtk.AlignCenter)
+
+	card := gtk.NewBox(gtk.OrientationVertical, 0)
+	card.AddCSSClass("m3-dialog")
+
+	if icon != "" {
+		iconLabel := MaterialIcon(icon)
+		iconLabel.AddCSSClass("m3-dialog-icon")
+		card.Append(iconLabel)
+	}
+
+	titleLabel := gtk.NewLabel(title)
+	titleLabel.AddCSSClass("m3-dialog-title")
+	titleLabel.SetWrap(true)
+	titleLabel.SetXAlign(0)
+	card.Append(titleLabel)
+
+	if message != "" {
+		msgLabel := gtk.NewLabel(message)
+		msgLabel.AddCSSClass("m3-dialog-content")
+		msgLabel.SetWrap(true)
+		msgLabel.SetXAlign(0)
+		card.Append(msgLabel)
+	}
+
+	btnBox := gtk.NewBox(gtk.OrientationHorizontal, 8)
+	btnBox.AddCSSClass("m3-dialog-actions")
+
+	for _, action := range actions {
+		actionBtn := gtk.NewButtonWithLabel(action.Label)
+		actionBtn.AddCSSClass("m3-dialog-btn")
+		if action.CSSClass != "" {
+			actionBtn.AddCSSClass(action.CSSClass)
+		}
+		act := action
+		actionBtn.ConnectClicked(func() {
+			close()
+			act.OnClick()
+		})
+		btnBox.Append(actionBtn)
+	}
+
+	cancelBtn := gtk.NewButtonWithLabel("Cancel")
+	cancelBtn.AddCSSClass("m3-dialog-btn")
+	btnBox.Append(cancelBtn)
+	cancelBtn.ConnectClicked(close)
+
+	card.Append(btnBox)
+
+	centerBox.Append(card)
+	scrim.Append(centerBox)
+	win.SetChild(scrim)
+
+	surfaceutil.AddEscapeToClose(win)
+	win.SetVisible(true)
+}
+
+// PasswordDialog shows an M3-styled dialog with a password entry field as a
+// layer-shell overlay.
+func PasswordDialog(parent *gtk.ApplicationWindow, icon, title, message, placeholder string, onConfirm func(password string)) {
+	win := layershell.NewWindow(parent.Application(), layershell.WindowConfig{
+		Name:          "snry-m3-password-dialog",
+		Layer:         layershell.LayerOverlay,
+		Anchors:       layershell.FullscreenAnchors(),
+		KeyboardMode:  layershell.KeyboardModeOnDemand,
+		ExclusiveZone: -1,
+		Namespace:     "snry-m3-dialog",
+	})
+
+	close := func() { win.SetVisible(false) }
+
+	// Scrim background.
+	scrim := gtk.NewBox(gtk.OrientationVertical, 0)
+	scrim.AddCSSClass("m3-dialog-scrim")
+	scrim.SetHExpand(true)
+	scrim.SetVExpand(true)
+	clickGesture := gtk.NewGestureClick()
+	clickGesture.SetButton(1)
+	clickGesture.SetPropagationLimit(gtk.LimitNone)
+	clickGesture.ConnectReleased(func(_ int, _ float64, _ float64) { close() })
+	scrim.AddController(clickGesture)
+
+	// Centered dialog card.
+	centerBox := gtk.NewBox(gtk.OrientationVertical, 0)
+	centerBox.SetHAlign(gtk.AlignCenter)
+	centerBox.SetVAlign(gtk.AlignCenter)
+
+	card := gtk.NewBox(gtk.OrientationVertical, 0)
+	card.AddCSSClass("m3-dialog")
+
+	if icon != "" {
+		iconLabel := MaterialIcon(icon)
+		iconLabel.AddCSSClass("m3-dialog-icon")
+		card.Append(iconLabel)
+	}
+
+	titleLabel := gtk.NewLabel(title)
+	titleLabel.AddCSSClass("m3-dialog-title")
+	titleLabel.SetWrap(true)
+	titleLabel.SetXAlign(0)
+	card.Append(titleLabel)
+
+	if message != "" {
+		msgLabel := gtk.NewLabel(message)
+		msgLabel.AddCSSClass("m3-dialog-content")
+		msgLabel.SetWrap(true)
+		msgLabel.SetXAlign(0)
+		card.Append(msgLabel)
+	}
+
+	// Password entry.
+	entry := gtk.NewEntry()
+	entry.AddCSSClass("m3-password-entry")
+	entry.SetPlaceholderText(placeholder)
+	entry.SetVisibility(false)
+	entry.SetHExpand(true)
+	card.Append(entry)
+
+	btnBox := gtk.NewBox(gtk.OrientationHorizontal, 8)
+	btnBox.AddCSSClass("m3-dialog-actions")
+
+	cancelBtn := gtk.NewButtonWithLabel("Cancel")
+	cancelBtn.AddCSSClass("m3-dialog-btn")
+
+	connectBtn := gtk.NewButtonWithLabel("Connect")
+	connectBtn.AddCSSClass("m3-dialog-btn")
+	connectBtn.AddCSSClass("m3-dialog-btn-primary")
+
+	btnBox.Append(cancelBtn)
+	btnBox.Append(connectBtn)
+	card.Append(btnBox)
+
+	centerBox.Append(card)
+	scrim.Append(centerBox)
+	win.SetChild(scrim)
+
+	submit := func() {
+		password := entry.Text()
+		if password == "" {
+			return
+		}
+		close()
+		onConfirm(password)
+	}
+
+	cancelBtn.ConnectClicked(close)
+	connectBtn.ConnectClicked(submit)
+	entry.ConnectActivate(submit)
+
+	surfaceutil.AddEscapeToClose(win)
+	win.SetVisible(true)
+	glib.IdleAdd(func() { entry.GrabFocus() })
 }
 
 // SectionHeader creates a clickable header for a collapsible section.

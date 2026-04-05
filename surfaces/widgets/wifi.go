@@ -143,6 +143,8 @@ func newWiFiRow(parent *gtk.ApplicationWindow, refs *servicerefs.ServiceRefs, ne
 
 	if refs.Network != nil {
 		ssid := net.SSID
+		saved := net.Saved
+		security := net.Security
 		connected := net.Connected
 		click := gtk.NewGestureClick()
 		click.SetButton(1)
@@ -150,19 +152,34 @@ func newWiFiRow(parent *gtk.ApplicationWindow, refs *servicerefs.ServiceRefs, ne
 			click.SetState(gtk.EventSequenceClaimed)
 		})
 		click.ConnectReleased(func(_ int, _ float64, _ float64) {
-			if connected {
-				return
-			}
-			gtkutil.ConfirmDialog(
+			switch {
+			case connected:
+				gtkutil.ActionDialog(
 					parent,
-				"wifi",
-				"Connect to network",
-				ssid,
-				"Connect",
-				func() {
-					go refs.Network.ConnectWiFi(ssid)
-				},
-			)
+					"wifi",
+					"Connected to network",
+					ssid,
+					[]gtkutil.ActionDialogAction{
+						{Label: "Disconnect", OnClick: func() { go refs.Network.DisconnectWiFi() }},
+						{Label: "Forget", CSSClass: "m3-dialog-btn-error", OnClick: func() { go refs.Network.ForgetWiFi(ssid) }},
+					},
+				)
+			case saved:
+				go refs.Network.ConnectWiFi(ssid)
+			case security != "":
+				gtkutil.PasswordDialog(
+					parent,
+					"wifi",
+					"Connect to network",
+					ssid,
+					"Password",
+					func(password string) {
+						go refs.Network.ConnectWithPassword(ssid, password)
+					},
+				)
+			default:
+				go refs.Network.ConnectWithPassword(ssid, "")
+			}
 		})
 		row.AddController(click)
 	}

@@ -129,6 +129,10 @@ func (s *Service) GetDevices() ([]state.BluetoothDevice, error) {
 		if v, err := devObj.GetProperty("org.bluez.Device1.Icon"); err == nil {
 			icon, _ = v.Value().(string)
 		}
+		trusted := false
+		if v, err := devObj.GetProperty("org.bluez.Device1.Trusted"); err == nil {
+			trusted, _ = v.Value().(bool)
+		}
 
 		devices = append(devices, state.BluetoothDevice{
 			Address:   string(path),
@@ -136,6 +140,7 @@ func (s *Service) GetDevices() ([]state.BluetoothDevice, error) {
 			Paired:    paired,
 			Connected: connected,
 			Icon:      icon,
+			Trusted:   trusted,
 		})
 	}
 
@@ -143,10 +148,14 @@ func (s *Service) GetDevices() ([]state.BluetoothDevice, error) {
 	return devices, nil
 }
 
-// PairDevice initiates pairing with a Bluetooth device.
+// PairDevice initiates pairing with a Bluetooth device and auto-trusts it.
 func (s *Service) PairDevice(addr string) error {
 	obj := s.conn.Object(bluezService, dbus.ObjectPath(addr))
-	return obj.Call("org.bluez.Device1.Pair", 0).Err
+	if err := obj.Call("org.bluez.Device1.Pair", 0).Err; err != nil {
+		return err
+	}
+	_ = s.SetTrusted(addr, true)
+	return nil
 }
 
 // ConnectDevice connects to an already-paired Bluetooth device.
@@ -159,4 +168,16 @@ func (s *Service) ConnectDevice(addr string) error {
 func (s *Service) DisconnectDevice(addr string) error {
 	obj := s.conn.Object(bluezService, dbus.ObjectPath(addr))
 	return obj.Call("org.bluez.Device1.Disconnect", 0).Err
+}
+
+// RemoveDevice removes (forgets) a paired Bluetooth device.
+func (s *Service) RemoveDevice(devicePath string) error {
+	obj := s.conn.Object(bluezService, bluezAdapter)
+	return obj.Call(bluezIface+".RemoveDevice", 0, dbus.ObjectPath(devicePath)).Err
+}
+
+// SetTrusted sets the trusted status of a Bluetooth device.
+func (s *Service) SetTrusted(devicePath string, trusted bool) error {
+	obj := s.conn.Object(bluezService, dbus.ObjectPath(devicePath))
+	return obj.SetProperty("org.bluez.Device1.Trusted", dbus.MakeVariant(trusted))
 }

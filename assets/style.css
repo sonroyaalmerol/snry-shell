@@ -2005,3 +2005,39 @@ scale.settings-scale slider {
 .m3-dialog-btn:hover {
     background-color: alpha(@col_on_surface, 0.08);
 }
+
+/* ── M3 Dialog button variants ──────────────────────────────────────────────── */
+
+.m3-dialog-btn-primary {
+    background-color: @col_primary;
+    color: @col_on_primary;
+}
+
+.m3-dialog-btn-primary:hover {
+    background-color: alpha(@col_on_primary, 0.12);
+}
+
+.m3-dialog-btn-error {
+    color: @col_error;
+}
+
+.m3-dialog-btn-error:hover {
+    background-color: alpha(@col_error, 0.12);
+}
+
+/* ── M3 Dialog password entry ──────────────────────────────────────────────── */
+
+.m3-password-entry {
+    background-color: @col_surface_container_high;
+    border-radius: var(--radius-md);
+    padding: 10px 14px;
+    color: @col_on_surface;
+    font-size: 14px;
+    caret-color: @col_primary;
+    border: none;
+    margin-bottom: 16px;
+}
+
+.m3-password-entry:focus {
+    box-shadow: 0 0 0 2px @col_primary;
+}

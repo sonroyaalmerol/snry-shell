@@ -22,8 +22,8 @@ type MediaTick struct { PlayerName string; Position float64; Duration float64; A
 type ResourceState struct { CPU float64; RAM float64 }
 type AudioApp struct { Name string; ID int; Volume float64; Muted bool }
 type AudioMixerState struct { Apps []AudioApp }
-type WiFiNetwork struct { SSID string; Signal int; Security string; Connected bool }
-type BluetoothDevice struct { Address string; Name string; Paired bool; Connected bool; Icon string }
+type WiFiNetwork struct { SSID string; Signal int; Security string; Connected bool; Saved bool }
+type BluetoothDevice struct { Address string; Name string; Paired bool; Connected bool; Icon string; Trusted bool }
 type PomodoroState struct { Phase string; Remaining time.Duration; Running bool; SessionsCompleted int }
 type TodoItem struct { ID int; Text string; Done bool }
 

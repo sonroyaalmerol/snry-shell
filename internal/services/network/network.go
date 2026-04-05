@@ -179,6 +179,14 @@ func (s *Service) ScanWiFi() ([]state.WiFiNetwork, error) {
 	networks := []state.WiFiNetwork{}
 	defer func() { s.bus.Publish(bus.TopicWiFiNetworks, networks) }()
 
+	// Build saved SSID set.
+	savedSet := make(map[string]bool)
+	if saved, err := s.GetSavedSSIDs(); err == nil {
+		for _, s := range saved {
+			savedSet[s] = true
+		}
+	}
+
 	paths, err := s.wifiDevicePaths()
 	if err != nil {
 		return networks, err
@@ -253,6 +261,7 @@ func (s *Service) ScanWiFi() ([]state.WiFiNetwork, error) {
 				Signal:    int(strength),
 				Security:  security,
 				Connected: ssid == currentSSID,
+				Saved:     savedSet[ssid],
 			})
 		}
 	}
@@ -260,7 +269,7 @@ func (s *Service) ScanWiFi() ([]state.WiFiNetwork, error) {
 	return networks, nil
 }
 
-// ConnectWiFi activates a connection for the given SSID.
+// ConnectWiFi activates a saved connection for the given SSID.
 func (s *Service) ConnectWiFi(ssid string) error {
 	connsV, err := s.conn.Object(nmDest, nmPath).GetProperty(nmIface + ".Connections")
 	if err != nil {
@@ -273,17 +282,13 @@ func (s *Service) ConnectWiFi(ssid string) error {
 
 	for _, cp := range connPaths {
 		connObj := s.conn.Object(nmDest, cp)
-		sidV, err := connObj.GetProperty("org.freedesktop.NetworkManager.Connection.Settings")
-		if err != nil {
-			continue
-		}
-		settings, ok := sidV.Value().(map[string]map[string]dbus.Variant)
-		if !ok {
+		var settings map[string]map[string]dbus.Variant
+		if err := connObj.Call("org.freedesktop.NetworkManager.Settings.Connection.GetSettings", 0).Store(&settings); err != nil {
 			continue
 		}
 		if wireless, ok := settings["802-11-wireless"]; ok {
 			if sv, ok := wireless["ssid"]; ok {
-				if connSSID, ok := sv.Value().(string); ok && connSSID == ssid {
+				if ssidBytes, ok := sv.Value().([]byte); ok && string(ssidBytes) == ssid {
 					s.conn.Object(nmDest, nmPath).Call(nmIface+".ActivateConnection", 0, cp, dbus.ObjectPath("/"))
 					return nil
 				}
@@ -292,4 +297,163 @@ func (s *Service) ConnectWiFi(ssid string) error {
 	}
 
 	return fmt.Errorf("no existing connection for SSID %q", ssid)
+}
+
+// DisconnectWiFi deactivates the current WiFi connection.
+func (s *Service) DisconnectWiFi() error {
+	nmObj := s.conn.Object(nmDest, nmPath)
+	if nmObj == nil {
+		return fmt.Errorf("no D-Bus connection")
+	}
+	primaryV, err := nmObj.GetProperty(nmIface + ".PrimaryConnection")
+	if err != nil {
+		return fmt.Errorf("get primary connection: %w", err)
+	}
+	primaryPath, ok := primaryV.Value().(dbus.ObjectPath)
+	if !ok || primaryPath == "/" {
+		return fmt.Errorf("no active connection")
+	}
+	return nmObj.Call(nmIface+".DeactivateConnection", 0, primaryPath).Err
+}
+
+// ForgetWiFi removes the saved connection profile for the given SSID.
+func (s *Service) ForgetWiFi(ssid string) error {
+	settingsObj := s.conn.Object(nmDest, "/org/freedesktop/NetworkManager/Settings")
+	connsV, err := settingsObj.GetProperty("org.freedesktop.NetworkManager.Settings.Connections")
+	if err != nil {
+		return err
+	}
+	connPaths, ok := connsV.Value().([]dbus.ObjectPath)
+	if !ok {
+		return fmt.Errorf("no connections found")
+	}
+
+	for _, cp := range connPaths {
+		connObj := s.conn.Object(nmDest, cp)
+		var settings map[string]map[string]dbus.Variant
+		if err := connObj.Call("org.freedesktop.NetworkManager.Settings.Connection.GetSettings", 0).Store(&settings); err != nil {
+			continue
+		}
+		if wireless, ok := settings["802-11-wireless"]; ok {
+			if sv, ok := wireless["ssid"]; ok {
+				if ssidBytes, ok := sv.Value().([]byte); ok && string(ssidBytes) == ssid {
+					return connObj.Call("org.freedesktop.NetworkManager.Settings.Connection.Delete", 0).Err
+				}
+			}
+		}
+	}
+	return fmt.Errorf("no saved connection for SSID %q", ssid)
+}
+
+// ConnectWithPassword creates a new connection with the given password and activates it.
+// If password is empty, creates an open connection (no security).
+func (s *Service) ConnectWithPassword(ssid, password string) error {
+	apPath, err := s.findAccessPointPath(ssid)
+	if err != nil {
+		return err
+	}
+	devPath, err := s.findWifiDevicePath()
+	if err != nil {
+		return err
+	}
+
+	connection := map[string]map[string]dbus.Variant{
+		"connection": {
+			"id":   dbus.MakeVariant(ssid),
+			"type": dbus.MakeVariant("802-11-wireless"),
+		},
+		"802-11-wireless": {
+			"ssid": dbus.MakeVariant([]byte(ssid)),
+			"mode": dbus.MakeVariant("infrastructure"),
+		},
+		"ipv4": {
+			"method": dbus.MakeVariant("auto"),
+		},
+		"ipv6": {
+			"method": dbus.MakeVariant("auto"),
+		},
+	}
+
+	if password != "" {
+		connection["802-11-wireless-security"] = map[string]dbus.Variant{
+			"key-mgmt": dbus.MakeVariant("wpa-psk"),
+			"psk":      dbus.MakeVariant(password),
+		}
+	}
+
+	return s.conn.Object(nmDest, nmPath).Call(nmIface+".AddAndActivateConnection", 0, connection, devPath, apPath).Err
+}
+
+func (s *Service) findAccessPointPath(ssid string) (dbus.ObjectPath, error) {
+	paths, err := s.wifiDevicePaths()
+	if err != nil {
+		return "/", err
+	}
+	for _, p := range paths {
+		devObj := s.conn.Object(nmDest, p)
+		apsV, err := devObj.GetProperty(nmDeviceWireless + ".AccessPoints")
+		if err != nil {
+			continue
+		}
+		apPaths, ok := apsV.Value().([]dbus.ObjectPath)
+		if !ok {
+			continue
+		}
+		for _, apPath := range apPaths {
+			apObj := s.conn.Object(nmDest, apPath)
+			ssidV, err := apObj.GetProperty(nmAccessPoint + ".Ssid")
+			if err != nil {
+				continue
+			}
+			ssidBytes, ok := ssidV.Value().([]byte)
+			if !ok {
+				continue
+			}
+			if string(ssidBytes) == ssid {
+				return apPath, nil
+			}
+		}
+	}
+	return "/", fmt.Errorf("access point for SSID %q not found", ssid)
+}
+
+func (s *Service) findWifiDevicePath() (dbus.ObjectPath, error) {
+	paths, err := s.wifiDevicePaths()
+	if err != nil {
+		return "/", err
+	}
+	if len(paths) == 0 {
+		return "/", fmt.Errorf("no WiFi device found")
+	}
+	return paths[0], nil
+}
+
+// GetSavedSSIDs returns the SSIDs of all saved WiFi connections.
+func (s *Service) GetSavedSSIDs() ([]string, error) {
+	settingsObj := s.conn.Object(nmDest, "/org/freedesktop/NetworkManager/Settings")
+	connsV, err := settingsObj.GetProperty("org.freedesktop.NetworkManager.Settings.Connections")
+	if err != nil {
+		return nil, err
+	}
+	connPaths, ok := connsV.Value().([]dbus.ObjectPath)
+	if !ok {
+		return nil, fmt.Errorf("no connections found")
+	}
+
+	var ssids []string
+	for _, cp := range connPaths {
+		connObj := s.conn.Object(nmDest, cp)
+		var settings map[string]map[string]dbus.Variant
+		if err := connObj.Call("org.freedesktop.NetworkManager.Settings.Connection.GetSettings", 0).Store(&settings); err != nil {
+			continue
+		}
+		if wireless, ok := settings["802-11-wireless"]; ok {
+			if sv, ok := wireless["ssid"]; ok {
+				if ssidBytes, ok := sv.Value().([]byte); ok {
+					ssids = append(ssids, string(ssidBytes))
+				}
+			}
+		}
+	}
+	return ssids, nil
 }
