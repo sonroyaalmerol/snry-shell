@@ -110,6 +110,7 @@ func (p *Panel) refresh(filter string) {
 				}
 
 				row := gtk.NewButton()
+				row.SetCursorFromName("pointer")
 				row.AddCSSClass("clipboard-row")
 
 				lbl := gtk.NewLabel(line)

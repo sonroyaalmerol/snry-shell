@@ -67,6 +67,7 @@ func (g *gridWidget) refresh() {
 
 func newWindowCard(querier *hyprland.Querier, client hyprland.HyprClient) gtk.Widgetter {
 	btn := gtk.NewButton()
+	btn.SetCursorFromName("pointer")
 	btn.AddCSSClass("window-preview-card")
 
 	card := gtk.NewBox(gtk.OrientationVertical, 4)

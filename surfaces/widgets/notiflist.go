@@ -73,6 +73,7 @@ func (nl *notificationList) buildCard(n state.Notification) gtk.Widgetter {
 	appLabel.SetHExpand(true)
 
 	closeBtn := gtk.NewButton()
+	closeBtn.SetCursorFromName("pointer")
 	closeBtn.AddCSSClass("notification-dismiss-btn")
 	closeBtn.SetLabel("✕")
 	closeBtn.ConnectClicked(func() {

@@ -46,12 +46,14 @@ func (s *Settings) build() {
 	nav.AddCSSClass("settings-nav")
 
 	appearanceBtn := gtk.NewButton()
+	appearanceBtn.SetCursorFromName("pointer")
 	appearanceBtn.AddCSSClass("settings-nav-item")
 	appearanceLabel := gtk.NewLabel("Appearance")
 	appearanceLabel.AddCSSClass("settings-nav-label")
 	appearanceBtn.SetChild(appearanceLabel)
 
 	barBtn := gtk.NewButton()
+	barBtn.SetCursorFromName("pointer")
 	barBtn.AddCSSClass("settings-nav-item")
 	barLabel := gtk.NewLabel("Bar")
 	barLabel.AddCSSClass("settings-nav-label")

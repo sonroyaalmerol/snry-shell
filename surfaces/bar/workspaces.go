@@ -34,6 +34,7 @@ func newWorkspacesWidget(b *bus.Bus, querier *hyprland.Querier) gtk.Widgetter {
 		label.AddCSSClass("workspace-pill-label")
 
 		btn := gtk.NewButton()
+		btn.SetCursorFromName("pointer")
 		btn.AddCSSClass("workspace-pill")
 		btn.SetChild(label)
 		btn.SetTooltipText(fmt.Sprintf("Workspace %d", id))

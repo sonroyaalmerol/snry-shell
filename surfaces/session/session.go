@@ -81,6 +81,7 @@ func (s *Session) buildBtn(a struct {
 	cmd    []string
 }) *gtk.Button {
 	btn := gtk.NewButton()
+	btn.SetCursorFromName("pointer")
 	btn.AddCSSClass("session-btn")
 
 	inner := gtk.NewBox(gtk.OrientationVertical, 0)

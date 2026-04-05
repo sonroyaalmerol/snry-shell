@@ -33,6 +33,7 @@ func newTrayWidget(b *bus.Bus) gtk.Widgetter {
 
 func newTrayItemBtn(b *bus.Bus, item *sni.TrayItem) gtk.Widgetter {
 	btn := gtk.NewButton()
+	btn.SetCursorFromName("pointer")
 	btn.AddCSSClass("tray-item")
 	btn.SetTooltipText(item.Title)
 	if item.Title == "" {

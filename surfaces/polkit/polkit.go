@@ -287,9 +287,11 @@ func (a *Agent) buildDialog(cookie string, req *authRequest) (*gtk.Window, *gtk.
 	btnBox.SetHAlign(gtk.AlignEnd)
 
 	cancelBtn := gtk.NewButtonWithLabel("Cancel")
+	cancelBtn.SetCursorFromName("pointer")
 	cancelBtn.AddCSSClass("polkit-cancel-btn")
 
 	authBtn := gtk.NewButtonWithLabel("Authenticate")
+	authBtn.SetCursorFromName("pointer")
 	authBtn.AddCSSClass("polkit-auth-btn")
 
 	btnBox.Append(cancelBtn)

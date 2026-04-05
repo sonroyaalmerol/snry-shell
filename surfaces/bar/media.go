@@ -18,6 +18,7 @@ func newMediaWidget(b *bus.Bus) gtk.Widgetter {
 	revealer.SetRevealChild(false)
 
 	btn := gtk.NewButton()
+	btn.SetCursorFromName("pointer")
 	btn.AddCSSClass("media-pill")
 	btn.SetHAlign(gtk.AlignCenter)
 

@@ -35,6 +35,7 @@ func BuildCalendarGroup() gtk.Widgetter {
 	header.SetHAlign(gtk.AlignFill)
 
 	prevBtn := gtk.NewButton()
+	prevBtn.SetCursorFromName("pointer")
 	prevBtn.AddCSSClass("cal-nav-btn")
 	prevLabel := gtk.NewLabel("chevron_left")
 	prevLabel.AddCSSClass("material-icon")
@@ -46,6 +47,7 @@ func BuildCalendarGroup() gtk.Widgetter {
 	monthLabel.SetHAlign(gtk.AlignCenter)
 
 	nextBtn := gtk.NewButton()
+	nextBtn.SetCursorFromName("pointer")
 	nextBtn.AddCSSClass("cal-nav-btn")
 	nextLabel := gtk.NewLabel("chevron_right")
 	nextLabel.AddCSSClass("material-icon")

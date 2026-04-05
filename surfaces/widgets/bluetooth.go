@@ -43,6 +43,7 @@ func NewBluetoothWidget(b *bus.Bus, refs *servicerefs.ServiceRefs, parent *gtk.A
 
 	// Scan button.
 	scanBtn := gtk.NewButton()
+	scanBtn.SetCursorFromName("pointer")
 	scanBtn.AddCSSClass("conn-scan-btn")
 	scanBtn.SetChild(gtkutil.MaterialIcon("search"))
 

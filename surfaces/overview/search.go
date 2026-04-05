@@ -46,6 +46,7 @@ func newSearchWidget(b *bus.Bus, onDismiss func()) gtk.Widgetter {
 
 func newAppRow(app launcher.App, onActivate func()) gtk.Widgetter {
 	btn := gtk.NewButton()
+	btn.SetCursorFromName("pointer")
 	btn.AddCSSClass("search-result-row")
 
 	label := gtk.NewLabel(app.Name)

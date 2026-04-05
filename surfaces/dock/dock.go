@@ -43,6 +43,7 @@ func (d *Dock) build() {
 		icon.SetPixelSize(35)
 
 		btn := gtk.NewButton()
+		btn.SetCursorFromName("pointer")
 		btn.AddCSSClass("dock-btn")
 		btn.SetChild(icon)
 		btn.SetTooltipText(app.Name)

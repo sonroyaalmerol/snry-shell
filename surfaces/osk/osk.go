@@ -55,6 +55,7 @@ func (o *OSK) build() {
 
 		for col, key := range row {
 			btn := gtk.NewButton()
+			btn.SetCursorFromName("pointer")
 			btn.AddCSSClass("osk-key")
 			label := gtk.NewLabel(key)
 			label.AddCSSClass("osk-key-label")

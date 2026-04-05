@@ -83,6 +83,7 @@ func New(app *gtk.Application, b *bus.Bus) *Picker {
 
 func emojiButton(parent *gtk.FlowBox, emoji, name string) {
 	btn := gtk.NewButton()
+	btn.SetCursorFromName("pointer")
 	btn.AddCSSClass("emoji-btn")
 	lbl := gtk.NewLabel(emoji)
 	lbl.AddCSSClass("emoji-char")

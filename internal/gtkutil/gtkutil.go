@@ -25,6 +25,7 @@ func MaterialButton(icon string) *gtk.Button {
 	label := gtk.NewLabel(icon)
 	label.AddCSSClass("material-icon")
 	btn.SetChild(label)
+	btn.SetCursorFromName("pointer")
 	return btn
 }
 

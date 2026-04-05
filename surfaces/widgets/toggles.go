@@ -190,6 +190,7 @@ func NewQuickToggles(b *bus.Bus, refs *servicerefs.ServiceRefs) gtk.Widgetter {
 		if toggle.button {
 			// One-shot action button (no toggle state).
 			btn := gtk.NewButton()
+			btn.SetCursorFromName("pointer")
 			btn.AddCSSClass("quick-toggle")
 			btn.AddCSSClass("quick-toggle-button")
 			btn.SetChild(inner)
@@ -201,6 +202,7 @@ func NewQuickToggles(b *bus.Bus, refs *servicerefs.ServiceRefs) gtk.Widgetter {
 		}
 
 		btn := gtk.NewToggleButton()
+		btn.SetCursorFromName("pointer")
 		btn.AddCSSClass("quick-toggle")
 		btn.SetChild(inner)
 

@@ -39,6 +39,7 @@ func NewWiFiWidget(b *bus.Bus, refs *servicerefs.ServiceRefs, parent *gtk.Applic
 
 	// Scan button.
 	scanBtn := gtk.NewButton()
+	scanBtn.SetCursorFromName("pointer")
 	scanBtn.AddCSSClass("conn-scan-btn")
 	scanBtn.SetChild(gtkutil.MaterialIcon("refresh"))
 
