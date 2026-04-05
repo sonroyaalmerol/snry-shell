@@ -2,41 +2,53 @@ package brightness
 
 import (
 	"context"
-	"fmt"
-	"regexp"
-	"strconv"
-	"strings"
+	"log"
 	"time"
 
 	"github.com/sonroyaalmerol/snry-shell/internal/bus"
-	"github.com/sonroyaalmerol/snry-shell/internal/services/runner"
+	"github.com/sonroyaalmerol/snry-shell/internal/ddc"
 	"github.com/sonroyaalmerol/snry-shell/internal/state"
 )
 
 type Service struct {
-	runner runner.Runner
-	bus    *bus.Bus
-	last   state.BrightnessState
+	bus  *bus.Bus
+	last state.BrightnessState
 }
 
-func New(r runner.Runner, b *bus.Bus) *Service {
-	return &Service{runner: r, bus: b}
+func New(b *bus.Bus) *Service {
+	return &Service{bus: b}
 }
 
 func NewWithDefaults(b *bus.Bus) *Service {
-	return New(runner.New(), b)
+	return New(b)
 }
 
 func (s *Service) Run(ctx context.Context) error {
 	s.poll()
-	return runner.PollLoop(ctx, 2*time.Second, s.poll)
+	return pollLoop(ctx, 2*time.Second, s.poll)
+}
+
+func pollLoop(ctx context.Context, interval time.Duration, poll func()) error {
+	poll()
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-ticker.C:
+			poll()
+		}
+	}
 }
 
 func (s *Service) poll() {
-	bs, err := s.query()
+	v, err := ddc.GetVCP(0x10)
 	if err != nil {
+		log.Printf("[brightness] ddc get: %v", err)
 		return
 	}
+	bs := state.BrightnessState{Current: int(v.Current), Max: int(v.Max)}
 	if bs.Current == s.last.Current && bs.Max == s.last.Max {
 		return
 	}
@@ -44,31 +56,22 @@ func (s *Service) poll() {
 	s.bus.Publish(bus.TopicBrightness, bs)
 }
 
-// ddcutil output: "VCP code 0x10 (Brightness): current value =    20, max value =   100"
-var ddcutilRe = regexp.MustCompile(`current value\s*=\s*(\d+),\s*max value\s*=\s*(\d+)`)
-
-func (s *Service) query() (state.BrightnessState, error) {
-	out, err := s.runner.Output("ddcutil", "getvcp", "10")
-	if err != nil {
-		return state.BrightnessState{}, fmt.Errorf("ddcutil getvcp: %w", err)
-	}
-	m := ddcutilRe.FindStringSubmatch(string(out))
-	if m == nil {
-		return state.BrightnessState{}, fmt.Errorf("ddcutil: could not parse output: %q", strings.TrimSpace(string(out)))
-	}
-	cur, _ := strconv.Atoi(m[1])
-	mx, _ := strconv.Atoi(m[2])
-	return state.BrightnessState{Current: cur, Max: mx}, nil
-}
-
-// SetBrightness sets the monitor brightness. v is 0.0–1.0.
+// SetBrightness sets the monitor brightness. v is 0.0-1.0.
 func (s *Service) SetBrightness(v float64) error {
-	val := int(v * 100)
-	if val < 0 {
-		val = 0
+	if s.last.Max == 0 {
+		// Read current max first if unknown.
+		val, err := ddc.GetVCP(0x10)
+		if err != nil {
+			return err
+		}
+		s.last.Max = int(val.Max)
 	}
-	if val > 100 {
-		val = 100
+	raw := int(v * float64(s.last.Max))
+	if raw < 0 {
+		raw = 0
 	}
-	return s.runner.Run("ddcutil", "setvcp", "10", strconv.Itoa(val))
+	if raw > s.last.Max {
+		raw = s.last.Max
+	}
+	return ddc.SetVCP(0x10, uint16(raw))
 }
