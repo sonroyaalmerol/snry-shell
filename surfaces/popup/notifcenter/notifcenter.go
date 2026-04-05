@@ -36,17 +36,12 @@ func New(app *gtk.Application, b *bus.Bus, refs *servicerefs.ServiceRefs, trigge
 
 	nc := &NotifCenter{win: win, bus: b, refs: refs, trigger: trigger, root: root}
 
-	scroll := gtk.NewScrolledWindow()
-	scroll.SetPolicy(gtk.PolicyNever, gtk.PolicyAutomatic)
-	scroll.AddCSSClass("popup-scroll")
-	scroll.SetMaxContentHeight(800)
-	scroll.SetPropagateNaturalHeight(true)
-
 	panel := gtk.NewBox(gtk.OrientationVertical, 8)
 	panel.AddCSSClass("popup-panel")
 	panel.SetMarginStart(panelMargin)
 	panel.SetMarginEnd(panelMargin)
 	panel.SetSizeRequest(panelWidth, -1)
+	panel.AddCSSClass("popup-scrollable")
 
 	// Top: quick settings, WiFi, Bluetooth.
 	panel.Append(widgets.NewQuickToggles(nc.bus, refs))
@@ -61,8 +56,7 @@ func New(app *gtk.Application, b *bus.Bus, refs *servicerefs.ServiceRefs, trigge
 	panel.Append(widgets.NewNotificationList(nc.bus))
 	panel.Append(widgets.BuildMediaGroup(nc.bus, refs.Mpris))
 
-	scroll.SetChild(panel)
-	root.Append(scroll)
+	root.Append(panel)
 
 	b.Subscribe(bus.TopicSystemControls, func(e bus.Event) {
 		if e.Data == "toggle-notif-center" {

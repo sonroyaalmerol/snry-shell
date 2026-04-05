@@ -33,22 +33,21 @@ func New(app *gtk.Application, b *bus.Bus, refs *servicerefs.ServiceRefs, trigge
 
 	c := &Controls{win: win, bus: b, trigger: trigger, root: root}
 
-	scroll := gtk.NewScrolledWindow()
-	scroll.SetPolicy(gtk.PolicyNever, gtk.PolicyAutomatic)
-	scroll.AddCSSClass("popup-scroll")
-	scroll.SetMaxContentHeight(500)
-	scroll.SetPropagateNaturalHeight(true)
-
 	panel := gtk.NewBox(gtk.OrientationVertical, 8)
 	panel.AddCSSClass("popup-panel")
 	panel.SetMarginStart(panelMargin)
 	panel.SetMarginEnd(panelMargin)
 	panel.SetSizeRequest(panelWidth, -1)
 
-	panel.Append(widgets.BuildQuickControls(c.bus, refs))
+	scroll := gtk.NewScrolledWindow()
+	scroll.SetPolicy(gtk.PolicyNever, gtk.PolicyAutomatic)
+	scroll.AddCSSClass("popup-scroll")
+	scroll.SetMaxContentHeight(500)
+	scroll.SetPropagateNaturalHeight(true)
 
-	scroll.SetChild(panel)
-	root.Append(scroll)
+	scroll.SetChild(widgets.BuildQuickControls(c.bus, refs))
+	panel.Append(scroll)
+	root.Append(panel)
 
 	b.Subscribe(bus.TopicSystemControls, func(e bus.Event) {
 		if e.Data == "toggle-controls" {

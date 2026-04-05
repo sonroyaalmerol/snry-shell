@@ -467,6 +467,10 @@ scale.m3-scale slider {
     border: 1px solid alpha(@col_outline, 0.15);
 }
 
+.popup-scrollable {
+    max-height: 800px;
+}
+
 .popup-scroll {
     background-color: transparent;
 }
@@ -477,19 +481,23 @@ scale.m3-scale slider {
     border-radius: var(--radius-full, 9999px);
 }
 
-.popup-scroll > scrollbar {
+.popup-scroll > scrollbar,
+.popup-scrollable > scrollbar {
     background-color: transparent;
     opacity: 0;
 }
 
-.popup-scroll > scrollbar slider {
+.popup-scroll > scrollbar slider,
+.popup-scrollable > scrollbar slider {
     background-color: alpha(@col_on_surface, 0.2);
     border-radius: var(--radius-pill);
     min-width: 4px;
 }
 
 .popup-scroll > scrollbar.hovering,
-.popup-scroll > scrollbar.sliding {
+.popup-scroll > scrollbar.sliding,
+.popup-scrollable > scrollbar.hovering,
+.popup-scrollable > scrollbar.sliding {
     opacity: 1;
 }
 
