@@ -14,9 +14,8 @@ snry-shell provides a complete desktop shell UI layer:
 - **Status bar** — workspaces, window title, notification unread badge, system tray (SNI), resource monitor, keyboard layout, volume/brightness/network/battery indicators, clock
 - **Application overview** — window previews grouped by workspace, fuzzy app launcher
 - **Notifications** — freedesktop notification daemon (DBus), toast popups, sidebar notification list
-- **Right sidebar** — media controls, calendar, quick toggles (14 total), pomodoro timer, todo list, volume mixer, WiFi picker, Bluetooth picker
+- **Control panel** — media controls, calendar popup, quick toggles (14 total), pomodoro timer, todo list, volume mixer, WiFi picker, Bluetooth picker
 - **Quick toggles** — WiFi, Bluetooth, Night Light, Anti-Flashbang, Mic Mute, EasyEffects, Volume Mixer, DND, Idle Inhibitor, GameMode, Performance, Screenshot, Color Picker, WiFi Networks
-- **Dock** — pinned application launcher
 - **Lock screen** — password entry, clock display
 - **Session menu** — lock, suspend, reboot, shutdown, logout
 - **Settings panel** — dark mode, font scale, bar position
@@ -27,7 +26,7 @@ snry-shell provides a complete desktop shell UI layer:
 - **Screen recorder** — wf-recorder integration with live timer
 - **Floating image viewer** — click-to-dismiss image display
 - **Polkit agent** — GUI authentication dialog (replaces text-based agent)
-- **On-screen keyboard** — QWERTY layout with key injection via wtype
+- **On-screen keyboard** — QWERTY layout with key injection via `/dev/uinput` (zero external dependencies)
 - **Extras** — screen corner hotspots, crosshair overlay, region screenshot selector, cheatsheet, OSD (volume/brightness)
 
 ## Architecture
@@ -38,12 +37,13 @@ surfaces/
   app.go                       Application orchestrator
   bar/                          Status bar surface
   overview/                     App launcher + window grid
-  sidebar/                      Right sidebar container + widgets
-  dock/                         Application dock
+  popup/
+    controls/                   Control panel (toggles, sliders, media, widgets)
+    calendar/                   Calendar popup
+    notifcenter/               Notification center sidebar
   lockscreen/                   Lock screen
   session/                      Power menu
   settings/                     Settings panel
-  wallpaperpicker/              Wallpaper browser
   mediaoverlay/                 Full-screen media controls
   clipboard/                    Clipboard history panel
   emoji/                        Emoji picker overlay
@@ -58,12 +58,13 @@ surfaces/
   corners/                      Screen corner hotspots
   crosshair/                    Crosshair overlay
   cheatsheet/                   Keyboard shortcuts overlay
+  widgets/                      Shared bar/panel widgets (toggles, sliders, media, etc.)
 internal/
   bus/                          Event bus (pub/sub)
   state/                        Shared state types
   servicerefs/                  Service container struct
   services/
-    hyprland/                   Hyprland IPC + queries
+    hyprland/                   Hyprland IPC + queries + forced config injection
     audio/                      Volume control (wpctl)
     brightness/                 Brightness control (brightnessctl)
     resources/                  CPU/RAM monitoring (/proc)
@@ -76,15 +77,25 @@ internal/
     clipboard/                  Clipboard history (wl-clipboard)
     wallpaper/                  Wallpaper watcher (swww)
     nightmode/                  Night light (hyprsunset)
+    weather/                    Weather data
     pomodoro/                   Pomodoro timer
     todo/                       Task list (JSON persistence)
     sni/                        System tray host (StatusNotifierItem DBus)
+    runner/                     Command abstraction for testable subprocess calls
+  atspi2/                       AT-SPI2 text input focus detection (accessibility D-Bus)
+  controlsocket/                Unix socket for --toggle-* commands
+  dbusutil/                     D-Bus helper utilities
+  fileutil/                     File I/O helpers
+  gtkutil/                      Shared GTK widget helpers
+  surfaceutil/                  Shared layer-shell surface helpers
+  uinput/                       Virtual keyboard via /dev/uinput (zero-dependency key injection)
   settings/                     User configuration (JSON)
   theme/                        M3 color scheme utilities
   calendar/                     Calendar grid logic
   launcher/                     XDG .desktop loader + fuzzy search
   layershell/                   CGo bindings for gtk4-layer-shell
 assets/
+  embed.go                      Embeds style.css into the binary
   style.css                     Material Design 3 base stylesheet
 ```
 
@@ -94,6 +105,7 @@ assets/
 - **Dependency injection** — Every service that touches the OS (subprocesses, sockets, DBus) is abstracted behind an interface, enabling unit tests with fakes.
 - **Layer shell** — Each surface is a separate gtk-layer-shell window with its own layer, anchors, exclusive zone, and keyboard mode.
 - **Service refs** — A single `ServiceRefs` struct bundles all service pointers and is passed to surface constructors that need them.
+- **Forced configs** — The shell temporarily injects Hyprland config values (e.g. `decoration:rounding`) via `hyprctl keyword` and restores originals on exit.
 
 ## Installation
 
@@ -135,7 +147,7 @@ See [Building](#building) below.
 - **Go** 1.26+
 - **Hyprland** compositor
 - **gtk4-layer-shell** development headers
-- **System tools**: pkgconf, swww, matugen, wpctl (wireplumber), grim, wl-copy, wtype, cliphist, hyprpicker, wf-recorder
+- **System tools**: pkgconf, swww, matugen, wpctl (wireplumber), grim, wl-copy, cliphist, hyprpicker, wf-recorder
 - **Optional**: checkpw (lock screen PAM), polkit-agent-helper-1 (polkit authentication)
 - **Fonts**: Google Sans Flex, Material Symbols Rounded, JetBrains Mono NF
 
@@ -146,7 +158,7 @@ See [Building](#building) below.
 sudo pacman -S --needed gtk4 gtk4-layer-shell pkgconf go
 
 # Runtime dependencies (official repos)
-sudo pacman -S --needed wireplumber grim wl-clipboard wtype wf-recorder polkit
+sudo pacman -S --needed wireplumber grim wl-clipboard wf-recorder polkit
 
 # Runtime dependencies (AUR)
 yay -S swww matugen-bin cliphist hyprpicker
@@ -165,7 +177,7 @@ sudo dnf copr enable solopash/hyprland
 sudo dnf install gtk4-devel gtk4-layer-shell-devel pkgconf go gcc
 
 # Runtime dependencies (official repos)
-sudo dnf install wireplumber grim wl-clipboard wtype wf-recorder
+sudo dnf install wireplumber grim wl-clipboard wf-recorder
 
 # Runtime dependencies (COPR or build from source)
 yay -S swww matugen hyprpicker cliphist
@@ -181,7 +193,7 @@ sudo dnf install polkit
 sudo apt install libgtk-4-dev libgtk4-layer-shell-dev pkg-config golang gcc
 
 # Runtime dependencies (official repos)
-sudo apt install wireplumber grim wl-clipboard wtype cliphist \
+sudo apt install wireplumber grim wl-clipboard cliphist \
     hyprpicker wf-recorder checkpw polkitd
 
 # Runtime dependencies (build from source)
@@ -197,7 +209,7 @@ cargo install swww matugen
 sudo zypper install gtk4-devel gtk4-layer-shell-devel pkg-config go gcc
 
 # Runtime dependencies (official repos)
-sudo zypper install swww wireplumber grim wl-clipboard wtype cliphist \
+sudo zypper install swww wireplumber grim wl-clipboard cliphist \
     hyprpicker wf-recorder polkit
 
 # Runtime dependencies (build from source)
@@ -213,7 +225,7 @@ cargo install matugen
 sudo apk add gtk4.0-dev gtk4-layer-shell-dev pkgconf go gcc musl-dev
 
 # Runtime dependencies (official repos)
-sudo apk add swww wireplumber grim wl-clipboard wtype wf-recorder polkit
+sudo apk add swww wireplumber grim wl-clipboard wf-recorder polkit
 
 # Runtime dependencies (build from source)
 cargo install matugen cliphist hyprpicker
@@ -253,7 +265,7 @@ The binary accepts `--toggle-*` flags that send commands to the running instance
 
 ```
 bind = SUPER, space,  exec, snry-shell --toggle-overview
-bind = SUPER, escape, exec, snry-shell --toggle-sidebar
+bind = SUPER, escape, exec, snry-shell --toggle-controls
 bind = SUPER, Q,      exec, snry-shell --toggle-session
 bind = SUPER, P,      exec, snry-shell --toggle-settings
 bind = SUPER, S,      exec, snry-shell --toggle-region-selector
@@ -271,7 +283,7 @@ snry-shell listens on `/tmp/snry-shell.sock`. The following commands are accepte
 | Command | Action |
 |---------|--------|
 | `toggle-overview` | Toggle application overview |
-| `toggle-sidebar` | Toggle right sidebar |
+| `toggle-controls` | Toggle control panel |
 | `toggle-session` | Toggle session power menu |
 | `toggle-crosshair` | Toggle crosshair overlay |
 | `toggle-cheatsheet` | Toggle keyboard shortcuts overlay |
@@ -316,12 +328,7 @@ Custom CSS overrides can be added to `assets/style.css`. The base stylesheet use
 make test
 ```
 
-19 test suites cover the internal packages (bus, calendar, launcher, services, settings, theme). Surface UI packages require a GTK display and are not unit-tested.
-
-## Known Limitations
-
-- Hyprland IPC is required — snry-shell does not work with other compositors.
-- The on-screen keyboard requires `wtype` for key injection and lacks shift/symbol layers.
+Test suites cover the internal packages (bus, calendar, launcher, services, settings, theme, uinput, atspi2, osk). Surface UI packages require a GTK display and are not unit-tested.
 
 ## License
 
