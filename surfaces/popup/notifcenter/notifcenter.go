@@ -90,8 +90,8 @@ func (nc *NotifCenter) build(refs *servicerefs.ServiceRefs, clickBg *gtk.Box) {
 	panel.SetSizeRequest(panelWidth, -1)
 
 	panel.Append(widgets.NewNotificationList(nc.bus))
-	panel.Append(widgets.NewWiFiWidget(nc.bus, refs))
-	panel.Append(widgets.NewBluetoothWidget(nc.bus, refs))
+	panel.Append(widgets.NewWiFiWidget(nc.bus, refs, nc.win))
+	panel.Append(widgets.NewBluetoothWidget(nc.bus, refs, nc.win))
 
 	scroll.SetChild(panel)
 	root.Append(scroll)

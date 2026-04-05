@@ -11,7 +11,7 @@ import (
 
 // NewWiFiWidget creates an Android 16-style WiFi panel with toggle, collapsible
 // sections, and confirmation dialogs.
-func NewWiFiWidget(b *bus.Bus, refs *servicerefs.ServiceRefs) gtk.Widgetter {
+func NewWiFiWidget(b *bus.Bus, refs *servicerefs.ServiceRefs, parent *gtk.ApplicationWindow) gtk.Widgetter {
 	box := gtk.NewBox(gtk.OrientationVertical, 0)
 	box.AddCSSClass("conn-widget")
 
@@ -98,7 +98,7 @@ func NewWiFiWidget(b *bus.Bus, refs *servicerefs.ServiceRefs) gtk.Widgetter {
 			gtkutil.ClearChildren(&listBox.Widget, listBox.Remove)
 
 			for _, net := range networks {
-				row := newWiFiRow(refs, net)
+				row := newWiFiRow(parent, refs, net)
 				listBox.Append(row)
 			}
 
@@ -109,7 +109,7 @@ func NewWiFiWidget(b *bus.Bus, refs *servicerefs.ServiceRefs) gtk.Widgetter {
 	return box
 }
 
-func newWiFiRow(refs *servicerefs.ServiceRefs, net state.WiFiNetwork) gtk.Widgetter {
+func newWiFiRow(parent *gtk.ApplicationWindow, refs *servicerefs.ServiceRefs, net state.WiFiNetwork) gtk.Widgetter {
 	row := gtk.NewBox(gtk.OrientationHorizontal, 12)
 	row.AddCSSClass("conn-row")
 	if net.Connected {
@@ -154,6 +154,7 @@ func newWiFiRow(refs *servicerefs.ServiceRefs, net state.WiFiNetwork) gtk.Widget
 				return
 			}
 			gtkutil.ConfirmDialog(
+					parent,
 				"Connect to network",
 				ssid,
 				"Connect",

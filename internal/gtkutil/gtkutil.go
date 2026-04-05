@@ -41,9 +41,9 @@ func MaterialIcon(name string) *gtk.Label {
 }
 
 // ConfirmDialog shows a modal confirmation dialog. Calls onConfirm if accepted.
-func ConfirmDialog(title, message, action string, onConfirm func()) {
+func ConfirmDialog(parent *gtk.ApplicationWindow, title, message, action string, onConfirm func()) {
 	dialog := gtk.NewMessageDialog(
-		nil,
+		&parent.Window,
 		gtk.DialogModal|gtk.DialogDestroyWithParent,
 		gtk.MessageQuestion,
 		gtk.ButtonsCancel,

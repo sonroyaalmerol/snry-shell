@@ -11,7 +11,7 @@ import (
 
 // NewBluetoothWidget creates an Android 16-style Bluetooth panel with toggle,
 // paired/available sections, and confirmation dialogs.
-func NewBluetoothWidget(b *bus.Bus, refs *servicerefs.ServiceRefs) gtk.Widgetter {
+func NewBluetoothWidget(b *bus.Bus, refs *servicerefs.ServiceRefs, parent *gtk.ApplicationWindow) gtk.Widgetter {
 	box := gtk.NewBox(gtk.OrientationVertical, 0)
 	box.AddCSSClass("conn-widget")
 
@@ -113,11 +113,11 @@ func NewBluetoothWidget(b *bus.Bus, refs *servicerefs.ServiceRefs) gtk.Widgetter
 			for _, dev := range devices {
 				if dev.Paired {
 					pairedCount++
-					row := newBTDeviceRow(refs, dev)
+					row := newBTDeviceRow(parent, refs, dev)
 					pairedListBox.Append(row)
 				} else {
 					availableCount++
-					row := newBTDeviceRow(refs, dev)
+					row := newBTDeviceRow(parent, refs, dev)
 					availableListBox.Append(row)
 				}
 			}
@@ -130,7 +130,7 @@ func NewBluetoothWidget(b *bus.Bus, refs *servicerefs.ServiceRefs) gtk.Widgetter
 	return box
 }
 
-func newBTDeviceRow(refs *servicerefs.ServiceRefs, dev state.BluetoothDevice) gtk.Widgetter {
+func newBTDeviceRow(parent *gtk.ApplicationWindow, refs *servicerefs.ServiceRefs, dev state.BluetoothDevice) gtk.Widgetter {
 	row := gtk.NewBox(gtk.OrientationHorizontal, 12)
 	row.AddCSSClass("conn-row")
 	if dev.Connected {
@@ -174,6 +174,7 @@ func newBTDeviceRow(refs *servicerefs.ServiceRefs, dev state.BluetoothDevice) gt
 			switch {
 			case dev.Connected:
 				gtkutil.ConfirmDialog(
+					parent,
 					"Disconnect device",
 					name,
 					"Disconnect",
@@ -181,6 +182,7 @@ func newBTDeviceRow(refs *servicerefs.ServiceRefs, dev state.BluetoothDevice) gt
 				)
 			case dev.Paired:
 				gtkutil.ConfirmDialog(
+					parent,
 					"Connect to device",
 					name,
 					"Connect",
@@ -188,6 +190,7 @@ func newBTDeviceRow(refs *servicerefs.ServiceRefs, dev state.BluetoothDevice) gt
 				)
 			default:
 				gtkutil.ConfirmDialog(
+					parent,
 					"Pair with device",
 					name,
 					"Pair",
