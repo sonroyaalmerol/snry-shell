@@ -6,11 +6,13 @@ import (
 	"os/exec"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/sonroyaalmerol/snry-shell/internal/bus"
 	"github.com/sonroyaalmerol/snry-shell/internal/layershell"
+	"github.com/sonroyaalmerol/snry-shell/internal/services/hyprland"
 	"github.com/sonroyaalmerol/snry-shell/internal/state"
 	"github.com/sonroyaalmerol/snry-shell/internal/uinput"
 )
@@ -41,7 +43,7 @@ var textInputClasses = []string{
 type OSK struct {
 	win       *gtk.ApplicationWindow
 	bus       *bus.Bus
-	ui        *uinput.Bridge // direct socket to ydotoold (zero overhead)
+	ui        *uinput.Bridge
 	shift     bool
 	caps      bool
 	ctrlL     bool
@@ -49,11 +51,12 @@ type OSK struct {
 	hasTouch  bool
 	manualOff bool
 	visible   bool
-	keys      []*keyButton         // all character keys, for label updates
+	keys      []*keyButton          // all character keys, for label updates
 	modBtns   map[string]*gtk.Button // modifier name -> button widget
 	shiftBtns []*gtk.Button         // shift buttons for visual feedback
 	capsBtn   *gtk.Button           // caps button for visual feedback
 	mu        sync.Mutex
+	debounce  *time.Timer           // coalesces rapid activewindow events
 }
 
 type keyButton struct {
@@ -63,7 +66,7 @@ type keyButton struct {
 	shifted string
 }
 
-func New(app *gtk.Application, b *bus.Bus) *OSK {
+func New(app *gtk.Application, b *bus.Bus, hq *hyprland.Querier) *OSK {
 	win := layershell.NewWindow(app, layershell.WindowConfig{
 		Name:         "snry-osk",
 		Layer:        layershell.LayerOverlay,
@@ -74,10 +77,10 @@ func New(app *gtk.Application, b *bus.Bus) *OSK {
 
 	osk := &OSK{win: win, bus: b, modBtns: make(map[string]*gtk.Button)}
 
-	// Connect to ydotool daemon socket for zero-overhead key input.
+	// Connect virtual keyboard via /dev/uinput (primary) or ydotoold (fallback).
 	ui, err := uinput.New()
 	if err != nil {
-		log.Printf("[OSK] warning: ydotool daemon not available (%v), falling back to wtype", err)
+		log.Printf("[OSK] warning: keyboard input unavailable (%v)", err)
 	}
 	osk.ui = ui
 
@@ -102,33 +105,65 @@ func New(app *gtk.Application, b *bus.Bus) *OSK {
 		}
 	})
 
-	// Auto-show/hide based on active window class heuristic.
+	// Auto-show/hide based on active window class with debouncing.
+	// Shell surfaces (snry-*) and hex-address layer-shell events are filtered
+	// to prevent the OSK from self-triggering a show/hide loop.
 	b.Subscribe(bus.TopicActiveWindow, func(e bus.Event) {
 		if osk.manualOff {
 			return
 		}
-		win, ok := e.Data.(state.ActiveWindow)
+		w, ok := e.Data.(state.ActiveWindow)
 		if !ok {
 			return
 		}
-		if isHexAddress(win.Class) {
-			return
-		}
-		want := osk.hasTouch && isTextInputWindow(win.Class)
-		log.Printf("[OSK] activewindow: class=%q title=%q hasTouch=%v isText=%v want=%v visible=%v",
-			win.Class, win.Title, osk.hasTouch, isTextInputWindow(win.Class), want, osk.visible)
+		osk.scheduleFocusUpdate(w.Class)
+	})
+
+	// Set initial state from the currently focused window.
+	if hq != nil {
+		go func() {
+			if cls, err := hq.ActiveWindowClass(); err == nil {
+				osk.scheduleFocusUpdate(cls)
+			}
+		}()
+	}
+
+	return osk
+}
+
+// scheduleFocusUpdate debounces activewindow events (300ms) so rapid
+// shell-surface flickers don't cause show/hide thrashing. The last event's
+// class wins.
+func (o *OSK) scheduleFocusUpdate(class string) {
+	// Skip shell's own surfaces and spurious layer-shell events.
+	if isHexAddress(class) || isShellSurface(class) {
+		return
+	}
+
+	want := o.hasTouch && isTextInputWindow(class)
+	log.Printf("[OSK] focus: class=%q text=%v touch=%v want=%v",
+		class, isTextInputWindow(class), o.hasTouch, want)
+
+	if o.debounce != nil {
+		o.debounce.Stop()
+	}
+	o.debounce = time.AfterFunc(300*time.Millisecond, func() {
 		glib.IdleAdd(func() {
-			if want && !osk.visible {
-				log.Printf("[OSK] auto-showing for class=%q", win.Class)
-				osk.show()
-			} else if !want && osk.visible {
-				log.Printf("[OSK] auto-hiding, class=%q is not a text input window", win.Class)
-				osk.hide()
+			if want && !o.visible {
+				log.Printf("[OSK] auto-showing for class=%q", class)
+				o.show()
+			} else if !want && o.visible {
+				log.Printf("[OSK] auto-hiding, class=%q", class)
+				o.hide()
 			}
 		})
 	})
+}
 
-	return osk
+// isShellSurface returns true for classes from the shell's own layer-shell
+// surfaces (all 24+ surfaces use the "snry-" prefix).
+func isShellSurface(class string) bool {
+	return strings.HasPrefix(strings.ToLower(class), "snry-")
 }
 
 func (o *OSK) show() {

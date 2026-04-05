@@ -135,3 +135,19 @@ func (q *Querier) GetOption(option string) (string, error) {
 	}
 	return strings.TrimSpace(line), nil
 }
+
+// ActiveWindowClass returns the class of the currently focused window.
+// Returns empty string if no window is focused or on error.
+func (q *Querier) ActiveWindowClass() (string, error) {
+	out, err := q.cmd.Run("activewindow", "-j")
+	if err != nil {
+		return "", err
+	}
+	var client struct {
+		Class string `json:"class"`
+	}
+	if err := json.Unmarshal(out, &client); err != nil {
+		return "", err
+	}
+	return client.Class, nil
+}
