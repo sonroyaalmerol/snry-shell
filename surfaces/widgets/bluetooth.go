@@ -15,25 +15,6 @@ func NewBluetoothWidget(b *bus.Bus, refs *servicerefs.ServiceRefs, parent *gtk.A
 	box := gtk.NewBox(gtk.OrientationVertical, 0)
 	box.AddCSSClass("conn-widget")
 
-	// Header row: label + switch.
-	header := gtk.NewBox(gtk.OrientationHorizontal, 12)
-	header.AddCSSClass("conn-header")
-
-	icon := gtkutil.MaterialIcon("bluetooth")
-	icon.AddCSSClass("conn-header-icon")
-
-	label := gtk.NewLabel("Bluetooth")
-	label.AddCSSClass("conn-header-label")
-	label.SetHExpand(true)
-
-	sw := gtk.NewSwitch()
-	sw.AddCSSClass("conn-switch")
-
-	header.Append(icon)
-	header.Append(label)
-	header.Append(sw)
-	box.Append(header)
-
 	scanAction := func() {
 		if refs.Bluetooth != nil {
 			go func() {
@@ -77,23 +58,7 @@ func NewBluetoothWidget(b *bus.Bus, refs *servicerefs.ServiceRefs, parent *gtk.A
 	scanBtnWrapper.Append(scanBtn)
 	box.Append(scanBtnWrapper)
 
-	// Switch toggles Bluetooth on/off.
 	if refs.Bluetooth != nil {
-		sw.ConnectStateSet(func(val bool) bool {
-			go refs.Bluetooth.SetPowered(val)
-			return true
-		})
-
-		b.Subscribe(bus.TopicBluetooth, func(e bus.Event) {
-			bs, ok := e.Data.(state.BluetoothState)
-			if !ok {
-				return
-			}
-			glib.IdleAdd(func() {
-				sw.SetActive(bs.Powered)
-			})
-		})
-
 		go scanAction()
 	}
 
@@ -175,7 +140,6 @@ func newBTDeviceRow(parent *gtk.ApplicationWindow, refs *servicerefs.ServiceRefs
 			case dev.Connected:
 				gtkutil.ConfirmDialog(
 					parent,
-					"bluetooth",
 					"Disconnect device",
 					name,
 					"Disconnect",
@@ -184,7 +148,6 @@ func newBTDeviceRow(parent *gtk.ApplicationWindow, refs *servicerefs.ServiceRefs
 			case dev.Paired:
 				gtkutil.ConfirmDialog(
 					parent,
-					"bluetooth",
 					"Connect to device",
 					name,
 					"Connect",
@@ -193,7 +156,6 @@ func newBTDeviceRow(parent *gtk.ApplicationWindow, refs *servicerefs.ServiceRefs
 			default:
 				gtkutil.ConfirmDialog(
 					parent,
-					"bluetooth",
 					"Pair with device",
 					name,
 					"Pair",

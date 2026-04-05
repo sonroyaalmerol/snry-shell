@@ -15,25 +15,6 @@ func NewWiFiWidget(b *bus.Bus, refs *servicerefs.ServiceRefs, parent *gtk.Applic
 	box := gtk.NewBox(gtk.OrientationVertical, 0)
 	box.AddCSSClass("conn-widget")
 
-	// Header row: label + switch.
-	header := gtk.NewBox(gtk.OrientationHorizontal, 12)
-	header.AddCSSClass("conn-header")
-
-	icon := gtkutil.MaterialIcon("wifi")
-	icon.AddCSSClass("conn-header-icon")
-
-	label := gtk.NewLabel("Wi-Fi")
-	label.AddCSSClass("conn-header-label")
-	label.SetHExpand(true)
-
-	sw := gtk.NewSwitch()
-	sw.AddCSSClass("conn-switch")
-
-	header.Append(icon)
-	header.Append(label)
-	header.Append(sw)
-	box.Append(header)
-
 	// Networks list (collapsible).
 	listBox := gtk.NewBox(gtk.OrientationVertical, 0)
 	listBox.AddCSSClass("conn-list")
@@ -65,24 +46,6 @@ func NewWiFiWidget(b *bus.Bus, refs *servicerefs.ServiceRefs, parent *gtk.Applic
 	scanBtnWrapper.SetHAlign(gtk.AlignEnd)
 	scanBtnWrapper.Append(scanBtn)
 	box.Append(scanBtnWrapper)
-
-	// Switch toggles WiFi on/off.
-	if refs.Network != nil {
-		sw.ConnectStateSet(func(val bool) bool {
-			go refs.Network.SetWiFi(val)
-			return true
-		})
-
-		b.Subscribe(bus.TopicNetwork, func(e bus.Event) {
-			ns, ok := e.Data.(state.NetworkState)
-			if !ok {
-				return
-			}
-			glib.IdleAdd(func() {
-				sw.SetActive(ns.WirelessEnabled)
-			})
-		})
-	}
 
 	// Scan on creation.
 	if refs.Network != nil {
@@ -156,7 +119,6 @@ func newWiFiRow(parent *gtk.ApplicationWindow, refs *servicerefs.ServiceRefs, ne
 			case connected:
 				gtkutil.ActionDialog(
 					parent,
-					"wifi",
 					"Connected to network",
 					ssid,
 					[]gtkutil.ActionDialogAction{
@@ -169,7 +131,6 @@ func newWiFiRow(parent *gtk.ApplicationWindow, refs *servicerefs.ServiceRefs, ne
 			case security != "":
 				gtkutil.PasswordDialog(
 					parent,
-					"wifi",
 					"Connect to network",
 					ssid,
 					"Password",

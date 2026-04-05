@@ -946,42 +946,40 @@ scale.system-slider slider {
 }
 
 .quick-toggle {
-    background-color: @col_surface_container;
-    border-radius: var(--radius-md);
-    padding: 12px 8px;
+    background-color: alpha(@col_on_surface, 0.08);
+    border-radius: 28px;
+    padding: 16px 8px;
     min-width: 72px;
-    min-height: 64px;
-    border: 1px solid alpha(@col_outline_variant, 0.3);
-    transition:
-        background-color 200ms var(--ease-emphasized-decel),
-        border-color 200ms var(--ease-emphasized-decel);
+    min-height: 72px;
+    border: none;
+    transition: background-color 200ms var(--ease-emphasized-decel);
 }
 
 .quick-toggle:hover {
-    background-color: alpha(@col_primary_container, 0.4);
+    background-color: alpha(@col_on_surface, 0.12);
 }
 
 .quick-toggle:checked {
-    background-color: @col_secondary_container;
-    border-color: @col_primary;
+    background-color: @col_primary;
 }
 
 .quick-toggle-icon {
-    font-size: 20px;
+    font-size: 24px;
     color: @col_on_surface;
 }
 
 .quick-toggle:checked .quick-toggle-icon {
-    color: @col_on_secondary_container;
+    color: @col_on_primary;
 }
 
 .quick-toggle-label {
-    font-size: 10px;
+    font-size: 12px;
+    font-weight: 500;
     color: @col_on_surface_variant;
 }
 
 .quick-toggle:checked .quick-toggle-label {
-    color: @col_on_secondary_container;
+    color: @col_on_primary;
 }
 
 .quick-toggle-button:active {
@@ -1224,49 +1222,10 @@ scale.mixer-slider slider {
 
 .conn-widget {
     background-color: @col_surface_container;
-    border-radius: var(--radius-md);
+    border-radius: var(--radius-xl);
     padding: 0;
     margin: 4px 0;
     overflow: hidden;
-}
-
-.conn-header {
-    padding: 14px 16px;
-    background-color: @col_surface_container;
-}
-
-.conn-header-icon {
-    font-size: 20px;
-    color: @col_on_surface;
-}
-
-.conn-header-label {
-    font-size: 14px;
-    font-weight: 500;
-    color: @col_on_surface;
-}
-
-.conn-switch {
-    min-width: 44px;
-    min-height: 24px;
-}
-
-.conn-switch slider {
-    background-color: @col_outline;
-    border-radius: 12px;
-    min-width: 44px;
-    min-height: 24px;
-    transition: background-color 200ms var(--ease-standard-decel);
-}
-
-.conn-switch:checked slider {
-    background-color: @col_primary;
-}
-
-.conn-switch slider highlight {
-    background-color: @col_primary;
-    min-width: 0;
-    min-height: 0;
 }
 
 .conn-section-header {
@@ -1973,11 +1932,6 @@ scale.settings-scale slider {
     max-width: 360px;
 }
 
-.m3-dialog-icon {
-    color: @col_secondary;
-    margin-bottom: 16px;
-}
-
 .m3-dialog-title {
     font-size: 24px;
     font-weight: 500;
@@ -2044,4 +1998,36 @@ scale.settings-scale slider {
 
 .m3-password-entry:focus {
     box-shadow: 0 0 0 2px @col_primary;
+}
+
+.m3-password-box {
+    background-color: @col_surface_container_high;
+    border-radius: var(--radius-md);
+    margin-bottom: 16px;
+    overflow: hidden;
+}
+
+.m3-password-box:focus-within {
+    box-shadow: 0 0 0 2px @col_primary;
+}
+
+.m3-password-box .m3-password-entry {
+    margin-bottom: 0;
+    border-radius: 0;
+}
+
+.m3-password-eye {
+    background-color: transparent;
+    border: none;
+    border-radius: 0;
+    color: @col_on_surface_variant;
+    min-width: 36px;
+    min-height: 36px;
+    padding: 0 8px;
+    font-size: 18px;
+}
+
+.m3-password-eye:hover {
+    background-color: alpha(@col_on_surface, 0.08);
+    color: @col_on_surface;
 }

@@ -104,7 +104,6 @@ func (s *Session) buildBtn(a struct {
 	btn.ConnectClicked(func() {
 		gtkutil.ConfirmDialog(
 			s.win,
-			a.icon,
 			a.label,
 			"",
 			a.label,

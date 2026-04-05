@@ -45,7 +45,7 @@ func MaterialIcon(name string) *gtk.Label {
 
 // ConfirmDialog shows an M3-styled confirmation dialog as a layer-shell overlay.
 // Calls onConfirm if the action button is clicked, or dismisses on outside click / Escape.
-func ConfirmDialog(parent *gtk.ApplicationWindow, icon, title, message, action string, onConfirm func()) {
+func ConfirmDialog(parent *gtk.ApplicationWindow, title, message, action string, onConfirm func()) {
 	win := layershell.NewWindow(parent.Application(), layershell.WindowConfig{
 		Name:          "snry-m3-dialog",
 		Layer:         layershell.LayerOverlay,
@@ -77,12 +77,6 @@ func ConfirmDialog(parent *gtk.ApplicationWindow, icon, title, message, action s
 
 	card := gtk.NewBox(gtk.OrientationVertical, 0)
 	card.AddCSSClass("m3-dialog")
-
-	if icon != "" {
-		iconLabel := MaterialIcon(icon)
-		iconLabel.AddCSSClass("m3-dialog-icon")
-		card.Append(iconLabel)
-	}
 
 	titleLabel := gtk.NewLabel(title)
 	titleLabel.AddCSSClass("m3-dialog-title")
@@ -134,7 +128,7 @@ type ActionDialogAction struct {
 
 // ActionDialog shows an M3-styled dialog with multiple action buttons as a
 // layer-shell overlay.
-func ActionDialog(parent *gtk.ApplicationWindow, icon, title, message string, actions []ActionDialogAction) {
+func ActionDialog(parent *gtk.ApplicationWindow, title, message string, actions []ActionDialogAction) {
 	win := layershell.NewWindow(parent.Application(), layershell.WindowConfig{
 		Name:          "snry-m3-action-dialog",
 		Layer:         layershell.LayerOverlay,
@@ -164,12 +158,6 @@ func ActionDialog(parent *gtk.ApplicationWindow, icon, title, message string, ac
 
 	card := gtk.NewBox(gtk.OrientationVertical, 0)
 	card.AddCSSClass("m3-dialog")
-
-	if icon != "" {
-		iconLabel := MaterialIcon(icon)
-		iconLabel.AddCSSClass("m3-dialog-icon")
-		card.Append(iconLabel)
-	}
 
 	titleLabel := gtk.NewLabel(title)
 	titleLabel.AddCSSClass("m3-dialog-title")
@@ -219,7 +207,7 @@ func ActionDialog(parent *gtk.ApplicationWindow, icon, title, message string, ac
 
 // PasswordDialog shows an M3-styled dialog with a password entry field as a
 // layer-shell overlay.
-func PasswordDialog(parent *gtk.ApplicationWindow, icon, title, message, placeholder string, onConfirm func(password string)) {
+func PasswordDialog(parent *gtk.ApplicationWindow, title, message, placeholder string, onConfirm func(password string)) {
 	win := layershell.NewWindow(parent.Application(), layershell.WindowConfig{
 		Name:          "snry-m3-password-dialog",
 		Layer:         layershell.LayerOverlay,
@@ -250,12 +238,6 @@ func PasswordDialog(parent *gtk.ApplicationWindow, icon, title, message, placeho
 	card := gtk.NewBox(gtk.OrientationVertical, 0)
 	card.AddCSSClass("m3-dialog")
 
-	if icon != "" {
-		iconLabel := MaterialIcon(icon)
-		iconLabel.AddCSSClass("m3-dialog-icon")
-		card.Append(iconLabel)
-	}
-
 	titleLabel := gtk.NewLabel(title)
 	titleLabel.AddCSSClass("m3-dialog-title")
 	titleLabel.SetWrap(true)
@@ -270,13 +252,31 @@ func PasswordDialog(parent *gtk.ApplicationWindow, icon, title, message, placeho
 		card.Append(msgLabel)
 	}
 
-	// Password entry.
+	// Password entry with show/hide toggle.
+	pwdBox := gtk.NewBox(gtk.OrientationHorizontal, 0)
+	pwdBox.AddCSSClass("m3-password-box")
+
 	entry := gtk.NewEntry()
 	entry.AddCSSClass("m3-password-entry")
 	entry.SetPlaceholderText(placeholder)
 	entry.SetVisibility(false)
 	entry.SetHExpand(true)
-	card.Append(entry)
+
+	eyeBtn := MaterialButton("visibility_off")
+	eyeBtn.AddCSSClass("m3-password-eye")
+	eyeBtn.ConnectClicked(func() {
+		if entry.Visibility() {
+			entry.SetVisibility(false)
+			eyeBtn.SetChild(MaterialIcon("visibility_off"))
+		} else {
+			entry.SetVisibility(true)
+			eyeBtn.SetChild(MaterialIcon("visibility"))
+		}
+	})
+
+	pwdBox.Append(entry)
+	pwdBox.Append(eyeBtn)
+	card.Append(pwdBox)
 
 	btnBox := gtk.NewBox(gtk.OrientationHorizontal, 8)
 	btnBox.AddCSSClass("m3-dialog-actions")
