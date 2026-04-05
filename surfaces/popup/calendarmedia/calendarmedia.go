@@ -35,18 +35,23 @@ func New(app *gtk.Application, b *bus.Bus, refs *servicerefs.ServiceRefs, trigge
 	})
 
 	cm := &CalendarMedia{win: win, bus: b, trigger: trigger}
-	cm.build(refs)
-	win.SetVisible(false)
 
-	layershell.SetMargin(win, layershell.EdgeTop, layershell.BarExclusiveZone+8)
-
+	// Full-window background that catches clicks outside the panel.
+	clickBg := gtk.NewBox(gtk.OrientationVertical, 0)
+	clickBg.SetHExpand(true)
+	clickBg.SetVExpand(true)
 	clickGesture := gtk.NewGestureClick()
 	clickGesture.SetButton(1)
 	clickGesture.SetPropagationLimit(gtk.LimitNone)
 	clickGesture.ConnectReleased(func(_ int, _ float64, _ float64) {
 		cm.Close()
 	})
-	win.AddController(clickGesture)
+	clickBg.AddController(clickGesture)
+
+	cm.build(refs, clickBg)
+	win.SetVisible(false)
+
+	layershell.SetMargin(win, layershell.EdgeTop, layershell.BarExclusiveZone+8)
 
 	surfaceutil.AddEscapeToClose(win)
 
@@ -65,7 +70,7 @@ func New(app *gtk.Application, b *bus.Bus, refs *servicerefs.ServiceRefs, trigge
 	return cm
 }
 
-func (cm *CalendarMedia) build(refs *servicerefs.ServiceRefs) {
+func (cm *CalendarMedia) build(refs *servicerefs.ServiceRefs, clickBg *gtk.Box) {
 	root := gtk.NewBox(gtk.OrientationHorizontal, 0)
 	root.AddCSSClass("popup-overlay")
 	root.SetHAlign(gtk.AlignStart)
@@ -89,7 +94,8 @@ func (cm *CalendarMedia) build(refs *servicerefs.ServiceRefs) {
 
 	scroll.SetChild(panel)
 	root.Append(scroll)
-	cm.win.SetChild(root)
+	clickBg.Append(root)
+	cm.win.SetChild(clickBg)
 	cm.root = root
 }
 

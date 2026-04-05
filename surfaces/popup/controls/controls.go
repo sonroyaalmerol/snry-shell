@@ -35,20 +35,23 @@ func New(app *gtk.Application, b *bus.Bus, refs *servicerefs.ServiceRefs, trigge
 	})
 
 	c := &Controls{win: win, bus: b, trigger: trigger}
-	c.build(refs)
-	win.SetVisible(false)
 
-	// Layer-shell top margin keeps the window below the bar.
-	layershell.SetMargin(win, layershell.EdgeTop, layershell.BarExclusiveZone+8)
-
-	// Click background to close.
+	// Full-window background that catches clicks outside the panel.
+	clickBg := gtk.NewBox(gtk.OrientationVertical, 0)
+	clickBg.SetHExpand(true)
+	clickBg.SetVExpand(true)
 	clickGesture := gtk.NewGestureClick()
 	clickGesture.SetButton(1)
 	clickGesture.SetPropagationLimit(gtk.LimitNone)
 	clickGesture.ConnectReleased(func(_ int, _ float64, _ float64) {
 		c.Close()
 	})
-	win.AddController(clickGesture)
+	clickBg.AddController(clickGesture)
+
+	c.build(refs, clickBg)
+	win.SetVisible(false)
+
+	layershell.SetMargin(win, layershell.EdgeTop, layershell.BarExclusiveZone+8)
 
 	surfaceutil.AddEscapeToClose(win)
 
@@ -67,7 +70,7 @@ func New(app *gtk.Application, b *bus.Bus, refs *servicerefs.ServiceRefs, trigge
 	return c
 }
 
-func (c *Controls) build(refs *servicerefs.ServiceRefs) {
+func (c *Controls) build(refs *servicerefs.ServiceRefs, clickBg *gtk.Box) {
 	root := gtk.NewBox(gtk.OrientationHorizontal, 0)
 	root.AddCSSClass("popup-overlay")
 	root.SetHAlign(gtk.AlignStart)
@@ -89,7 +92,8 @@ func (c *Controls) build(refs *servicerefs.ServiceRefs) {
 
 	scroll.SetChild(panel)
 	root.Append(scroll)
-	c.win.SetChild(root)
+	clickBg.Append(root)
+	c.win.SetChild(clickBg)
 	c.root = root
 }
 
