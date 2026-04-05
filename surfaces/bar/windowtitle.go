@@ -11,19 +11,15 @@ func newWindowTitleWidget(b *bus.Bus) gtk.Widgetter {
 	box := gtk.NewBox(gtk.OrientationVertical, 0)
 	box.AddCSSClass("window-title-box")
 	box.SetVAlign(gtk.AlignCenter)
-	box.SetHExpand(true)
-	box.SetHAlign(gtk.AlignFill)
 
 	classLabel := gtk.NewLabel("")
 	classLabel.AddCSSClass("window-class")
 	classLabel.SetEllipsize(3) // pango.EllipsizeEnd
-	classLabel.SetHExpand(true)
 	classLabel.SetHAlign(gtk.AlignFill)
 
 	titleLabel := gtk.NewLabel("")
 	titleLabel.AddCSSClass("window-title")
 	titleLabel.SetEllipsize(3)
-	titleLabel.SetHExpand(true)
 	titleLabel.SetHAlign(gtk.AlignFill)
 
 	box.Append(classLabel)
