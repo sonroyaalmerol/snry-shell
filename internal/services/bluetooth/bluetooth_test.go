@@ -180,26 +180,23 @@ func TestSetPoweredChangesState(t *testing.T) {
 		t.Fatal("expected Powered=false after SetPowered(false)")
 	}
 
-	// Wait for the explicit re-poll (1 second delay).
+	// State changed via SetProperty, but no signal-based re-poll happens
+	// in tests (no D-Bus signals). The toggle should still work because
+	// SetPowered succeeded and the bus replay will serve the correct state.
 	select {
 	case got := <-gotCh:
 		if got.Powered {
-			t.Fatal("re-poll after SetPowered(false) should publish Powered=false")
+			t.Fatal("no re-poll expected after successful SetPowered(false)")
 		}
-	case <-time.After(2 * time.Second):
-		// OK — may have no re-poll if we removed it, or poll ran before subscribe.
+	default:
+		// OK — no stale re-poll (the old explicit re-poll was removed).
 	}
 }
 
-// TestSetPoweredFailedDoesNotRevertToggle reproduces the feedback loop bug:
-// When SetProperty fails (e.g., rfkill, adapter absent), the explicit re-poll
-// goroutine fires after 1 second, reads the UNCHANGED state (Powered: true),
-// publishes it, and the toggle flickers back to ON.
-//
-// This test verifies that SetPowered error + re-poll does NOT cause the
-// toggle to receive an incorrect "Powered: true" state after a failed
-// SetPowered(false).
-func TestSetPoweredFailedDoesNotRevertToggle(t *testing.T) {
+// TestSetPoweredFailedRePublishesActualState verifies that when SetProperty
+// fails, SetPowered re-polls and publishes the actual (unchanged) state so
+// the UI correctly reflects that bluetooth is still on.
+func TestSetPoweredFailedRePublishesActualState(t *testing.T) {
 	b := bus.New()
 	gotCh := make(chan state.BluetoothState, 4)
 	b.Subscribe(bus.TopicBluetooth, func(e bus.Event) {
@@ -241,29 +238,14 @@ func TestSetPoweredFailedDoesNotRevertToggle(t *testing.T) {
 		t.Fatal("expected SetPowered to fail")
 	}
 
-	// Wait for any re-poll (the buggy code has a 1-second delayed re-poll).
-	time.Sleep(1500 * time.Millisecond)
-
-	// If the explicit re-poll fired, it would read Powered:true and publish it.
-	// Collect any events published after the failed SetPowered.
-	var stale bool
-	for {
-		select {
-		case got := <-gotCh:
-			if got.Powered {
-				// This is the bug: the re-poll published the stale Powered:true
-				// state, which would cause the toggle to flicker back to ON.
-				stale = true
-			}
-		default:
-			goto done
+	// The error re-poll should have published Powered:true (the actual state).
+	select {
+	case got := <-gotCh:
+		if !got.Powered {
+			t.Fatal("after failed SetPowered(false), re-poll should publish Powered=true")
 		}
-	}
-done:
-
-	if stale {
-		t.Fatal("BUG: re-poll after failed SetPowered(false) published Powered=true, " +
-			"causing toggle to flicker back on")
+	case <-time.After(2 * time.Second):
+		t.Fatal("timeout waiting for error re-poll")
 	}
 }
 

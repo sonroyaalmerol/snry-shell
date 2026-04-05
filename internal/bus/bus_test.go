@@ -67,3 +67,50 @@ func TestBusPublisherInterface(t *testing.T) {
 		t.Fatalf("unexpected primary: %q", scheme.Primary)
 	}
 }
+
+func TestBusReplayOnSubscribe(t *testing.T) {
+	b := bus.New()
+
+	// Publish before any subscriber.
+	b.Publish(bus.TopicAudio, state.AudioSink{Volume: 0.5})
+
+	// Late subscriber should receive the last published event.
+	received := make(chan state.AudioSink, 1)
+	b.Subscribe(bus.TopicAudio, func(e bus.Event) {
+		received <- e.Data.(state.AudioSink)
+	})
+	select {
+	case sink := <-received:
+		if sink.Volume != 0.5 {
+			t.Fatalf("replay: expected 0.5, got %f", sink.Volume)
+		}
+	default:
+		t.Fatal("late subscriber should have received replayed event")
+	}
+
+	// Replay should give the latest value.
+	b.Publish(bus.TopicAudio, state.AudioSink{Volume: 0.9})
+	received2 := make(chan state.AudioSink, 1)
+	b.Subscribe(bus.TopicAudio, func(e bus.Event) {
+		received2 <- e.Data.(state.AudioSink)
+	})
+	select {
+	case sink := <-received2:
+		if sink.Volume != 0.9 {
+			t.Fatalf("replay latest: expected 0.9, got %f", sink.Volume)
+		}
+	default:
+		t.Fatal("late subscriber should have received latest replayed event")
+	}
+}
+
+func TestBusNoReplayForUnpublishedTopic(t *testing.T) {
+	b := bus.New()
+	called := false
+	b.Subscribe(bus.TopicClipboard, func(e bus.Event) {
+		called = true
+	})
+	if called {
+		t.Fatal("subscriber should not be called for topic with no published events")
+	}
+}
