@@ -109,14 +109,6 @@ func ConfirmDialog(parent *gtk.ApplicationWindow, icon, title, message, action s
 	btnBox.Append(actionBtn)
 	card.Append(btnBox)
 
-	// Claim clicks on the card so they don't propagate to the scrim.
-	cardClick := gtk.NewGestureClick()
-	cardClick.SetButton(1)
-	cardClick.ConnectPressed(func(_ int, _ float64, _ float64) {
-		cardClick.SetState(gtk.EventSequenceClaimed)
-	})
-	card.AddController(cardClick)
-
 	centerBox.Append(card)
 	scrim.Append(centerBox)
 	win.SetChild(scrim)
