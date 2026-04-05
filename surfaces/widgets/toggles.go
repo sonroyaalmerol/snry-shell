@@ -194,11 +194,10 @@ func NewQuickToggles(b *bus.Bus, refs *servicerefs.ServiceRefs) gtk.Widgetter {
 
 		lbl := gtk.NewLabel(toggle.label)
 		lbl.AddCSSClass("quick-toggle-label")
-		lbl.SetHExpand(true)
 		lbl.SetHAlign(gtk.AlignStart)
 		lbl.SetVAlign(gtk.AlignCenter)
 		lbl.SetXAlign(0)
-			lbl.SetWrap(true)
+		lbl.SetWrap(true)
 
 		inner.Append(icon)
 		inner.Append(lbl)
