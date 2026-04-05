@@ -12,52 +12,26 @@ import (
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/sonroyaalmerol/snry-shell/internal/bus"
 	"github.com/sonroyaalmerol/snry-shell/internal/layershell"
-	"github.com/sonroyaalmerol/snry-shell/internal/services/hyprland"
-	"github.com/sonroyaalmerol/snry-shell/internal/state"
 	"github.com/sonroyaalmerol/snry-shell/internal/uinput"
 )
 
-// textInputClasses lists window classes (case-insensitive substring match)
-// where text input is likely. Terminals, browsers, editors, and chat apps.
-var textInputClasses = []string{
-	// Terminals
-	"kitty", "alacritty", "wezterm", "foot", "ghostty",
-	"tilix", "terminator", "konsole", "gnome-terminal",
-	"weston-terminal", "xfce4-terminal", "lxterminal",
-	// Browsers
-	"firefox", "chromium", "chrome", "brave", "vivaldi",
-	"edge", "thorium", "zen",
-	// Editors / IDEs
-	"code", "code-oss", "codium", "cursor",
-	"sublime_text", "nvim-qt", "gedit", "mousepad",
-	"neovide", "zeditor",
-	// Chat / comms
-	"telegram", "discord", "vesktop", "element", "nheko",
-	"signal", "whatsapp", "skype", "teams",
-	// Other text-heavy apps
-	"obsidian", "logseq", "joplin", "notion",
-	"thunderbird", "geary", "evolution",
-	"spotify", "firefox-esr",
-}
-
 type OSK struct {
-	win          *gtk.ApplicationWindow
-	bus          *bus.Bus
-	ui           *uinput.Bridge
-	shift        bool
-	caps         bool
-	ctrlL        bool
-	altL         bool
-	hasTouch     bool
-	manualOff    bool
-	visible      bool
-	atspi2Active bool // true once AT-SPI2 starts delivering events
-	keys         []*keyButton          // all character keys, for label updates
-	modBtns      map[string]*gtk.Button // modifier name -> button widget
-	shiftBtns    []*gtk.Button         // shift buttons for visual feedback
-	capsBtn      *gtk.Button           // caps button for visual feedback
-	mu           sync.Mutex
-	debounce     *time.Timer           // coalesces rapid activewindow events
+	win       *gtk.ApplicationWindow
+	bus       *bus.Bus
+	ui        *uinput.Bridge
+	shift     bool
+	caps      bool
+	ctrlL     bool
+	altL      bool
+	hasTouch  bool
+	manualOff bool
+	visible   bool
+	keys      []*keyButton          // all character keys, for label updates
+	modBtns   map[string]*gtk.Button // modifier name -> button widget
+	shiftBtns []*gtk.Button         // shift buttons for visual feedback
+	capsBtn   *gtk.Button           // caps button for visual feedback
+	mu        sync.Mutex
+	debounce  *time.Timer           // coalesces rapid focus events
 }
 
 type keyButton struct {
@@ -67,7 +41,7 @@ type keyButton struct {
 	shifted string
 }
 
-func New(app *gtk.Application, b *bus.Bus, hq *hyprland.Querier) *OSK {
+func New(app *gtk.Application, b *bus.Bus) *OSK {
 	win := layershell.NewWindow(app, layershell.WindowConfig{
 		Name:         "snry-osk",
 		Layer:        layershell.LayerOverlay,
@@ -106,24 +80,7 @@ func New(app *gtk.Application, b *bus.Bus, hq *hyprland.Querier) *OSK {
 		}
 	})
 
-	// Auto-show/hide based on active window class with debouncing.
-	// Shell surfaces (snry-*) and hex-address layer-shell events are filtered
-	// to prevent the OSK from self-triggering a show/hide loop.
-	// When AT-SPI2 is healthy (per-field focus detection), this is skipped.
-	b.Subscribe(bus.TopicActiveWindow, func(e bus.Event) {
-		if osk.manualOff || osk.atspi2Active {
-			return
-		}
-		w, ok := e.Data.(state.ActiveWindow)
-		if !ok {
-			return
-		}
-		osk.scheduleFocusUpdate(w.Class)
-	})
-
-	// AT-SPI2 provides per-field text input focus detection (entry, terminal,
-	// text editor, etc.) via the accessibility D-Bus. When it starts delivering
-	// events, it takes priority over the window class heuristic.
+	// Auto-show/hide based on zwp_input_method_v2 activate/deactivate events.
 	b.Subscribe(bus.TopicTextInputFocus, func(e bus.Event) {
 		if osk.manualOff {
 			return
@@ -132,44 +89,17 @@ func New(app *gtk.Application, b *bus.Bus, hq *hyprland.Querier) *OSK {
 		if !ok {
 			return
 		}
-		osk.atspi2Active = true
-		osk.scheduleFocusUpdate("atspi2:" + func(b bool) string {
-			if b {
-				return "atspi2:text"
-			}
-			return "atspi2:non-text"
-		}(isText))
+		osk.scheduleFocusUpdate(isText)
 	})
-
-	// Set initial state from the currently focused window.
-	if hq != nil {
-		go func() {
-			if cls, err := hq.ActiveWindowClass(); err == nil {
-				osk.scheduleFocusUpdate(cls)
-			}
-		}()
-	}
 
 	return osk
 }
 
-// scheduleFocusUpdate debounces activewindow events (300ms) so rapid
-// shell-surface flickers don't cause show/hide thrashing. The last event's
-// class wins.
-func (o *OSK) scheduleFocusUpdate(class string) {
-	// Skip shell's own surfaces and spurious layer-shell events.
-	if isHexAddress(class) || isShellSurface(class) {
-		return
-	}
-
-	var want bool
-	if strings.HasPrefix(class, "atspi2:") {
-		want = o.hasTouch && class == "atspi2:text"
-	} else {
-		want = o.hasTouch && isTextInputWindow(class)
-	}
-	log.Printf("[OSK] focus: class=%q text=%v touch=%v want=%v",
-		class, isTextInputWindow(class), o.hasTouch, want)
+// scheduleFocusUpdate debounces focus events (300ms) to prevent show/hide
+// thrashing from rapid activate/deactivate sequences.
+func (o *OSK) scheduleFocusUpdate(want bool) {
+	want = o.hasTouch && want
+	log.Printf("[OSK] focus: want=%v touch=%v", want, o.hasTouch)
 
 	if o.debounce != nil {
 		o.debounce.Stop()
@@ -177,20 +107,14 @@ func (o *OSK) scheduleFocusUpdate(class string) {
 	o.debounce = time.AfterFunc(300*time.Millisecond, func() {
 		glib.IdleAdd(func() {
 			if want && !o.visible {
-				log.Printf("[OSK] auto-showing for class=%q", class)
+				log.Printf("[OSK] auto-showing")
 				o.show()
 			} else if !want && o.visible {
-				log.Printf("[OSK] auto-hiding, class=%q", class)
+				log.Printf("[OSK] auto-hiding")
 				o.hide()
 			}
 		})
 	})
-}
-
-// isShellSurface returns true for classes from the shell's own layer-shell
-// surfaces (all 24+ surfaces use the "snry-" prefix).
-func isShellSurface(class string) bool {
-	return strings.HasPrefix(strings.ToLower(class), "snry-")
 }
 
 func (o *OSK) show() {
@@ -230,28 +154,6 @@ func detectTouchDevice() bool {
 	found := len(after) > 0 && after[0] != ']'
 	log.Printf("[OSK] touch detect (hyprctl): %v", found)
 	return found
-}
-
-func isTextInputWindow(class string) bool {
-	lower := strings.ToLower(class)
-	for _, match := range textInputClasses {
-		if strings.Contains(lower, match) {
-			return true
-		}
-	}
-	return false
-}
-
-func isHexAddress(s string) bool {
-	if len(s) == 0 {
-		return true
-	}
-	for _, c := range s {
-		if !((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F') || c == 'x' || c == 'X') {
-			return false
-		}
-	}
-	return true
 }
 
 type keyDef struct {

@@ -13,7 +13,7 @@ import (
 	"github.com/sonroyaalmerol/snry-shell/assets"
 	"github.com/sonroyaalmerol/snry-shell/internal/bus"
 	"github.com/sonroyaalmerol/snry-shell/internal/controlsocket"
-	"github.com/sonroyaalmerol/snry-shell/internal/atspi2"
+	"github.com/sonroyaalmerol/snry-shell/internal/inputmethod"
 	"github.com/sonroyaalmerol/snry-shell/internal/servicerefs"
 	"github.com/sonroyaalmerol/snry-shell/internal/services/audio"
 	"github.com/sonroyaalmerol/snry-shell/internal/services/audiomixer"
@@ -104,13 +104,13 @@ func Run() int {
 		notifications.Register(sesConn, notifications.New(b))
 	}
 
-	// AT-SPI2 text input focus watcher for per-field OSK triggering.
-	atspi2Watcher, err := atspi2.New(b)
+	// Input method watcher for per-field OSK triggering via zwp_input_method_v2.
+	imWatcher, err := inputmethod.New(b)
 	if err != nil {
-		log.Printf("[SHELL] atspi2: %v", err)
+		log.Printf("[SHELL] inputmethod: %v", err)
 	}
-	if atspi2Watcher != nil {
-		go atspi2Watcher.Run(ctx)
+	if imWatcher != nil {
+		go imWatcher.Run(ctx)
 	}
 
 	// Clipboard watcher.
@@ -169,7 +169,7 @@ func Run() int {
 		lockscreen.New(app, b)
 		mediaoverlay.New(app, b, refs.Mpris)
 		notifpopup.New(app, b)
-		osk.New(app, b, refs.Hyprland)
+		osk.New(app, b)
 		regionselector.New(app, b)
 		cheatsheet.New(app, b)
 		settings.New(app, b)
