@@ -74,6 +74,7 @@ func ConfirmDialog(parent *gtk.ApplicationWindow, title, message, action string,
 	centerBox := gtk.NewBox(gtk.OrientationVertical, 0)
 	centerBox.SetHAlign(gtk.AlignCenter)
 	centerBox.SetVAlign(gtk.AlignCenter)
+	centerBox.SetVExpand(true)
 
 	card := gtk.NewBox(gtk.OrientationVertical, 0)
 	card.AddCSSClass("m3-dialog")
@@ -155,6 +156,7 @@ func ActionDialog(parent *gtk.ApplicationWindow, title, message string, actions 
 	centerBox := gtk.NewBox(gtk.OrientationVertical, 0)
 	centerBox.SetHAlign(gtk.AlignCenter)
 	centerBox.SetVAlign(gtk.AlignCenter)
+	centerBox.SetVExpand(true)
 
 	card := gtk.NewBox(gtk.OrientationVertical, 0)
 	card.AddCSSClass("m3-dialog")
@@ -234,6 +236,7 @@ func PasswordDialog(parent *gtk.ApplicationWindow, title, message, placeholder s
 	centerBox := gtk.NewBox(gtk.OrientationVertical, 0)
 	centerBox.SetHAlign(gtk.AlignCenter)
 	centerBox.SetVAlign(gtk.AlignCenter)
+	centerBox.SetVExpand(true)
 
 	card := gtk.NewBox(gtk.OrientationVertical, 0)
 	card.AddCSSClass("m3-dialog")
