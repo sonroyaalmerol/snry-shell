@@ -45,10 +45,8 @@ func (b *Bar) build(refs *servicerefs.ServiceRefs) {
 	// Center: workspaces.
 	center := b.buildCenter(refs)
 
-	// Right: pill + tray + clock.
+	// Right: pill + tray + clock (natural size).
 	right := b.buildRight(refs)
-	right.(*gtk.Box).SetHExpand(true)
-	right.(*gtk.Box).SetHAlign(gtk.AlignEnd)
 
 	root.Append(left)
 	root.Append(center)
