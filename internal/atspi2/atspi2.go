@@ -40,7 +40,7 @@ func getA11yBusAddr(sess *dbus.Conn) (string, error) {
 	log.Printf("[ATSPI2] bus not running, attempting auto-start")
 	var startReply uint32
 	startErr := sess.Object("org.freedesktop.DBus", "/org/freedesktop/DBus").
-		Call("org.freedesktop.DBus.StartServiceByName", 0, "org.a11y.Bus").Store(&startReply)
+		Call("org.freedesktop.DBus.StartServiceByName", 0, "org.a11y.Bus", uint32(0)).Store(&startReply)
 	log.Printf("[ATSPI2] StartServiceByName reply=%d err=%v", startReply, startErr)
 	if startErr != nil {
 		return "", err
