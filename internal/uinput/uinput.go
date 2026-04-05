@@ -10,6 +10,8 @@ import (
 	"os"
 	"syscall"
 	"unsafe"
+
+	"golang.org/x/sys/unix"
 )
 
 const (
@@ -129,18 +131,27 @@ func New() (*Bridge, error) {
 
 // newUinput creates a virtual keyboard via /dev/uinput.
 func newUinput() (*Bridge, error) {
-	fd, err := syscall.Open("/dev/uinput", syscall.O_WRONLY|syscall.O_NONBLOCK, 0)
+	fd, err := unix.Open("/dev/uinput", unix.O_WRONLY|unix.O_NONBLOCK, 0)
 	if err != nil {
 		return nil, err
 	}
 
 	// Enable EV_KEY and EV_SYN event types.
-	ioctl(fd, uiSetEvBit, uintptr(evKey))
-	ioctl(fd, uiSetEvBit, uintptr(evSyn))
+	if err := unix.IoctlSetInt(fd, uiSetEvBit, int(evKey)); err != nil {
+		unix.Close(fd)
+		return nil, fmt.Errorf("uinput: UI_SET_EVBIT EV_KEY: %w", err)
+	}
+	if err := unix.IoctlSetInt(fd, uiSetEvBit, int(evSyn)); err != nil {
+		unix.Close(fd)
+		return nil, fmt.Errorf("uinput: UI_SET_EVBIT EV_SYN: %w", err)
+	}
 
 	// Enable all key codes we use (KEY_ESC=1 through KEY_DOWN=111).
-	for code := uint16(0); code <= 111; code++ {
-		ioctl(fd, uiSetKeyBit, uintptr(code))
+	for code := 0; code <= 111; code++ {
+		if err := unix.IoctlSetInt(fd, uiSetKeyBit, code); err != nil {
+			unix.Close(fd)
+			return nil, fmt.Errorf("uinput: UI_SET_KEYBIT %d: %w", code, err)
+		}
 	}
 
 	// Create the device.
@@ -149,13 +160,12 @@ func newUinput() (*Bridge, error) {
 	setup.id.bustype = 0x06 // BUS_VIRTUAL
 	if _, _, errno := syscall.Syscall(syscall.SYS_IOCTL, uintptr(fd),
 		uiDevSetup, uintptr(unsafe.Pointer(&setup))); errno != 0 {
-		syscall.Close(fd)
+		unix.Close(fd)
 		return nil, fmt.Errorf("uinput: UI_DEV_SETUP: %v", errno)
 	}
-	if _, _, errno := syscall.Syscall(syscall.SYS_IOCTL, uintptr(fd),
-		uiDevCreate, 0); errno != 0 {
-		syscall.Close(fd)
-		return nil, fmt.Errorf("uinput: UI_DEV_CREATE: %v", errno)
+	if err := unix.IoctlSetInt(fd, uiDevCreate, 0); err != nil {
+		unix.Close(fd)
+		return nil, fmt.Errorf("uinput: UI_DEV_CREATE: %w", err)
 	}
 
 	return &Bridge{fd: fd}, nil
@@ -178,8 +188,8 @@ func newYdotoold() (*Bridge, error) {
 // Close destroys the virtual keyboard or closes the daemon socket.
 func (b *Bridge) Close() {
 	if b.fd > 0 {
-		ioctl(b.fd, uiDevDestroy, 0)
-		syscall.Close(b.fd)
+		unix.IoctlSetInt(b.fd, uiDevDestroy, 0)
+		unix.Close(b.fd)
 		b.fd = 0
 	}
 	if b.conn != nil {
@@ -220,7 +230,7 @@ func (b *Bridge) send(evType, code uint16, value int32) {
 // sendSyn writes a SYN_REPORT (only needed for /dev/uinput, ydotoold sends it
 // automatically in send()).
 func (b *Bridge) sendSyn() {
-	if b.fd > 0 {
+	if b != nil && b.fd > 0 {
 		b.send(evSyn, 0, 0)
 	}
 }
@@ -285,16 +295,17 @@ func (b *Bridge) TypeKey(name string, ctrl, alt, shift bool) {
 	}
 }
 
-// ioctl is a shorthand for syscall.Syscall(SYS_IOCTL, ...).
-func ioctl(fd int, req, arg uintptr) {
-	syscall.Syscall(syscall.SYS_IOCTL, uintptr(fd), req, arg)
-}
-
-// Linux uinput ioctl constants.
+// Linux uinput ioctl constants. Computed from <linux/uinput.h>:
+//
+//	UI_SET_EVBIT  = _IOW('U', 100, int)
+//	UI_SET_KEYBIT = _IOW('U', 101, int)
+//	UI_DEV_SETUP  = _IOW('U', 3, struct uinput_setup)
+//	UI_DEV_CREATE = _IO('U', 1)
+//	UI_DEV_DESTROY = _IO('U', 2)
 const (
 	uiSetEvBit   = 0x40045564
 	uiSetKeyBit  = 0x40045565
-	uiDevSetup   = 0x40505503
+	uiDevSetup   = 0x405C5503
 	uiDevCreate  = 0x5501
 	uiDevDestroy = 0x5502
 )
