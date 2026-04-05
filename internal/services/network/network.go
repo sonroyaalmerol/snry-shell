@@ -3,6 +3,7 @@ package network
 import (
 	"context"
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/godbus/dbus/v5"
@@ -197,7 +198,8 @@ func (s *Service) ScanWiFi() ([]state.WiFiNetwork, error) {
 	// Request scan on all WiFi devices, then wait for NM to discover APs.
 	for _, p := range paths {
 		devObj := s.conn.Object(nmDest, p)
-		devObj.Call(nmDeviceWireless+".RequestScan", 0)
+		err := devObj.Call(nmDeviceWireless+".RequestScan", 0).Err
+		log.Printf("[WIFI] RequestScan on %s: %v", p, err)
 	}
 	time.Sleep(3 * time.Second)
 
@@ -267,10 +269,9 @@ func (s *Service) ScanWiFi() ([]state.WiFiNetwork, error) {
 		}
 	}
 
+	log.Printf("[WIFI] ScanWiFi: returning %d networks, current SSID=%q", len(networks), currentSSID)
 	return networks, nil
 }
-
-// ConnectWiFi activates a saved connection for the given SSID.
 func (s *Service) ConnectWiFi(ssid string) error {
 	connsV, err := s.conn.Object(nmDest, nmPath).GetProperty(nmIface + ".Connections")
 	if err != nil {

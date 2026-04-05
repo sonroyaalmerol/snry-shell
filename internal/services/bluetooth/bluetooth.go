@@ -119,8 +119,15 @@ func (s *Service) SetPowered(enabled bool) error {
 
 // StartScan requests a Bluetooth device discovery scan.
 func (s *Service) StartScan() error {
+	log.Printf("[BT] StartScan called")
 	obj := s.conn.Object(bluezService, bluezAdapter)
-	return obj.Call(bluezIface+".StartDiscovery", 0).Err
+	err := obj.Call(bluezIface+".StartDiscovery", 0).Err
+	if err != nil {
+		log.Printf("[BT] StartScan error: %v", err)
+	} else {
+		log.Printf("[BT] StartScan succeeded")
+	}
+	return err
 }
 
 // StopScan stops an ongoing Bluetooth discovery scan.
@@ -135,8 +142,10 @@ func (s *Service) GetDevices() ([]state.BluetoothDevice, error) {
 	var result map[dbus.ObjectPath]map[string]map[string]dbus.Variant
 	err := managed.Call("org.freedesktop.DBus.ObjectManager.GetManagedObjects", 0).Store(&result)
 	if err != nil {
+		log.Printf("[BT] GetDevices GetManagedObjects error: %v", err)
 		return nil, err
 	}
+	log.Printf("[BT] GetDevices: %d managed objects", len(result))
 
 	var devices []state.BluetoothDevice
 	for path, ifaces := range result {
@@ -177,6 +186,7 @@ func (s *Service) GetDevices() ([]state.BluetoothDevice, error) {
 	}
 
 	s.bus.Publish(bus.TopicBluetoothDevices, devices)
+		log.Printf("[BT] GetDevices: published %d devices", len(devices))
 	return devices, nil
 }
 
