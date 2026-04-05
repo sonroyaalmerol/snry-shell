@@ -97,7 +97,7 @@ func Run() int {
 	go refs.Resources.Run(ctx)
 	go refs.AudioMixer.Run(ctx)
 	go refs.Pomodoro.Run(ctx)
-	go refs.SNI.Run()
+	go refs.SNI.Run(ctx)
 
 	// Notification daemon.
 	if sesConn != nil {

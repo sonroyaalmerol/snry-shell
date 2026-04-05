@@ -47,9 +47,9 @@ func MaterialIcon(name string, classes ...string) *gtk.Label {
 	return l
 }
 
-// ConfirmDialog shows an M3-styled confirmation dialog as a layer-shell overlay.
-// Calls onConfirm if the action button is clicked, or dismisses on outside click / Escape.
-func ConfirmDialog(parent *gtk.ApplicationWindow, title, message, action string, onConfirm func()) {
+// newDialogBase creates the shared layer-shell overlay window, scrim, card, and
+// title label used by all M3 dialog types. Returns (win, card, close).
+func newDialogBase(parent *gtk.ApplicationWindow, title string) (*gtk.ApplicationWindow, *gtk.Box, func()) {
 	win := layershell.NewWindow(parent.Application(), layershell.WindowConfig{
 		Name:          "snry-m3-dialog",
 		Layer:         layershell.LayerOverlay,
@@ -89,6 +89,21 @@ func ConfirmDialog(parent *gtk.ApplicationWindow, title, message, action string,
 	titleLabel.SetXAlign(0)
 	card.Append(titleLabel)
 
+	centerBox.Append(card)
+	scrim.Append(centerBox)
+	win.SetChild(scrim)
+
+	surfaceutil.AddEscapeToClose(win)
+	win.SetVisible(true)
+
+	return win, card, close
+}
+
+// ConfirmDialog shows an M3-styled confirmation dialog as a layer-shell overlay.
+// Calls onConfirm if the action button is clicked, or dismisses on outside click / Escape.
+func ConfirmDialog(parent *gtk.ApplicationWindow, title, message, action string, onConfirm func()) {
+	_, card, close := newDialogBase(parent, title)
+
 	if message != "" {
 		msgLabel := gtk.NewLabel(message)
 		msgLabel.AddCSSClass("m3-dialog-content")
@@ -110,18 +125,11 @@ func ConfirmDialog(parent *gtk.ApplicationWindow, title, message, action string,
 	btnBox.Append(actionBtn)
 	card.Append(btnBox)
 
-	centerBox.Append(card)
-	scrim.Append(centerBox)
-	win.SetChild(scrim)
-
 	cancelBtn.ConnectClicked(close)
 	actionBtn.ConnectClicked(func() {
 		close()
 		onConfirm()
 	})
-
-	surfaceutil.AddEscapeToClose(win)
-	win.SetVisible(true)
 }
 
 // ActionDialogAction describes a single action button in an ActionDialog.
@@ -134,42 +142,7 @@ type ActionDialogAction struct {
 // ActionDialog shows an M3-styled dialog with multiple action buttons as a
 // layer-shell overlay.
 func ActionDialog(parent *gtk.ApplicationWindow, title, message string, actions []ActionDialogAction) {
-	win := layershell.NewWindow(parent.Application(), layershell.WindowConfig{
-		Name:          "snry-m3-action-dialog",
-		Layer:         layershell.LayerOverlay,
-		Anchors:       layershell.FullscreenAnchors(),
-		KeyboardMode:  layershell.KeyboardModeOnDemand,
-		ExclusiveZone: -1,
-		Namespace:     "snry-m3-dialog",
-	})
-
-	close := func() { win.SetVisible(false) }
-
-	// Scrim background.
-	scrim := gtk.NewBox(gtk.OrientationVertical, 0)
-	scrim.AddCSSClass("m3-dialog-scrim")
-	scrim.SetHExpand(true)
-	scrim.SetVExpand(true)
-	clickGesture := gtk.NewGestureClick()
-	clickGesture.SetButton(1)
-	clickGesture.SetPropagationLimit(gtk.LimitNone)
-	clickGesture.ConnectReleased(func(_ int, _ float64, _ float64) { close() })
-	scrim.AddController(clickGesture)
-
-	// Centered dialog card.
-	centerBox := gtk.NewBox(gtk.OrientationVertical, 0)
-	centerBox.SetHAlign(gtk.AlignCenter)
-	centerBox.SetVAlign(gtk.AlignCenter)
-	centerBox.SetVExpand(true)
-
-	card := gtk.NewBox(gtk.OrientationVertical, 0)
-	card.AddCSSClass("m3-dialog")
-
-	titleLabel := gtk.NewLabel(title)
-	titleLabel.AddCSSClass("m3-dialog-title")
-	titleLabel.SetWrap(true)
-	titleLabel.SetXAlign(0)
-	card.Append(titleLabel)
+	_, card, close := newDialogBase(parent, title)
 
 	if message != "" {
 		msgLabel := gtk.NewLabel(message)
@@ -202,54 +175,12 @@ func ActionDialog(parent *gtk.ApplicationWindow, title, message string, actions 
 	cancelBtn.ConnectClicked(close)
 
 	card.Append(btnBox)
-
-	centerBox.Append(card)
-	scrim.Append(centerBox)
-	win.SetChild(scrim)
-
-	surfaceutil.AddEscapeToClose(win)
-	win.SetVisible(true)
 }
 
 // PasswordDialog shows an M3-styled dialog with a password entry field as a
 // layer-shell overlay.
 func PasswordDialog(parent *gtk.ApplicationWindow, title, message, placeholder string, onConfirm func(password string)) {
-	win := layershell.NewWindow(parent.Application(), layershell.WindowConfig{
-		Name:          "snry-m3-password-dialog",
-		Layer:         layershell.LayerOverlay,
-		Anchors:       layershell.FullscreenAnchors(),
-		KeyboardMode:  layershell.KeyboardModeOnDemand,
-		ExclusiveZone: -1,
-		Namespace:     "snry-m3-dialog",
-	})
-
-	close := func() { win.SetVisible(false) }
-
-	// Scrim background.
-	scrim := gtk.NewBox(gtk.OrientationVertical, 0)
-	scrim.AddCSSClass("m3-dialog-scrim")
-	scrim.SetHExpand(true)
-	scrim.SetVExpand(true)
-	clickGesture := gtk.NewGestureClick()
-	clickGesture.SetButton(1)
-	clickGesture.SetPropagationLimit(gtk.LimitNone)
-	clickGesture.ConnectReleased(func(_ int, _ float64, _ float64) { close() })
-	scrim.AddController(clickGesture)
-
-	// Centered dialog card.
-	centerBox := gtk.NewBox(gtk.OrientationVertical, 0)
-	centerBox.SetHAlign(gtk.AlignCenter)
-	centerBox.SetVAlign(gtk.AlignCenter)
-	centerBox.SetVExpand(true)
-
-	card := gtk.NewBox(gtk.OrientationVertical, 0)
-	card.AddCSSClass("m3-dialog")
-
-	titleLabel := gtk.NewLabel(title)
-	titleLabel.AddCSSClass("m3-dialog-title")
-	titleLabel.SetWrap(true)
-	titleLabel.SetXAlign(0)
-	card.Append(titleLabel)
+	win, card, close := newDialogBase(parent, title)
 
 	if message != "" {
 		msgLabel := gtk.NewLabel(message)
@@ -299,10 +230,6 @@ func PasswordDialog(parent *gtk.ApplicationWindow, title, message, placeholder s
 	btnBox.Append(connectBtn)
 	card.Append(btnBox)
 
-	centerBox.Append(card)
-	scrim.Append(centerBox)
-	win.SetChild(scrim)
-
 	submit := func() {
 		password := entry.Text()
 		if password == "" {
@@ -316,9 +243,8 @@ func PasswordDialog(parent *gtk.ApplicationWindow, title, message, placeholder s
 	connectBtn.ConnectClicked(submit)
 	entry.ConnectActivate(submit)
 
-	surfaceutil.AddEscapeToClose(win)
-	win.SetVisible(true)
 	glib.IdleAdd(func() { entry.GrabFocus() })
+	_ = win // window kept alive by GTK after SetVisible(true) in newDialogBase
 }
 
 // SectionHeader creates a clickable header for a collapsible section.

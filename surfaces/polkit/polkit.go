@@ -337,15 +337,12 @@ func (s *helperSession) readLoop() {
 				}
 			})
 
-		case strings.HasPrefix(line, "PAM_PROMPT_ECHO_ON "):
-			prompt := strings.TrimPrefix(line, "PAM_PROMPT_ECHO_ON ")
 			glib.IdleAdd(func() {
 				if s.entry != nil {
 					s.entry.SetVisibility(true)
 					s.entry.GrabFocus()
 				}
 			})
-			_ = prompt
 
 		case strings.HasPrefix(line, "PAM_ERROR_MSG "):
 			msg := strings.TrimPrefix(line, "PAM_ERROR_MSG ")

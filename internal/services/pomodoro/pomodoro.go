@@ -71,9 +71,14 @@ func (s *Service) Pause() {
 func (s *Service) Resume() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if !s.running && s.ph != phaseIdle {
-		s.Start()
+	if s.running || s.ph == phaseIdle {
+		return
 	}
+	s.running = true
+	childCtx, cancel := context.WithCancel(context.Background())
+	s.cancel = cancel
+	go s.tick(childCtx)
+	s.publish()
 }
 
 func (s *Service) Reset() {
@@ -105,8 +110,9 @@ func (s *Service) Skip() {
 		s.remaining = workDuration
 	}
 	if s.running {
-		s.running = false
-		s.Start()
+		childCtx, cancel := context.WithCancel(context.Background())
+		s.cancel = cancel
+		go s.tick(childCtx)
 	} else {
 		s.publish()
 	}

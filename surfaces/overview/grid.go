@@ -51,11 +51,10 @@ func (g *gridWidget) refresh() {
 		wsClients[wsID] = append(wsClients[wsID], c)
 	}
 
-	for wsID, cls := range wsClients {
+	for _, cls := range wsClients {
 		// Workspace label.
 		wsLabel := gtk.NewLabel("")
 		wsLabel.AddCSSClass("window-grid-ws-label")
-		_ = wsID
 		g.flow.Append(wsLabel)
 
 		for _, c := range cls {

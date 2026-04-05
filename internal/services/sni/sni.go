@@ -3,6 +3,7 @@
 package sni
 
 import (
+	"context"
 	"path"
 	"sync"
 
@@ -43,8 +44,8 @@ func New(conn *dbus.Conn, b *bus.Bus) *Service {
 	}
 }
 
-// Run starts watching for tray item signals.
-func (s *Service) Run() {
+// Run starts watching for tray item signals. Blocks until ctx is cancelled.
+func (s *Service) Run(ctx context.Context) error {
 	// Register as a StatusNotifierHost.
 	hostObj := s.conn.Object(watcherDest, watcherPath)
 	hostObj.Call(watcherIface+".RegisterStatusNotifierHost", 0, dbus.ObjectPath("/org/freedesktop/Notifications"))
@@ -64,23 +65,31 @@ func (s *Service) Run() {
 	// Fetch initial items.
 	s.fetchRegisteredItems()
 
-	for sig := range ch {
-		if sig.Path != watcherPath {
-			continue
-		}
-		if len(sig.Body) < 1 {
-			continue
-		}
-		servicePath, ok := sig.Body[0].(string)
-		if !ok {
-			continue
-		}
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case sig, ok := <-ch:
+			if !ok {
+				return nil
+			}
+			if sig.Path != watcherPath {
+				continue
+			}
+			if len(sig.Body) < 1 {
+				continue
+			}
+			servicePath, ok := sig.Body[0].(string)
+			if !ok {
+				continue
+			}
 
-		switch sig.Name {
-		case watcherIface + ".StatusNotifierItemRegistered":
-			s.addItem(servicePath)
-		case watcherIface + ".StatusNotifierItemUnregistered":
-			s.removeItem(servicePath)
+			switch sig.Name {
+			case watcherIface + ".StatusNotifierItemRegistered":
+				s.addItem(servicePath)
+			case watcherIface + ".StatusNotifierItemUnregistered":
+				s.removeItem(servicePath)
+			}
 		}
 	}
 }

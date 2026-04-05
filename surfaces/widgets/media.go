@@ -30,29 +30,44 @@ type mediaControls struct {
 	bus          *bus.Bus
 	tickerCtx    context.CancelFunc
 	changeHandle glib.SignalHandle
+	cssPrefix    string
 }
 
+// BuildMediaGroup creates a media player widget group with bus-driven updates.
+// cssPrefix is used for CSS class names (e.g. "" for "media-*", "media-overlay-" for "media-overlay-*").
 func BuildMediaGroup(b *bus.Bus, mprisSvc *mpris.Service) gtk.Widgetter {
-	mc := &mediaControls{mprisSvc: mprisSvc, bus: b}
+	return buildMediaGroupWithPrefix(b, mprisSvc, "")
+}
+
+// BuildMediaGroupWithPrefix creates a media player widget group with a custom CSS prefix.
+func BuildMediaGroupWithPrefix(b *bus.Bus, mprisSvc *mpris.Service, cssPrefix string) gtk.Widgetter {
+	return buildMediaGroupWithPrefix(b, mprisSvc, cssPrefix)
+}
+
+func buildMediaGroupWithPrefix(b *bus.Bus, mprisSvc *mpris.Service, cssPrefix string) gtk.Widgetter {
+	pfx := cssPrefix
+	cls := func(s string) string { return pfx + s }
+
+	mc := &mediaControls{mprisSvc: mprisSvc, bus: b, cssPrefix: pfx}
 
 	mc.revealer = gtk.NewRevealer()
 	mc.revealer.SetTransitionType(gtk.RevealerTransitionTypeSlideDown)
 	mc.revealer.SetTransitionDuration(250)
 
 	mc.box = gtk.NewBox(gtk.OrientationVertical, 0)
-	mc.box.AddCSSClass("media-controls")
+	mc.box.AddCSSClass(cls("media-controls"))
 
 	// Top row: album art + text.
 	top := gtk.NewBox(gtk.OrientationHorizontal, 8)
 	mc.art = gtk.NewPicture()
-	mc.art.AddCSSClass("media-album-art")
+	mc.art.AddCSSClass(cls("media-album-art"))
 
 	info := gtk.NewBox(gtk.OrientationVertical, 2)
 	mc.title = gtk.NewLabel("")
-	mc.title.AddCSSClass("media-track-title")
+	mc.title.AddCSSClass(cls("media-track-title"))
 	mc.title.SetHAlign(gtk.AlignStart)
 	mc.artist = gtk.NewLabel("")
-	mc.artist.AddCSSClass("media-artist")
+	mc.artist.AddCSSClass(cls("media-artist"))
 	mc.artist.SetHAlign(gtk.AlignStart)
 
 	info.Append(mc.title)
@@ -63,7 +78,9 @@ func BuildMediaGroup(b *bus.Bus, mprisSvc *mpris.Service) gtk.Widgetter {
 	// Progress row.
 	progressRow := gtk.NewBox(gtk.OrientationHorizontal, 4)
 	mc.posLabel = gtk.NewLabel("0:00")
+	mc.posLabel.AddCSSClass(cls("media-position"))
 	mc.posLabel.SetHAlign(gtk.AlignStart)
+
 	mc.scale = gtk.NewScaleWithRange(gtk.OrientationHorizontal, 0, 1, 0.001)
 	mc.scale.AddCSSClass("media-progress")
 	mc.scale.SetDrawValue(false)
@@ -73,7 +90,9 @@ func BuildMediaGroup(b *bus.Bus, mprisSvc *mpris.Service) gtk.Widgetter {
 		go mc.mprisSvc.SeekTo(mc.player.PlayerName, value*mc.player.Duration)
 		return false
 	})
+
 	mc.durLabel = gtk.NewLabel("0:00")
+	mc.durLabel.AddCSSClass(cls("media-position"))
 	mc.durLabel.SetHAlign(gtk.AlignEnd)
 
 	progressRow.Append(mc.posLabel)
@@ -85,9 +104,9 @@ func BuildMediaGroup(b *bus.Bus, mprisSvc *mpris.Service) gtk.Widgetter {
 	controls.SetHAlign(gtk.AlignCenter)
 	controls.SetMarginTop(4)
 
-	mc.prevBtn = gtkutil.MaterialButtonWithClass("skip_previous", "media-btn")
-	mc.playBtn = mediaPlayBtn()
-	mc.nextBtn = gtkutil.MaterialButtonWithClass("skip_next", "media-btn")
+	mc.prevBtn = gtkutil.MaterialButtonWithClass("skip_previous", cls("media-btn"))
+	mc.playBtn = gtkutil.MaterialButtonWithClass("play_arrow", cls("media-btn"), "play-pause")
+	mc.nextBtn = gtkutil.MaterialButtonWithClass("skip_next", cls("media-btn"))
 
 	mc.prevBtn.ConnectClicked(func() {
 		go mc.mprisSvc.Previous(mc.player.PlayerName)
@@ -182,8 +201,4 @@ func (mc *mediaControls) startTicker(playing bool) {
 			}
 		}
 	}()
-}
-
-func mediaPlayBtn() *gtk.Button {
-	return gtkutil.MaterialButtonWithClass("play_arrow", "media-btn", "play-pause")
 }

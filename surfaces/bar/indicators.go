@@ -7,6 +7,7 @@ import (
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/sonroyaalmerol/snry-shell/internal/bus"
+	"github.com/sonroyaalmerol/snry-shell/internal/gtkutil"
 	"github.com/sonroyaalmerol/snry-shell/internal/services/hyprland"
 	"github.com/sonroyaalmerol/snry-shell/internal/servicerefs"
 	"github.com/sonroyaalmerol/snry-shell/internal/state"
@@ -56,7 +57,7 @@ func newIndicatorPill(b *bus.Bus, refs *servicerefs.ServiceRefs) gtk.Widgetter {
 
 	// Notification count.
 	var count atomic.Int32
-	notiIcon := materialIcon("notifications")
+	notiIcon := gtkutil.MaterialIcon("notifications")
 	notiIcon.AddCSSClass("indicator-icon")
 	box.Append(notiIcon)
 
@@ -80,7 +81,7 @@ func newIndicatorPill(b *bus.Bus, refs *servicerefs.ServiceRefs) gtk.Widgetter {
 	})
 
 	// Network icon.
-	netIcon := materialIcon("wifi_off")
+	netIcon := gtkutil.MaterialIcon("wifi_off")
 	netIcon.AddCSSClass("indicator-icon")
 	box.Append(netIcon)
 
@@ -96,7 +97,7 @@ func newIndicatorPill(b *bus.Bus, refs *servicerefs.ServiceRefs) gtk.Widgetter {
 	})
 
 	// Bluetooth icon.
-	btIcon := materialIcon("bluetooth_disabled")
+	btIcon := gtkutil.MaterialIcon("bluetooth_disabled")
 	btIcon.AddCSSClass("indicator-icon")
 	btIcon.SetVisible(refs.Bluetooth != nil)
 	box.Append(btIcon)
@@ -136,15 +137,8 @@ func newStatusWidgetGroup(b *bus.Bus, refs *servicerefs.ServiceRefs) gtk.Widgett
 	return box
 }
 
-// materialIcon creates a label rendering a Material Symbols ligature.
-func materialIcon(name string) *gtk.Label {
-	l := gtk.NewLabel(name)
-	l.AddCSSClass("material-icon")
-	return l
-}
-
 func newVolumeIndicator(b *bus.Bus) gtk.Widgetter {
-	icon := materialIcon("volume_up")
+	icon := gtkutil.MaterialIcon("volume_up")
 	valueLabel := gtk.NewLabel("--")
 	valueLabel.AddCSSClass("indicator-value")
 
@@ -171,7 +165,7 @@ func newVolumeIndicator(b *bus.Bus) gtk.Widgetter {
 }
 
 func newBrightnessIndicator(b *bus.Bus) gtk.Widgetter {
-	icon := materialIcon("brightness_medium")
+	icon := gtkutil.MaterialIcon("brightness_medium")
 	valueLabel := gtk.NewLabel("--")
 	valueLabel.AddCSSClass("indicator-value")
 
@@ -198,7 +192,7 @@ func newBatteryIndicator(b *bus.Bus) gtk.Widgetter {
 	revealer.SetTransitionType(gtk.RevealerTransitionTypeSlideLeft)
 	revealer.SetTransitionDuration(200)
 
-	icon := materialIcon("battery_full")
+	icon := gtkutil.MaterialIcon("battery_full")
 	valueLabel := gtk.NewLabel("")
 	valueLabel.AddCSSClass("indicator-value")
 
@@ -238,7 +232,7 @@ func batteryIcon(pct float64, charging bool) string {
 }
 
 func newKeyboardIndicator(b *bus.Bus, querier *hyprland.Querier) gtk.Widgetter {
-	icon := materialIcon("language")
+	icon := gtkutil.MaterialIcon("language")
 	icon.AddCSSClass("indicator-icon")
 
 	label := gtk.NewLabel("")

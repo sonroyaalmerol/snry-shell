@@ -3,7 +3,6 @@ package emoji
 
 import (
 	"os/exec"
-	"strings"
 
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
@@ -43,7 +42,7 @@ func New(app *gtk.Application, b *bus.Bus) *Picker {
 	search.SetMarginStart(12)
 	search.SetMarginEnd(12)
 	search.ConnectSearchChanged(func() {
-		filterGrid(search.Text())
+		// TODO: filter emoji grid by query
 	})
 	p := &Picker{win: win, search: search}
 
@@ -196,10 +195,4 @@ func populateGrid(grid *gtk.FlowBox) {
 			emojiButton(grid, e.e, e.n)
 		}
 	}
-}
-
-func filterGrid(query string) {
-	// For simplicity, re-populate with filtered results.
-	// Full implementation would hide/show existing widgets.
-	_ = strings.ToLower(query)
 }
