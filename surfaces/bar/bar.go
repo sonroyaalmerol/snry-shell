@@ -35,22 +35,11 @@ func New(app *gtk.Application, b *bus.Bus, refs *servicerefs.ServiceRefs) *Bar {
 }
 
 func (b *Bar) build(refs *servicerefs.ServiceRefs) {
-	root := gtk.NewBox(gtk.OrientationHorizontal, 0)
+	root := gtk.NewCenterBox()
 	root.AddCSSClass("bar")
-
-	// Left: window title + status indicators (expands to fill space).
-	left := b.buildLeft(refs)
-	left.(*gtk.Box).SetHExpand(true)
-
-	// Center: workspaces.
-	center := b.buildCenter(refs)
-
-	// Right: pill + tray + clock (natural size).
-	right := b.buildRight(refs)
-
-	root.Append(left)
-	root.Append(center)
-	root.Append(right)
+	root.SetStartWidget(b.buildLeft(refs))
+	root.SetCenterWidget(b.buildCenter(refs))
+	root.SetEndWidget(b.buildRight(refs))
 	b.win.SetChild(root)
 }
 
@@ -70,9 +59,7 @@ func (b *Bar) buildLeft(refs *servicerefs.ServiceRefs) gtk.Widgetter {
 
 // Center: workspaces only.
 func (b *Bar) buildCenter(refs *servicerefs.ServiceRefs) gtk.Widgetter {
-	ws := barGroup(newWorkspacesWidget(b.bus, refs.Hyprland))
-	ws.(*gtk.Box).SetHAlign(gtk.AlignCenter)
-	return ws
+	return barGroup(newWorkspacesWidget(b.bus, refs.Hyprland))
 }
 
 func newClockGroup(b *bus.Bus) gtk.Widgetter {
