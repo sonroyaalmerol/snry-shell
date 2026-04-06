@@ -74,9 +74,3 @@ func (s *Service) Enabled() bool {
 	return s.enabled
 }
 
-// SetTemperature changes the color temperature (e.g. "4500").
-func (s *Service) SetTemperature(temp string) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.temp = temp
-}

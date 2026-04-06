@@ -130,12 +130,7 @@ func newWiFiRow(parent *gtk.ApplicationWindow, refs *servicerefs.ServiceRefs, ne
 			meta.Append(gtkutil.MaterialIcon("progress_activity", "spinner-icon"))
 		}
 
-		click := gtk.NewGestureClick()
-		click.SetButton(1)
-		click.ConnectPressed(func(_ int, _ float64, _ float64) {
-			click.SetState(gtk.EventSequenceClaimed)
-		})
-		click.ConnectReleased(func(_ int, _ float64, _ float64) {
+		gtkutil.ClaimedClick(&row.Widget, func() {
 			switch {
 			case connected:
 				gtkutil.ActionDialog(
@@ -197,7 +192,6 @@ func newWiFiRow(parent *gtk.ApplicationWindow, refs *servicerefs.ServiceRefs, ne
 			}()
 			}
 		})
-		row.AddController(click)
 	}
 
 	return row

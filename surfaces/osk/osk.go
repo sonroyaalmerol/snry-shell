@@ -557,6 +557,23 @@ func (o *OSK) populateEmojiGrid(query string) {
 	}
 }
 
+// copyAndPaste copies text to the clipboard via wl-copy, then types Ctrl+V.
+// On failure, shows an error dialog. Switches back to keyboard view.
+func (o *OSK) copyAndPaste(text string) {
+	go func() {
+		if err := exec.Command("wl-copy", text).Run(); err != nil {
+			log.Printf("osk copy: %v", err)
+			glib.IdleAdd(func() { gtkutil.ErrorDialog(o.win, "Copy failed", "Could not copy to clipboard.") })
+			return
+		}
+		if o.ui != nil {
+			time.Sleep(50 * time.Millisecond)
+			o.ui.TypeChar("v", true, false)
+		}
+	}()
+	o.switchView("keyboard")
+}
+
 func (o *OSK) addEmojiBtn(parent *gtk.FlowBox, char, name string) {
 	btn := gtk.NewButton()
 	btn.SetCursorFromName("pointer")
@@ -567,18 +584,7 @@ func (o *OSK) addEmojiBtn(parent *gtk.FlowBox, char, name string) {
 	btn.SetTooltipText(name)
 	em := char
 	btn.ConnectClicked(func() {
-		go func() {
-			if err := exec.Command("wl-copy", em).Run(); err != nil {
-				log.Printf("emoji copy: %v", err)
-				glib.IdleAdd(func() { gtkutil.ErrorDialog(o.win, "Copy failed", "Could not copy to clipboard.") })
-				return
-			}
-			if o.ui != nil {
-				time.Sleep(50 * time.Millisecond)
-				o.ui.TypeChar("v", true, false)
-			}
-		}()
-		o.switchView("keyboard")
+		o.copyAndPaste(em)
 	})
 	parent.Append(btn)
 }

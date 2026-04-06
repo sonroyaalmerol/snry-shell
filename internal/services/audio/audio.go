@@ -110,18 +110,3 @@ func (s *Service) SetVolume(v float64) error {
 	return err
 }
 
-// SetMuted sets the mute state on the default sink.
-func (s *Service) SetMuted(muted bool) error {
-	flag := "0"
-	if muted {
-		flag = "1"
-	}
-	_, err := s.runner.Output("wpctl", "set-mute", "@DEFAULT_SINK@", flag)
-	return err
-}
-
-// ToggleMute flips the mute state.
-func (s *Service) ToggleMute() error {
-	_, err := s.runner.Output("wpctl", "set-mute", "@DEFAULT_SINK@", "toggle")
-	return err
-}

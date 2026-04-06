@@ -3,7 +3,6 @@ package audiomixer
 import (
 	"bufio"
 	"context"
-	"fmt"
 	"log"
 	"strconv"
 	"strings"
@@ -124,13 +123,3 @@ func (s *Service) listApps() ([]state.AudioApp, error) {
 	return apps, nil
 }
 
-func (s *Service) SetAppVolume(id int, vol float64) error {
-	pct := fmt.Sprintf("%.0f%%", vol*100)
-	_, err := s.runner.Output("pactl", "set-sink-input-volume", strconv.Itoa(id), pct)
-	return err
-}
-
-func (s *Service) ToggleAppMute(id int) error {
-	_, err := s.runner.Output("pactl", "set-sink-input-mute", strconv.Itoa(id), "toggle")
-	return err
-}

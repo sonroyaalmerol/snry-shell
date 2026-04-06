@@ -35,24 +35,52 @@ func LoadAll() ([]App, error) {
 		pattern := filepath.Join(dir, "applications", "*.desktop")
 		matches, _ := filepath.Glob(pattern)
 		for _, path := range matches {
-			app, err := parseDesktopFile(path)
-			if err != nil || app.Name == "" || app.Exec == "" {
+			kv := parseDesktopKeys(path)
+			if kv["NoDisplay"] == "true" || kv["Hidden"] == "true" {
 				continue
 			}
-			apps = append(apps, app)
+			name := kv["Name"]
+			exec_ := cleanExec(kv["Exec"])
+			if name == "" || exec_ == "" {
+				continue
+			}
+			comment := kv["Comment"]
+			if comment == "" {
+				comment = kv["Name"]
+			}
+			apps = append(apps, App{Name: name, Exec: exec_, Icon: kv["Icon"], Comment: comment})
 		}
 	}
 	return apps, nil
 }
 
-func parseDesktopFile(path string) (App, error) {
+// WMClassToIcon builds a map from window class names (StartupWMClass) to
+// icon theme names by scanning all installed .desktop files.
+func WMClassToIcon() map[string]string {
+	dirs := xdgDataDirs()
+	m := make(map[string]string)
+	for _, dir := range dirs {
+		pattern := filepath.Join(dir, "applications", "*.desktop")
+		matches, _ := filepath.Glob(pattern)
+		for _, path := range matches {
+			kv := parseDesktopKeys(path)
+			if wmClass, icon := kv["StartupWMClass"], kv["Icon"]; wmClass != "" && icon != "" {
+				m[wmClass] = icon
+			}
+		}
+	}
+	return m
+}
+
+// parseDesktopKeys returns all key=value pairs from the [Desktop Entry] section.
+func parseDesktopKeys(path string) map[string]string {
 	f, err := os.Open(path)
 	if err != nil {
-		return App{}, err
+		return nil
 	}
 	defer f.Close()
 
-	var app App
+	kv := make(map[string]string)
 	inDesktopEntry := false
 	scanner := bufio.NewScanner(f)
 	for scanner.Scan() {
@@ -68,30 +96,11 @@ func parseDesktopFile(path string) (App, error) {
 		if !ok {
 			continue
 		}
-		switch k {
-		case "Name":
-			if app.Name == "" {
-				app.Name = v
-			}
-		case "Exec":
-			app.Exec = cleanExec(v)
-		case "Icon":
-			app.Icon = v
-		case "Comment":
-			if app.Comment == "" {
-				app.Comment = v
-			}
-		case "NoDisplay":
-			if strings.EqualFold(v, "true") {
-				return App{}, nil
-			}
-		case "Hidden":
-			if strings.EqualFold(v, "true") {
-				return App{}, nil
-			}
+		if _, exists := kv[k]; !exists {
+			kv[k] = v
 		}
 	}
-	return app, scanner.Err()
+	return kv
 }
 
 // cleanExec strips field codes (%f, %F, %u, %U, etc.) from the Exec value.
@@ -104,60 +113,6 @@ func cleanExec(exec string) string {
 		}
 	}
 	return strings.Join(cleaned, " ")
-}
-
-// WMClassToIcon builds a map from window class names (StartupWMClass) to
-// icon theme names by scanning all installed .desktop files.
-func WMClassToIcon() map[string]string {
-	dirs := xdgDataDirs()
-	m := make(map[string]string)
-	for _, dir := range dirs {
-		pattern := filepath.Join(dir, "applications", "*.desktop")
-		matches, _ := filepath.Glob(pattern)
-		for _, path := range matches {
-		 wmClass, icon := parseDesktopWMClass(path)
-		 if wmClass != "" && icon != "" {
-			 m[wmClass] = icon
-		 }
-		}
-	}
-	return m
-}
-
-func parseDesktopWMClass(path string) (wmClass, icon string) {
-	f, err := os.Open(path)
-	if err != nil {
-		return "", ""
-	}
-	defer f.Close()
-
-	inDesktopEntry := false
-	scanner := bufio.NewScanner(f)
-	for scanner.Scan() {
-		line := scanner.Text()
-		if strings.HasPrefix(line, "[") {
-			inDesktopEntry = line == "[Desktop Entry]"
-			continue
-		}
-		if !inDesktopEntry {
-			continue
-		}
-		k, v, ok := strings.Cut(line, "=")
-		if !ok {
-			continue
-		}
-		switch k {
-		case "StartupWMClass":
-			if wmClass == "" {
-				wmClass = v
-			}
-		case "Icon":
-			if icon == "" {
-				icon = v
-			}
-		}
-	}
-	return wmClass, icon
 }
 
 func xdgDataDirs() []string {

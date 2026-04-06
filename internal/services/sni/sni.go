@@ -190,17 +190,6 @@ func (s *Service) Activate(key string) {
 	s.conn.Object(item.BusName, item.Path).Call(itemIface+".Activate", 0, 0, 0)
 }
 
-// ContextMenu sends the ContextMenu message to the tray item.
-func (s *Service) ContextMenu(key string, x, y int) {
-	s.mu.RLock()
-	item, ok := s.items[key]
-	s.mu.RUnlock()
-	if !ok {
-		return
-	}
-	s.conn.Object(item.BusName, item.Path).Call(itemIface+".ContextMenu", 0, x, y)
-}
-
 // parseServicePath splits "busName" or "busName/objectPath" into components.
 func parseServicePath(servicePath string) (busName string, objPath dbus.ObjectPath) {
 	if len(servicePath) > 1 && servicePath[0] == '/' {

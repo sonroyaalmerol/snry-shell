@@ -29,14 +29,6 @@ func MaterialButton(icon string) *gtk.Button {
 	return btn
 }
 
-func MaterialButtonWithClass(icon string, classes ...string) *gtk.Button {
-	btn := MaterialButton(icon)
-	for _, c := range classes {
-		btn.AddCSSClass(c)
-	}
-	return btn
-}
-
 // MaterialIcon returns a label styled as a Material Symbols icon.
 func MaterialIcon(name string, classes ...string) *gtk.Label {
 	l := gtk.NewLabel(name)
@@ -70,40 +62,11 @@ func M3FilledButton(text string, classes ...string) *gtk.Button {
 	return btn
 }
 
-// M3TextButton creates an M3 text (secondary) button.
-func M3TextButton(text string, classes ...string) *gtk.Button {
-	btn := gtk.NewButtonWithLabel(text)
-	btn.AddCSSClass("m3-text-btn")
-	for _, c := range classes {
-		btn.AddCSSClass(c)
-	}
-	btn.SetCursorFromName("pointer")
-	return btn
-}
-
 // M3Divider creates a horizontal separator line.
 func M3Divider() *gtk.Separator {
 	s := gtk.NewSeparator(gtk.OrientationHorizontal)
 	s.AddCSSClass("popup-separator")
 	return s
-}
-
-// M3PanelHeader creates a toolbar row with a title label and optional action buttons.
-func M3PanelHeader(title string, actions ...*gtk.Button) *gtk.Box {
-	box := gtk.NewBox(gtk.OrientationHorizontal, 0)
-	box.SetHExpand(true)
-
-	label := gtk.NewLabel(title)
-	label.AddCSSClass("notes-title")
-	label.SetHExpand(true)
-	label.SetHAlign(gtk.AlignStart)
-
-	box.Append(label)
-	for _, btn := range actions {
-		box.Append(btn)
-	}
-
-	return box
 }
 
 // newDialogBase creates the shared layer-shell overlay window, scrim, card, and
@@ -328,6 +291,24 @@ func ErrorDialog(parent *gtk.ApplicationWindow, title, message string) {
 	dismissBtn.ConnectClicked(close)
 }
 
+// ClaimedClick adds a left-click gesture that claims the sequence on press,
+// preventing the default button activation. If onRelease is non-nil it is
+// called on release. Returns the gesture for additional handler attachment.
+func ClaimedClick(w *gtk.Widget, onRelease func()) *gtk.GestureClick {
+	click := gtk.NewGestureClick()
+	click.SetButton(1)
+	click.ConnectPressed(func(_ int, _ float64, _ float64) {
+		click.SetState(gtk.EventSequenceClaimed)
+	})
+	if onRelease != nil {
+		click.ConnectReleased(func(_ int, _ float64, _ float64) {
+			onRelease()
+		})
+	}
+	w.AddController(click)
+	return click
+}
+
 // SectionHeader creates a clickable header for a collapsible section.
 func SectionHeader(title string, count int, revealer *gtk.Revealer, onScan func()) *gtk.Box {
 	box := gtk.NewBox(gtk.OrientationHorizontal, 8)
@@ -352,12 +333,7 @@ func SectionHeader(title string, count int, revealer *gtk.Revealer, onScan func(
 	box.SetVisible(count > 0)
 
 	expanded := true
-	click := gtk.NewGestureClick()
-	click.SetButton(1)
-	click.ConnectPressed(func(_ int, _ float64, _ float64) {
-		click.SetState(gtk.EventSequenceClaimed)
-	})
-	click.ConnectReleased(func(_ int, _ float64, _ float64) {
+	ClaimedClick(&box.Widget, func() {
 		expanded = !expanded
 		revealer.SetRevealChild(expanded)
 		if expanded {
@@ -366,7 +342,6 @@ func SectionHeader(title string, count int, revealer *gtk.Revealer, onScan func(
 			arrow.SetText("expand_less")
 		}
 	})
-	box.AddController(click)
 
 	return box
 }

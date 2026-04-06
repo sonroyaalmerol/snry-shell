@@ -332,16 +332,6 @@ scale.m3-scale slider {
     font-variant-numeric: tabular-nums;
 }
 
-/* ── Media pill (inside bar group) ───────────────────────────────────────────── */
-
-.media-pill {
-    background-color: @col_secondary_container;
-    color: @col_on_secondary_container;
-    border-radius: var(--radius-pill);
-    padding: 2px 12px;
-    font-size: 12px;
-}
-
 /* ── System tray ─────────────────────────────────────────────────────────────── */
 
 .tray {
@@ -808,22 +798,6 @@ scale.m3-scale slider {
     border-radius: var(--radius-md);
     padding: 12px;
     margin: 4px 0;
-}
-
-.control-slider-row {
-    padding: 4px 0;
-}
-
-.control-icon {
-    font-family: "Material Symbols Rounded";
-    font-size: 18px;
-    color: @col_on_surface;
-}
-
-.control-label {
-    font-size: 13px;
-    color: @col_on_surface;
-    min-width: 72px;
 }
 
 /* control-scale uses .m3-scale base (see M3 Component Primitives) */

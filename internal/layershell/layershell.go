@@ -100,10 +100,6 @@ func SetNamespace(w any, namespace string) {
 	C.free(unsafe.Pointer(cstr))
 }
 
-func IsSupported() bool {
-	return true
-}
-
 type WindowConfig struct {
 	Name          string
 	Layer         Layer
@@ -196,12 +192,4 @@ func TopEdgeAnchors() map[Edge]bool {
 
 func BottomEdgeAnchors() map[Edge]bool {
 	return map[Edge]bool{EdgeBottom: true, EdgeLeft: true, EdgeRight: true}
-}
-
-func RightEdgeAnchors() map[Edge]bool {
-	return map[Edge]bool{EdgeTop: true, EdgeBottom: true, EdgeRight: true}
-}
-
-func TopLeftAnchors() map[Edge]bool {
-	return map[Edge]bool{EdgeTop: true, EdgeLeft: true}
 }

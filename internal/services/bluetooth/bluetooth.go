@@ -152,12 +152,6 @@ func (s *Service) StartScan() error {
 	return err
 }
 
-// StopScan stops an ongoing Bluetooth discovery scan.
-func (s *Service) StopScan() error {
-	obj := s.conn.Object(bluezService, bluezAdapter)
-	return obj.Call(bluezIface+".StopDiscovery", 0).Err
-}
-
 // GetDevices returns all known Bluetooth devices.
 func (s *Service) GetDevices() ([]state.BluetoothDevice, error) {
 	managed := s.conn.Object(bluezService, "/")
@@ -232,12 +226,6 @@ func (s *Service) ConnectDevice(addr string) error {
 func (s *Service) DisconnectDevice(addr string) error {
 	obj := s.conn.Object(bluezService, dbus.ObjectPath(addr))
 	return obj.Call("org.bluez.Device1.Disconnect", 0).Err
-}
-
-// RemoveDevice removes (forgets) a paired Bluetooth device.
-func (s *Service) RemoveDevice(devicePath string) error {
-	obj := s.conn.Object(bluezService, bluezAdapter)
-	return obj.Call(bluezIface+".RemoveDevice", 0, dbus.ObjectPath(devicePath)).Err
 }
 
 // SetTrusted sets the trusted status of a Bluetooth device.

@@ -15,7 +15,6 @@ import (
 type Watcher struct {
 	display *client.Display
 	bus     *bus.Bus
-	healthy bool
 }
 
 const (
@@ -106,7 +105,6 @@ func New(b *bus.Bus) (*Watcher, error) {
 	w := &Watcher{display: display, bus: b}
 
 	im.SetActivateHandler(func(protocol.InputMethodActivateEvent) {
-		w.healthy = true
 		log.Printf("[IM] activate")
 		b.Publish(bus.TopicTextInputFocus, true)
 	})
@@ -131,11 +129,6 @@ func New(b *bus.Bus) (*Watcher, error) {
 
 	log.Printf("[IM] connected to input-method-v2 protocol")
 	return w, nil
-}
-
-// Healthy returns true if at least one activate event has been received.
-func (w *Watcher) Healthy() bool {
-	return w.healthy
 }
 
 // Run dispatches Wayland events in a loop. Blocks until ctx is cancelled.

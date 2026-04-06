@@ -155,12 +155,7 @@ func newBTDeviceRow(parent *gtk.ApplicationWindow, refs *servicerefs.ServiceRefs
 			meta.Append(gtkutil.MaterialIcon("progress_activity", "spinner-icon"))
 		}
 
-		click := gtk.NewGestureClick()
-		click.SetButton(1)
-		click.ConnectPressed(func(_ int, _ float64, _ float64) {
-			click.SetState(gtk.EventSequenceClaimed)
-		})
-		click.ConnectReleased(func(_ int, _ float64, _ float64) {
+		gtkutil.ClaimedClick(&row.Widget, func() {
 			switch {
 			case dev.Connected:
 				gtkutil.ConfirmDialog(
@@ -212,7 +207,6 @@ func newBTDeviceRow(parent *gtk.ApplicationWindow, refs *servicerefs.ServiceRefs
 				)
 			}
 		})
-		row.AddController(click)
 	}
 
 	return row
