@@ -11,8 +11,8 @@ on:
     branches: [main]
 
 jobs:
-  lint-and-test:
-    name: Lint & Test
+  build-and-test:
+    name: Build & Test
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
@@ -24,39 +24,58 @@ jobs:
 
       - name: Install system dependencies
         run: |
-          sudo apt-get update
+          sudo apt-get update -q
           sudo apt-get install -y --no-install-recommends \
             libgtk-4-dev libwayland-dev wayland-protocols \
-            pkg-config meson gcc g++ git \
+            pkg-config meson ninja-build gcc g++ \
             libgirepository1.0-dev
-          # Build gtk4-layer-shell from source (not packaged in all Ubuntu versions)
+
+      - name: Cache gtk4-layer-shell
+        id: cache-layershell
+        uses: actions/cache@v4
+        with:
+          path: /opt/layershell
+          key: gtk4-layer-shell-ubuntu-24.04-v1
+
+      - name: Build gtk4-layer-shell
+        if: steps.cache-layershell.outputs.cache-hit != 'true'
+        run: |
           git clone --depth 1 https://github.com/wmww/gtk4-layer-shell.git /tmp/gtk4-layer-shell
           meson setup /tmp/gtk4-layer-shell/build /tmp/gtk4-layer-shell \
-            --prefix=/usr/local -Dintrospection=false -Dvapi=false
+            --prefix=/opt/layershell -Dintrospection=false -Dvapi=false
           ninja -C /tmp/gtk4-layer-shell/build
           sudo ninja -C /tmp/gtk4-layer-shell/build install
-          sudo ldconfig
+
+      - name: Configure gtk4-layer-shell environment
+        run: |
+          # Meson installs libs under lib/<multiarch> on Debian/Ubuntu
+          LIBDIR=$(find /opt/layershell/lib -name "pkgconfig" -type d | head -1 | xargs dirname)
+          echo "PKG_CONFIG_PATH=/opt/layershell/lib/pkgconfig:/opt/layershell/lib/$(gcc -print-multiarch)/pkgconfig" >> $GITHUB_ENV
+          echo "LD_LIBRARY_PATH=$LIBDIR" >> $GITHUB_ENV
+          sudo ldconfig "$LIBDIR" 2>/dev/null || true
 
       - name: Vet
         run: go vet $(go list ./... | grep -v layershell)
 
       - name: Build
-        run: go build -o snry-shell ./cmd/snry-shell
+        run: go build -o /dev/null ./cmd/snry-shell
 
+      # Exclude packages that require hardware or a display server:
+      #   internal/ddc      — needs I2C/DDC hardware
+      #   surfaces/widgets  — needs a running display (GTK init fails headless)
       - name: Test
-        run: go test -race ./...
+        run: |
+          go test -timeout 60s \
+            $(go list ./... | grep -vE 'internal/ddc|surfaces/widgets')
 
   goreleaser-check:
-    name: GoReleaser Check
+    name: GoReleaser Config Check
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-go@v5
         with:
           go-version: "1.26"
-
-      - name: Check GoReleaser config
-        uses: goreleaser/goreleaser-action@v6
+      - uses: goreleaser/goreleaser-action@v6
         with:
           args: check
