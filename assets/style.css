@@ -1004,6 +1004,7 @@ scale.m3-scale slider {
     min-width: 48px;
     min-height: 28px;
     border-radius: var(--radius-pill);
+    background-color: @col_surface_container_highest;
     transition: background-color var(--duration-short4) var(--ease-standard-decel);
 }
 
@@ -1014,7 +1015,16 @@ scale.m3-scale slider {
     border: none;
     box-shadow: none;
     margin: 6px;
+    background-color: @col_outline;
     transition: all var(--duration-medium1) var(--ease-emphasized-decel);
+}
+
+.m3-switch:checked {
+    background-color: @col_primary;
+}
+
+.m3-switch:checked > slider {
+    background-color: @col_on_primary;
 }
 
 .m3-switch:disabled {
