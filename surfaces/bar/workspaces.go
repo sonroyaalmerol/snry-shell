@@ -2,7 +2,6 @@ package bar
 
 import (
 	"fmt"
-	"log"
 	"strings"
 
 	"github.com/diamondburned/gotk4/pkg/gdk/v4"
@@ -94,7 +93,6 @@ func (w *workspacesWidget) populateInitialIcons() {
 	}
 	clients, err := w.querier.Clients()
 	if err != nil {
-		log.Printf("[bar] workspace icons: %v", err)
 		return
 	}
 	firstClass := make(map[int]string)
@@ -129,37 +127,39 @@ func (w *workspacesWidget) update(ws state.Workspace) {
 			} else {
 				pill.RemoveCSSClass("occupied")
 			}
-			w.setIcon(i, ws.Icon)
+			// Only update icon if the event carries one, or clear if unoccupied.
+			if ws.Icon != "" {
+				w.setIcon(i, ws.Icon)
+			} else if !ws.Occupied {
+				w.setIcon(i, "")
+			}
 		} else if ws.Active {
 			pill.RemoveCSSClass("active")
 		}
 	}
 }
 
-// resolveIcon tries multiple strategies to find an icon name for a window class:
+// resolveIcon finds an icon name for a window class using:
 //  1. Desktop file lookup (StartupWMClass → Icon=)
 //  2. Lowercase class name
 //  3. Original class name
-// Returns the first icon name found in the theme, or "".
 func (w *workspacesWidget) resolveIcon(class string) string {
 	if w.theme == nil {
 		return ""
 	}
-	// Try desktop file mapping first.
 	if icon, ok := w.classIcon[class]; ok {
-		if w.theme.HasIcon(icon) || w.theme.HasIcon(strings.ToLower(icon)) {
-			if w.theme.HasIcon(strings.ToLower(icon)) {
-				return strings.ToLower(icon)
-			}
+		if w.theme.HasIcon(icon) {
 			return icon
 		}
+		lower := strings.ToLower(icon)
+		if w.theme.HasIcon(lower) {
+			return lower
+		}
 	}
-	// Try lowercase class.
 	lower := strings.ToLower(class)
 	if w.theme.HasIcon(lower) {
 		return lower
 	}
-	// Try original class.
 	if w.theme.HasIcon(class) {
 		return class
 	}
