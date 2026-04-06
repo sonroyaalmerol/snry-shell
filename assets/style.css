@@ -627,6 +627,11 @@ scale.m3-scale slider {
     font-family: "Material Symbols Rounded";
     font-size: 24px;
     color: @col_on_surface;
+    margin-right: 16px;
+}
+
+scale.osd-slider {
+    margin-left: 4px;
 }
 
 /* osd-slider uses .m3-scale (see M3 Component Primitives) */
