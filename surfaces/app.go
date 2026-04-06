@@ -78,6 +78,12 @@ func Run() int {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	// Load settings from persistent store
+	cfg := shellsettings.DefaultConfig()
+	if loadedCfg, err := shellsettings.Load(); err == nil {
+		cfg = loadedCfg
+	}
+
 	refs := &servicerefs.ServiceRefs{
 		Audio:      audio.NewWithDefaults(b),
 		Brightness: brightness.NewWithDefaults(b),
@@ -91,7 +97,7 @@ func Run() int {
 		Pomodoro:   pomodoro.New(b),
 		Todo:       todo.New(b),
 		SNI:        sni.New(sesConn, b),
-		InputMode:  inputmode.New(b, sysConn, shellsettings.DefaultConfig(), true),
+		InputMode:  inputmode.New(b, sysConn, cfg, true),
 	}
 
 	// Start background services.
