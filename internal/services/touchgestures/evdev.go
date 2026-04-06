@@ -116,7 +116,10 @@ func findTouchDevices() ([]string, error) {
 			name = strings.TrimSuffix(name, "\"")
 		}
 		if strings.HasPrefix(line, "H: Handlers=") {
-			for _, field := range strings.Split(line, " ") {
+			// Handlers line format: "H: Handlers=sysrq kbd event5"
+			// or single handler: "H: Handlers=event1"
+			val := strings.TrimPrefix(line, "H: Handlers=")
+			for _, field := range strings.Fields(val) {
 				if strings.HasPrefix(field, "event") {
 					handlers = append(handlers, field)
 				}
