@@ -145,17 +145,32 @@ func newWiFiRow(parent *gtk.ApplicationWindow, refs *servicerefs.ServiceRefs, ne
 					[]gtkutil.ActionDialogAction{
 						{Label: "Disconnect", OnClick: func() {
 							setLoading()
-							go func() { refs.Network.DisconnectWiFi(); rescan() }()
+							go func() {
+						if err := refs.Network.DisconnectWiFi(); err != nil {
+							glib.IdleAdd(func() { gtkutil.ErrorDialog(parent, "Disconnect failed", err.Error()) })
+						}
+						rescan()
+					}()
 						}},
 						{Label: "Forget", CSSClass: "m3-dialog-btn-error", OnClick: func() {
 							setLoading()
-							go func() { refs.Network.ForgetWiFi(ssid); rescan() }()
+							go func() {
+						if err := refs.Network.ForgetWiFi(ssid); err != nil {
+							glib.IdleAdd(func() { gtkutil.ErrorDialog(parent, "Forget failed", err.Error()) })
+						}
+						rescan()
+					}()
 						}},
 					},
 				)
 			case saved:
 				setLoading()
-				go func() { refs.Network.ConnectWiFi(ssid); rescan() }()
+				go func() {
+				if err := refs.Network.ConnectWiFi(ssid); err != nil {
+					glib.IdleAdd(func() { gtkutil.ErrorDialog(parent, "Connection failed", err.Error()) })
+				}
+				rescan()
+			}()
 			case security != "":
 				gtkutil.PasswordDialog(
 					parent,
@@ -164,12 +179,22 @@ func newWiFiRow(parent *gtk.ApplicationWindow, refs *servicerefs.ServiceRefs, ne
 					"Password",
 					func(password string) {
 						setLoading()
-						go func() { refs.Network.ConnectWithPassword(ssid, password); rescan() }()
+						go func() {
+							if err := refs.Network.ConnectWithPassword(ssid, password); err != nil {
+								glib.IdleAdd(func() { gtkutil.ErrorDialog(parent, "Connection failed", err.Error()) })
+							}
+							rescan()
+						}()
 					},
 				)
 			default:
 				setLoading()
-				go func() { refs.Network.ConnectWithPassword(ssid, ""); rescan() }()
+				go func() {
+				if err := refs.Network.ConnectWithPassword(ssid, ""); err != nil {
+					glib.IdleAdd(func() { gtkutil.ErrorDialog(parent, "Connection failed", err.Error()) })
+				}
+				rescan()
+			}()
 			}
 		})
 		row.AddController(click)

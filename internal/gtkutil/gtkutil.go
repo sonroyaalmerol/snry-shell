@@ -306,6 +306,28 @@ func PasswordDialog(parent *gtk.ApplicationWindow, title, message, placeholder s
 	_ = win // window kept alive by GTK after SetVisible(true) in newDialogBase
 }
 
+// ErrorDialog shows an M3-styled error dialog as a layer-shell overlay.
+func ErrorDialog(parent *gtk.ApplicationWindow, title, message string) {
+	_, card, close := newDialogBase(parent, title)
+
+	msgLabel := gtk.NewLabel(message)
+	msgLabel.AddCSSClass("m3-dialog-content")
+	msgLabel.AddCSSClass("m3-dialog-error-content")
+	msgLabel.SetWrap(true)
+	msgLabel.SetXAlign(0)
+	card.Append(msgLabel)
+
+	btnBox := gtk.NewBox(gtk.OrientationHorizontal, 8)
+	btnBox.AddCSSClass("m3-dialog-actions")
+
+	dismissBtn := gtk.NewButtonWithLabel("OK")
+	dismissBtn.AddCSSClass("m3-dialog-btn")
+	btnBox.Append(dismissBtn)
+	card.Append(btnBox)
+
+	dismissBtn.ConnectClicked(close)
+}
+
 // SectionHeader creates a clickable header for a collapsible section.
 func SectionHeader(title string, count int, revealer *gtk.Revealer, onScan func()) *gtk.Box {
 	box := gtk.NewBox(gtk.OrientationHorizontal, 8)

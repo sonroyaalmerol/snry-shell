@@ -1602,6 +1602,10 @@ scale.m3-scale slider {
     margin-bottom: 24px;
 }
 
+.m3-dialog-error-content {
+    color: @col_error;
+}
+
 .m3-dialog-actions {
 }
 

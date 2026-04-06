@@ -170,7 +170,12 @@ func newBTDeviceRow(parent *gtk.ApplicationWindow, refs *servicerefs.ServiceRefs
 					"Disconnect",
 					func() {
 						setLoading()
-						go func() { refs.Bluetooth.DisconnectDevice(addr); rescan() }()
+						go func() {
+							if err := refs.Bluetooth.DisconnectDevice(addr); err != nil {
+								glib.IdleAdd(func() { gtkutil.ErrorDialog(parent, "Disconnect failed", err.Error()) })
+							}
+							rescan()
+						}()
 					},
 				)
 			case dev.Paired:
@@ -181,7 +186,12 @@ func newBTDeviceRow(parent *gtk.ApplicationWindow, refs *servicerefs.ServiceRefs
 					"Connect",
 					func() {
 						setLoading()
-						go func() { refs.Bluetooth.ConnectDevice(addr); rescan() }()
+						go func() {
+							if err := refs.Bluetooth.ConnectDevice(addr); err != nil {
+								glib.IdleAdd(func() { gtkutil.ErrorDialog(parent, "Connection failed", err.Error()) })
+							}
+							rescan()
+						}()
 					},
 				)
 			default:
@@ -192,7 +202,12 @@ func newBTDeviceRow(parent *gtk.ApplicationWindow, refs *servicerefs.ServiceRefs
 					"Pair",
 					func() {
 						setLoading()
-						go func() { refs.Bluetooth.PairDevice(addr); rescan() }()
+						go func() {
+							if err := refs.Bluetooth.PairDevice(addr); err != nil {
+								glib.IdleAdd(func() { gtkutil.ErrorDialog(parent, "Pairing failed", err.Error()) })
+							}
+							rescan()
+						}()
 					},
 				)
 			}
