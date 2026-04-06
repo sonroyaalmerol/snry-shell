@@ -154,8 +154,13 @@ func NewQuickToggles(b *bus.Bus, refs *servicerefs.ServiceRefs) gtk.Widgetter {
 			}
 
 			log.Printf("launching control panel from: %s", exePath)
-			if err := exec.Command(exePath, "--control-panel").Start(); err != nil {
+			cmd := exec.Command(exePath, "--control-panel")
+			cmd.Stdout = os.Stdout
+			cmd.Stderr = os.Stderr
+			if err := cmd.Start(); err != nil {
 				log.Printf("launch control panel: %v", err)
+			} else {
+				log.Printf("control panel started with PID: %d", cmd.Process.Pid)
 			}
 		}()
 	})
