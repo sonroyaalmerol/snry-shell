@@ -43,10 +43,30 @@ func newWindowTitleWidget(b *bus.Bus, q *hyprland.Querier, mon *gdk.Monitor) gtk
 	box.Append(classLabel)
 	box.Append(titleLabel)
 
+	hasWindow := false
+	updateClickable := func(has bool) {
+		if has == hasWindow {
+			return
+		}
+		hasWindow = has
+		if has {
+			box.AddCSSClass("bar-group-clickable")
+			box.SetCursorFromName("pointer")
+					box.SetSensitive(true)
+		} else {
+			box.RemoveCSSClass("bar-group-clickable")
+			box.SetCursorFromName("default")
+			box.SetSensitive(false)
+		}
+	}
+
 	updateLabels := func(win state.ActiveWindow) {
 		classLabel.SetText(win.Class)
 		titleLabel.SetText(win.Title)
+		updateClickable(win.Class != "" || win.Title != "")
 	}
+
+	updateClickable(false)
 
 	// Seed initial state from hyprctl and re-query on workspace changes
 	// to avoid stale empty titles from the activewindow event race.
