@@ -12,6 +12,7 @@ type controlPanel struct {
 	cfg       settings.Config
 	providers []ConfigProvider
 	stack     *gtk.Stack
+	navList   *gtk.ListBox
 }
 
 func newControlPanel(cfg settings.Config) *controlPanel {
@@ -35,6 +36,14 @@ func (cp *controlPanel) build() gtk.Widgetter {
 	// Build content area with stack - use settings-stack style
 	content := cp.buildContent()
 	root.Append(content)
+
+	// Show first provider by default
+	cp.showProvider(0)
+
+	// Select first row
+	if firstRow := cp.navList.RowAtIndex(0); firstRow != nil {
+		cp.navList.SelectRow(firstRow)
+	}
 
 	return root
 }
@@ -60,23 +69,23 @@ func (cp *controlPanel) buildSidebar() gtk.Widgetter {
 	sidebar.Append(header)
 
 	// Navigation list - reuse settings style
-	list := gtk.NewListBox()
-	list.SetSelectionMode(gtk.SelectionSingle)
+	cp.navList = gtk.NewListBox()
+	cp.navList.SetSelectionMode(gtk.SelectionSingle)
 
 	for i, provider := range cp.providers {
 		row := cp.buildNavRow(provider, i == 0)
-		list.Append(row)
+		cp.navList.Append(row)
 	}
 
 	// Connect selection change
-	list.ConnectRowSelected(func(row *gtk.ListBoxRow) {
+	cp.navList.ConnectRowSelected(func(row *gtk.ListBoxRow) {
 		if row != nil {
 			idx := row.Index()
 			cp.showProvider(idx)
 		}
 	})
 
-	sidebar.Append(list)
+	sidebar.Append(cp.navList)
 
 	return sidebar
 }

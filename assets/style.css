@@ -1410,7 +1410,6 @@ scale.quick-slider {
 .settings-nav-item {
     border-radius: var(--radius-pill);
     margin: 2px 8px;
-    padding: 8px 16px;
     font-size: 13px;
     color: @col_on_surface_variant;
     transition: background-color var(--duration-short3) var(--ease-standard-decel);
@@ -1418,6 +1417,14 @@ scale.quick-slider {
 
 .settings-nav-item:hover {
     background-color: alpha(@col_on_surface, var(--state-hover));
+}
+
+.settings-nav-item:selected {
+    background-color: @col_primary_container;
+}
+
+.settings-nav-item:selected .settings-nav-label {
+    color: @col_on_primary_container;
 }
 
 .settings-nav-label {
