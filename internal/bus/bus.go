@@ -39,6 +39,7 @@ const (
 	TopicPopupTrigger     Topic = "popuptrigger"
 	TopicStore            Topic = "store"
 	TopicThemeChanged     Topic = "themechanged"
+	TopicSettingsChanged  Topic = "settingschanged"
 )
 
 type Event struct {

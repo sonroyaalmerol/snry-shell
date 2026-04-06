@@ -2,8 +2,10 @@ package controlpanel
 
 import (
 	"fmt"
+	"net"
 
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
+	"github.com/sonroyaalmerol/snry-shell/internal/controlsocket"
 	"github.com/sonroyaalmerol/snry-shell/internal/gtkutil"
 	"github.com/sonroyaalmerol/snry-shell/internal/settings"
 )
@@ -33,7 +35,23 @@ func (s *shellConfigProvider) Load() error {
 }
 
 func (s *shellConfigProvider) Save() error {
-	return settings.Save(*s.cfg)
+	if err := settings.Save(*s.cfg); err != nil {
+		return err
+	}
+	// Notify the shell to reload settings
+	s.notifyShellReload()
+	return nil
+}
+
+func (s *shellConfigProvider) notifyShellReload() {
+	// Send command to shell via control socket
+	conn, err := net.Dial("unix", controlsocket.DefaultPath)
+	if err != nil {
+		// Shell might not be running, that's ok
+		return
+	}
+	defer conn.Close()
+	conn.Write([]byte("reload-settings"))
 }
 
 func (s *shellConfigProvider) BuildWidget() gtk.Widgetter {

@@ -142,6 +142,18 @@ func Run() int {
 		}
 	})
 
+	// Handle settings reload from control panel.
+	b.Subscribe(bus.TopicSystemControls, func(e bus.Event) {
+		if action, ok := e.Data.(string); ok && action == "reload-settings" {
+			if newCfg, err := shellsettings.Load(); err == nil {
+				cfg = newCfg
+				// Publish settings changed event so components can react
+				b.Publish(bus.TopicSettingsChanged, cfg)
+				log.Printf("[SETTINGS] Reloaded settings from control panel")
+			}
+		}
+	})
+
 	// Hyprland event stream.
 	if conn, err := net.Dial("unix", hyprland.SocketPath()); err == nil {
 		svc := hyprland.New(hyprland.NewSocketReader(conn), b)
