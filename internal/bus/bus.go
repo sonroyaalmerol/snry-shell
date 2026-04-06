@@ -16,12 +16,12 @@ const (
 	TopicBrightness   Topic = "brightness"
 	TopicClipboard    Topic = "clipboard"
 
-	TopicFloatingImage  Topic = "floatingimage"
-	TopicBluetooth      Topic = "bluetooth"
-	TopicNightMode      Topic = "nightmode"
-	TopicSystemControls Topic = "systemcontrols"
-	TopicSessionAction  Topic = "session"
-	TopicScreenLock     Topic = "screenlock"
+	TopicFloatingImage    Topic = "floatingimage"
+	TopicBluetooth        Topic = "bluetooth"
+	TopicNightMode        Topic = "nightmode"
+	TopicSystemControls   Topic = "systemcontrols"
+	TopicSessionAction    Topic = "session"
+	TopicScreenLock       Topic = "screenlock"
 	TopicResources        Topic = "resources"
 	TopicKeyboard         Topic = "keyboard"
 	TopicAudioMixer       Topic = "audiomixer"
@@ -33,16 +33,20 @@ const (
 	TopicTrayItems        Topic = "trayitems"
 	TopicTrayActivate     Topic = "trayactivate"
 	TopicTextInputFocus   Topic = "textinputfocus"
-	TopicTabletMode     Topic = "tabletmode"
-	TopicInputMode       Topic = "inputmode"
+	TopicTabletMode       Topic = "tabletmode"
+	TopicInputMode        Topic = "inputmode"
 	TopicFullscreen       Topic = "fullscreen"
 	TopicPopupTrigger     Topic = "popuptrigger"
 	TopicStore            Topic = "store"
+	TopicThemeChanged     Topic = "themechanged"
 )
 
-type Event struct { Topic Topic; Data any }
+type Event struct {
+	Topic Topic
+	Data  any
+}
 type Handler func(Event)
-type Publisher interface { Publish(topic Topic, data any) }
+type Publisher interface{ Publish(topic Topic, data any) }
 
 type Bus struct {
 	mu       sync.RWMutex
@@ -52,7 +56,8 @@ type Bus struct {
 
 func New() *Bus { return &Bus{handlers: make(map[Topic][]Handler), last: make(map[Topic]Event)} }
 func (b *Bus) Subscribe(topic Topic, h Handler) {
-	b.mu.Lock(); defer b.mu.Unlock()
+	b.mu.Lock()
+	defer b.mu.Unlock()
 	b.handlers[topic] = append(b.handlers[topic], h)
 	// Replay last event so late subscribers get current state.
 	if ev, ok := b.last[topic]; ok {
@@ -66,5 +71,7 @@ func (b *Bus) Publish(topic Topic, data any) {
 	handlers := make([]Handler, len(b.handlers[topic]))
 	copy(handlers, b.handlers[topic])
 	b.mu.Unlock()
-	for _, h := range handlers { h(ev) }
+	for _, h := range handlers {
+		h(ev)
+	}
 }

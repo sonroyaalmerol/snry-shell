@@ -21,3 +21,8 @@ func ConfigDir() string {
 	home, _ := os.UserHomeDir()
 	return filepath.Join(home, ".config", "snry-shell")
 }
+
+func CacheDir() string {
+	home, _ := os.UserHomeDir()
+	return filepath.Join(home, ".cache")
+}

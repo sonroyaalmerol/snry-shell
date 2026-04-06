@@ -12,9 +12,9 @@ import (
 
 // Bar is the top-edge status bar surface.
 type Bar struct {
-	Win            *gtk.ApplicationWindow
-	bus            *bus.Bus
-	monitor        *gdk.Monitor
+	Win              *gtk.ApplicationWindow
+	bus              *bus.Bus
+	monitor          *gdk.Monitor
 	NotifTrigger     gtk.Widgetter
 	WifiTrigger      gtk.Widgetter
 	BtTrigger        gtk.Widgetter

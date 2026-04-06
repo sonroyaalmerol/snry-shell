@@ -1,5 +1,6 @@
 /* snry-shell — base stylesheet
- * Fallback M3 dark colors below are overridden by ~/.cache/snry-shell/theme.css (matugen).
+ * Fallback M3 dark colors below are overridden by ~/.cache/snry-shell/theme.css.
+ * Theme is auto-generated from your wallpaper using built-in color extraction.
  * Compositor blur (Hyprland xray=true) provides the frosted-glass effect on alpha() backgrounds.
  *
  * Visual reference: end-4/dots-hyprland illogical-impulse (Material You / Quickshell)
@@ -204,6 +205,8 @@ scale.m3-scale slider {
     background-color: @col_surface;
     min-height: 52px;
     padding: 0 6px;
+    /* Rounded bottom corners only */
+    border-radius: 0 0 var(--radius-xl) var(--radius-xl);
 }
 
 /* Bar group container — rounded rect wrapping widgets */
@@ -1110,6 +1113,8 @@ scale.m3-scale slider {
     background-color: @col_surface_dim;
     padding: 6px 8px;
     border-top: 1px solid alpha(@col_outline_variant, 0.2);
+    /* Rounded top corners only */
+    border-radius: var(--radius-xl) var(--radius-xl) 0 0;
 }
 
 .osk-row {

@@ -318,13 +318,28 @@ Settings can be changed from the built-in settings panel (toggle via `--toggle-s
 
 ## Theming
 
-snry-shell uses **Material Design 3** color tokens. The theme is automatically generated from your wallpaper via [matugen](https://github.com/matugen/matugen). Dynamic color variables are written to `~/.cache/snry-shell/theme.css` and hot-reloaded whenever the wallpaper changes.
+snry-shell uses **Material Design 3** color tokens with built-in dynamic color extraction from your wallpaper. No external tools required.
 
-Custom CSS overrides can be added to `assets/style.css`. The base stylesheet uses `@define-color` variables that matugen overrides:
+### How it works
+
+The shell automatically detects your wallpaper from common tools (hyprpaper, swww, nitrogen, feh), extracts dominant colors, and generates a Material Design 3 color scheme. Dynamic color variables are written to `~/.cache/snry-shell/theme.css` and hot-reloaded whenever the wallpaper changes.
+
+### Manual theme refresh
+
+Force theme regeneration from current wallpaper:
+```
+snry-shell --toggle-reload-theme
+```
+
+### Color tokens
+
+The base stylesheet uses `@define-color` variables that the theme generator overrides:
 
 - `@col_primary`, `@col_on_primary`, `@col_primary_container`, ...
 - `@col_surface`, `@col_on_surface`, `@col_surface_container`, ...
 - `@col_background`, `@col_on_background`, `@col_outline`, ...
+
+Custom CSS overrides can be added to `~/.config/snry-shell/custom.css` (create if needed).
 
 ## Testing
 

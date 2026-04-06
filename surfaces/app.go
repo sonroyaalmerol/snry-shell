@@ -22,6 +22,7 @@ import (
 	"github.com/sonroyaalmerol/snry-shell/internal/services/brightness"
 	serviceclipboard "github.com/sonroyaalmerol/snry-shell/internal/services/clipboard"
 	"github.com/sonroyaalmerol/snry-shell/internal/services/hyprland"
+	"github.com/sonroyaalmerol/snry-shell/internal/services/inputmode"
 	"github.com/sonroyaalmerol/snry-shell/internal/services/mpris"
 	"github.com/sonroyaalmerol/snry-shell/internal/services/network"
 	"github.com/sonroyaalmerol/snry-shell/internal/services/nightmode"
@@ -29,10 +30,10 @@ import (
 	"github.com/sonroyaalmerol/snry-shell/internal/services/pomodoro"
 	"github.com/sonroyaalmerol/snry-shell/internal/services/resources"
 	"github.com/sonroyaalmerol/snry-shell/internal/services/sni"
-	"github.com/sonroyaalmerol/snry-shell/internal/services/inputmode"
-	shellsettings "github.com/sonroyaalmerol/snry-shell/internal/settings"
 	"github.com/sonroyaalmerol/snry-shell/internal/services/todo"
 	"github.com/sonroyaalmerol/snry-shell/internal/services/upower"
+	shellsettings "github.com/sonroyaalmerol/snry-shell/internal/settings"
+	"github.com/sonroyaalmerol/snry-shell/internal/theme"
 	"github.com/sonroyaalmerol/snry-shell/surfaces/bar"
 	"github.com/sonroyaalmerol/snry-shell/surfaces/cheatsheet"
 	"github.com/sonroyaalmerol/snry-shell/surfaces/corners"
@@ -46,12 +47,12 @@ import (
 	"github.com/sonroyaalmerol/snry-shell/surfaces/osk"
 	"github.com/sonroyaalmerol/snry-shell/surfaces/overview"
 	"github.com/sonroyaalmerol/snry-shell/surfaces/polkit"
+	"github.com/sonroyaalmerol/snry-shell/surfaces/popup/appdrawer"
 	popupbluetooth "github.com/sonroyaalmerol/snry-shell/surfaces/popup/bluetooth"
 	"github.com/sonroyaalmerol/snry-shell/surfaces/popup/calendar"
 	"github.com/sonroyaalmerol/snry-shell/surfaces/popup/notifcenter"
 	"github.com/sonroyaalmerol/snry-shell/surfaces/popup/wifi"
 	"github.com/sonroyaalmerol/snry-shell/surfaces/popup/windowmgmt"
-	"github.com/sonroyaalmerol/snry-shell/surfaces/popup/appdrawer"
 	"github.com/sonroyaalmerol/snry-shell/surfaces/recorder"
 	"github.com/sonroyaalmerol/snry-shell/surfaces/regionselector"
 	"github.com/sonroyaalmerol/snry-shell/surfaces/session"
@@ -122,6 +123,19 @@ func Run() int {
 	// Clipboard watcher.
 	go serviceclipboard.NewWithDefaults(b).Run(ctx)
 
+	// Theme generator and wallpaper monitor.
+	themeMonitor := theme.NewMonitor(b)
+	go themeMonitor.Run(ctx)
+
+	// Handle theme reload command.
+	b.Subscribe(bus.TopicSystemControls, func(e bus.Event) {
+		if action, ok := e.Data.(string); ok && action == "toggle-reload-theme" {
+			if err := themeMonitor.ForceUpdate(); err != nil {
+				log.Printf("[THEME] Force update failed: %v", err)
+			}
+		}
+	})
+
 	// Hyprland event stream.
 	if conn, err := net.Dial("unix", hyprland.SocketPath()); err == nil {
 		svc := hyprland.New(hyprland.NewSocketReader(conn), b)
@@ -135,7 +149,6 @@ func Run() int {
 	if sysConn != nil {
 		go upower.New(sysConn, b).Run(ctx)
 	}
-
 
 	// Force Hyprland config values while shell is alive, restore on exit.
 	forced := hyprland.NewForcedConfigs(refs.Hyprland)
@@ -157,6 +170,16 @@ func Run() int {
 		}
 	})
 
+	// Subscribe to theme changes and reload CSS.
+	b.Subscribe(bus.TopicThemeChanged, func(ev bus.Event) {
+		glib.IdleAdd(func() {
+			display := gdk.DisplayGetDefault()
+			if display != nil {
+				loadThemeCSS(display)
+			}
+		})
+	})
+
 	app.ConnectActivate(func() {
 		// Load embedded stylesheet.
 		display := gdk.DisplayGetDefault()
@@ -164,6 +187,9 @@ func Run() int {
 			provider := gtk.NewCSSProvider()
 			provider.LoadFromString(assets.StyleCSS)
 			gtk.StyleContextAddProviderForDisplay(display, provider, gtk.STYLE_PROVIDER_PRIORITY_USER)
+
+			// Load dynamic theme if it exists
+			loadThemeCSS(display)
 		}
 
 		// Per-monitor surfaces: bar and corners.
@@ -244,4 +270,18 @@ func Run() int {
 	defer controlsocket.Close(sockLn)
 
 	return app.Run(os.Args)
+}
+
+// loadThemeCSS loads the dynamic theme CSS if it exists
+func loadThemeCSS(display *gdk.Display) {
+	themePath := theme.ThemePath()
+	if _, err := os.Stat(themePath); os.IsNotExist(err) {
+		return
+	}
+
+	provider := gtk.NewCSSProvider()
+	provider.LoadFromPath(themePath)
+	// Load with higher priority than base CSS so it overrides fallback colors
+	gtk.StyleContextAddProviderForDisplay(display, provider, gtk.STYLE_PROVIDER_PRIORITY_USER+100)
+	log.Println("[THEME] Loaded dynamic theme from", themePath)
 }

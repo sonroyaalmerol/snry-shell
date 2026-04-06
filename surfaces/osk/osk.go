@@ -18,31 +18,31 @@ import (
 )
 
 type OSK struct {
-	win           *gtk.ApplicationWindow
-	bus           *bus.Bus
-	ui            *uinput.Bridge
-	shift         bool
-	caps          bool
-	ctrlL         bool
-	altL          bool
-	hasTouch      bool
-	tabletMode    bool // dynamic: true when no physical keyboard (tablet/convertible folded)
-	manualOff     bool
-	visible       bool
-	fullscreen    bool
-	viewMode      string // "keyboard", "emoji", "clipboard"
-	stack         *gtk.Stack
-	keys          []*keyButton          // all character keys, for label updates
-	modBtns       map[string]*gtk.Button // modifier name -> button widget
-	shiftBtns     []*gtk.Button         // shift buttons for visual feedback
-	capsBtn       *gtk.Button           // caps button for visual feedback
-	emojiBtn      *gtk.Button           // toolbar emoji button
-	clipboardBtn  *gtk.Button           // toolbar clipboard button
-	clipboardList *gtk.Box              // clipboard list widget for refresh
-	emojiContainer *gtk.Box              // vertical box holding category FlowBoxes
-	backBtn       *gtk.Button           // floating back-to-keyboard button
-	mu            sync.Mutex
-	debounce      *time.Timer           // coalesces rapid focus events
+	win            *gtk.ApplicationWindow
+	bus            *bus.Bus
+	ui             *uinput.Bridge
+	shift          bool
+	caps           bool
+	ctrlL          bool
+	altL           bool
+	hasTouch       bool
+	tabletMode     bool // dynamic: true when no physical keyboard (tablet/convertible folded)
+	manualOff      bool
+	visible        bool
+	fullscreen     bool
+	viewMode       string // "keyboard", "emoji", "clipboard"
+	stack          *gtk.Stack
+	keys           []*keyButton           // all character keys, for label updates
+	modBtns        map[string]*gtk.Button // modifier name -> button widget
+	shiftBtns      []*gtk.Button          // shift buttons for visual feedback
+	capsBtn        *gtk.Button            // caps button for visual feedback
+	emojiBtn       *gtk.Button            // toolbar emoji button
+	clipboardBtn   *gtk.Button            // toolbar clipboard button
+	clipboardList  *gtk.Box               // clipboard list widget for refresh
+	emojiContainer *gtk.Box               // vertical box holding category FlowBoxes
+	backBtn        *gtk.Button            // floating back-to-keyboard button
+	mu             sync.Mutex
+	debounce       *time.Timer // coalesces rapid focus events
 }
 
 type keyButton struct {
@@ -133,7 +133,7 @@ func New(app *gtk.Application, b *bus.Bus) *OSK {
 		osk.scheduleFocusUpdate(isText)
 	})
 
-// Update tablet mode state from the inputmode service (bool).
+	// Update tablet mode state from the inputmode service (bool).
 	b.Subscribe(bus.TopicTabletMode, func(e bus.Event) {
 		tablet, ok := e.Data.(bool)
 		if !ok {
@@ -276,7 +276,7 @@ func detectTouchDevice() bool {
 
 // emojiData holds all emoji organised by category for the picker panel.
 var emojiData = []struct {
-	name  string
+	name   string
 	emojis [][2]string
 }{
 	{"Smileys", [][2]string{
@@ -407,9 +407,9 @@ func (o *OSK) build() {
 	// Clipboard page.
 	clipboardPage := o.buildClipboardPanel()
 	o.stack.AddNamed(clipboardPage, "clipboard")
-	
+
 	content.Append(o.stack)
-	
+
 	// Floating close button — top-right corner, overlaid.
 	closeBtn := gtk.NewButton()
 	closeBtn.AddCSSClass("osk-close-float")
@@ -424,7 +424,7 @@ func (o *OSK) build() {
 		o.manualOff = true
 		o.hide()
 	})
-	
+
 	// Floating back button — top-left corner, shown only in panel views.
 	backBtn := gtk.NewButton()
 	backBtn.AddCSSClass("osk-close-float")
@@ -440,7 +440,7 @@ func (o *OSK) build() {
 		o.switchView("keyboard")
 	})
 	o.backBtn = backBtn
-	
+
 	root.SetChild(content)
 	root.AddOverlay(closeBtn)
 	root.AddOverlay(backBtn)
@@ -614,7 +614,6 @@ func (o *OSK) addEmojiBtn(parent *gtk.FlowBox, char, name string) {
 func (o *OSK) buildClipboardPanel() gtk.Widgetter {
 	box := gtk.NewBox(gtk.OrientationVertical, 0)
 	box.AddCSSClass("osk-panel")
-
 
 	// Scrollable list.
 	scroll := gtk.NewScrolledWindow()
