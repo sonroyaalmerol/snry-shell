@@ -1427,6 +1427,10 @@ scale.quick-slider {
     color: @col_on_primary_container;
 }
 
+.settings-nav-item:selected .quick-slider-icon {
+    color: @col_on_primary_container;
+}
+
 .settings-nav-label {
     font-size: 13px;
     color: @col_on_surface_variant;
