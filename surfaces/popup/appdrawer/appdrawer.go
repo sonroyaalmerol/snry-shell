@@ -94,6 +94,7 @@ func (d *AppDrawer) build() {
 	content.SetHAlign(gtk.AlignCenter)
 	content.SetVAlign(gtk.AlignFill)
 	content.SetHExpand(true)
+	content.SetSizeRequest(640, -1)
 	content.SetMarginTop(layershell.BarExclusiveZone + 16)
 	content.SetMarginStart(24)
 	content.SetMarginEnd(24)
@@ -197,10 +198,13 @@ func newAppTile(app launcher.App, iconSize int, onLaunch func()) *gtk.Box {
 		iconName = "application-x-executable"
 	}
 	icon.SetFromIconName(iconName)
-	icon.SetIconSize(gtk.IconSizeLarge)
+	icon.SetPixelSize(56)
 	icon.AddCSSClass("appdrawer-tile-icon")
 
 	label := gtk.NewLabel(app.Name)
+	label.SetJustify(gtk.JustifyCenter)
+	label.SetWrap(true)
+	label.SetMaxWidthChars(10)
 	label.AddCSSClass("appdrawer-tile-label")
 
 	box.Append(icon)

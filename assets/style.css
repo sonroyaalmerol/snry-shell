@@ -490,7 +490,7 @@ scale.m3-scale slider {
 }
 
 .appdrawer-content {
-    max-width: 640px;
+    min-width: 0px;
 }
 
 .appdrawer-search-entry {
@@ -538,14 +538,9 @@ scale.m3-scale slider {
     background-color: alpha(@col_primary_container, 0.35);
 }
 
-.appdrawer-tile-icon {
-    icon-size: 56px;
-}
-
 .appdrawer-tile-label {
     font-size: 12px;
     color: @col_on_surface;
-    text-align: center;
 }
 
 .notification-list {
@@ -1841,7 +1836,6 @@ scale.m3-scale slider {
 .quick-toggle-segmented {
     border-radius: var(--radius-md);
     background: alpha(@col_on_surface, var(--state-hover));
-    overflow: hidden;
 }
 
 .quick-toggle-segment {
