@@ -131,6 +131,7 @@ func NewQuickToggles(b *bus.Bus, refs *servicerefs.ServiceRefs) gtk.Widgetter {
 		button    bool
 		segmented bool
 		toggle    func(active bool)
+		longPress func()
 	}
 
 	binInPath := func(name string) bool {
@@ -143,11 +144,15 @@ func NewQuickToggles(b *bus.Bus, refs *servicerefs.ServiceRefs) gtk.Widgetter {
 			if refs.Network != nil {
 				go refs.Network.SetWiFi(active)
 			}
+		}, longPress: func() {
+			b.Publish(bus.TopicSystemControls, "toggle-wifi")
 		}},
 		{icon: "bluetooth", label: "Bluetooth", topic: bus.TopicBluetooth, toggle: func(active bool) {
 			if refs.Bluetooth != nil {
 				go refs.Bluetooth.SetPowered(active)
 			}
+		}, longPress: func() {
+			b.Publish(bus.TopicSystemControls, "toggle-bluetooth")
 		}},
 		{icon: "nightlight", label: "Night Light", topic: bus.TopicNightMode, requires: "hyprsunset", toggle: func(_ bool) {
 			if refs.NightMode != nil {
@@ -282,6 +287,18 @@ func NewQuickToggles(b *bus.Bus, refs *servicerefs.ServiceRefs) gtk.Widgetter {
 				})
 				toggle.toggle(tb.Active())
 			})
+
+			// Add long press gesture for WiFi/Bluetooth
+			if toggle.longPress != nil {
+				longPress := gtk.NewGestureLongPress()
+				longPress.SetPropagationPhase(gtk.PhaseCapture)
+				longPress.ConnectPressed(func(_ float64, _ float64) {
+					// Close notif center and open the specific popup
+					b.Publish(bus.TopicSystemControls, "toggle-notif-center")
+					toggle.longPress()
+				})
+				tb.AddController(longPress)
+			}
 
 			if toggle.topic != "" {
 				topic := toggle.topic
