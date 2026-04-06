@@ -2,7 +2,6 @@ package bar
 
 import (
 	"fmt"
-	"log"
 	"sync/atomic"
 
 	"github.com/diamondburned/gotk4/pkg/gdk/v4"
@@ -10,7 +9,6 @@ import (
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/sonroyaalmerol/snry-shell/internal/bus"
 	"github.com/sonroyaalmerol/snry-shell/internal/gtkutil"
-	"github.com/sonroyaalmerol/snry-shell/internal/services/hyprland"
 	"github.com/sonroyaalmerol/snry-shell/internal/servicerefs"
 	"github.com/sonroyaalmerol/snry-shell/internal/state"
 	"github.com/sonroyaalmerol/snry-shell/internal/surfaceutil"
@@ -57,7 +55,7 @@ func barSeparator() gtk.Widgetter {
 
 // newWindowMgmtIcon returns a window management icon.
 func newWindowMgmtIcon() gtk.Widgetter {
-	icon := gtkutil.MaterialIcon("settings")
+	icon := gtkutil.MaterialIcon("dashboard")
 	icon.AddCSSClass("indicator-icon")
 	return icon
 }
@@ -176,37 +174,4 @@ func batteryIcon(pct float64, charging bool) string {
 	default:
 		return "battery_alert"
 	}
-}
-
-func newKeyboardIndicator(b *bus.Bus, querier *hyprland.Querier) gtk.Widgetter {
-	icon := gtkutil.MaterialIcon("language")
-	icon.AddCSSClass("indicator-icon")
-
-	label := gtk.NewLabel("")
-	label.AddCSSClass("bar-kbd-layout")
-
-	box := gtk.NewBox(gtk.OrientationHorizontal, 2)
-	box.SetVAlign(gtk.AlignCenter)
-	box.Append(icon)
-	box.Append(label)
-
-	b.Subscribe(bus.TopicKeyboard, func(e bus.Event) {
-		layout := e.Data.(string)
-		glib.IdleAdd(func() { label.SetText(layout) })
-	})
-
-	if querier != nil {
-		if layout, err := querier.ActiveKeymap(); err == nil {
-			label.SetText(layout)
-		}
-
-		clickGesture := gtk.NewGestureClick()
-		clickGesture.SetButton(1)
-		clickGesture.ConnectReleased(func(_ int, _ float64, _ float64) {
-			if err := querier.SwitchXkbLayout(); err != nil { log.Printf("kbd layout switch: %v", err) }
-		})
-		box.AddController(clickGesture)
-	}
-
-	return box
 }

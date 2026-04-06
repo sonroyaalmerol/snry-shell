@@ -48,7 +48,7 @@ func (b *Bar) build(refs *servicerefs.ServiceRefs) {
 	b.Win.SetChild(root)
 }
 
-// Left: window title + window mgmt + keyboard layout.
+// Left: window title + window mgmt.
 func (b *Bar) buildLeft(refs *servicerefs.ServiceRefs) gtk.Widgetter {
 	box := gtk.NewBox(gtk.OrientationHorizontal, 0)
 	box.SetVAlign(gtk.AlignCenter)
@@ -60,8 +60,6 @@ func (b *Bar) buildLeft(refs *servicerefs.ServiceRefs) gtk.Widgetter {
 	b.WinMgmtTrigger = winMgmt
 	box.Append(winMgmt)
 
-	box.Append(barSeparator())
-	box.Append(newKeyboardIndicator(b.bus, refs.Hyprland))
 	return box
 }
 

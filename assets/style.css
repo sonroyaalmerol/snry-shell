@@ -270,18 +270,17 @@ scale.m3-scale slider {
 /* ── Window title (two-line) ────────────────────────────────────────────────── */
 
 .window-title-box {
-    padding: 0 8px;
-    margin: 0 6px;
+    padding: 2px 8px;
 }
 
 .window-class {
-    font-size: 12px;
+    font-size: 11px;
     color: @col_on_surface_variant;
     font-weight: 400;
 }
 
 .window-title {
-    font-size: 15px;
+    font-size: 13px;
     color: @col_on_surface;
     font-weight: 500;
 }

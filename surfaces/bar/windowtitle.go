@@ -8,13 +8,13 @@ import (
 )
 
 func newWindowTitleWidget(b *bus.Bus) gtk.Widgetter {
-	box := gtk.NewBox(gtk.OrientationHorizontal, 6)
+	box := gtk.NewBox(gtk.OrientationVertical, 0)
 	box.AddCSSClass("window-title-box")
 
 	classLabel := gtk.NewLabel("")
 	classLabel.AddCSSClass("window-class")
 	classLabel.SetEllipsize(3) // pango.EllipsizeEnd
-	classLabel.SetMaxWidthChars(20)
+	classLabel.SetMaxWidthChars(30)
 
 	titleLabel := gtk.NewLabel("")
 	titleLabel.AddCSSClass("window-title")
