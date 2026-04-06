@@ -101,6 +101,21 @@ func NewQuickToggles(b *bus.Bus, refs *servicerefs.ServiceRefs) gtk.Widgetter {
 	label.SetVAlign(gtk.AlignCenter)
 	label.SetHExpand(true)
 
+	settingsBtn := gtk.NewButton()
+	settingsBtn.AddCSSClass("quick-power-btn")
+	settingsBtn.SetTooltipText("Control Panel")
+	settingsBtn.SetHAlign(gtk.AlignEnd)
+	settingsBtn.SetVAlign(gtk.AlignCenter)
+	settingsBtn.SetCursorFromName("pointer")
+	settingsBtn.SetChild(gtkutil.MaterialIcon("settings"))
+	settingsBtn.ConnectClicked(func() {
+		go func() {
+			if err := exec.Command("snry-shell", "--control-panel").Start(); err != nil {
+				log.Printf("launch control panel: %v", err)
+			}
+		}()
+	})
+
 	powerBtn := gtk.NewButton()
 	powerBtn.AddCSSClass("quick-power-btn")
 	powerBtn.SetTooltipText("Power menu")
@@ -113,6 +128,7 @@ func NewQuickToggles(b *bus.Bus, refs *servicerefs.ServiceRefs) gtk.Widgetter {
 	})
 
 	header.Append(label)
+	header.Append(settingsBtn)
 	header.Append(powerBtn)
 	box.Append(header)
 
