@@ -56,10 +56,15 @@ func (s *Session) build() {
 	scrim.AddController(clickGesture)
 
 	// Centered button container.
+	centerBox := gtk.NewBox(gtk.OrientationVertical, 0)
+	centerBox.SetHAlign(gtk.AlignCenter)
+	centerBox.SetVAlign(gtk.AlignCenter)
+	centerBox.SetVExpand(true)
+
 	container := gtk.NewBox(gtk.OrientationHorizontal, 0)
 	container.AddCSSClass("session-container")
 	container.SetHAlign(gtk.AlignCenter)
-	container.SetVAlign(gtk.AlignCenter)
+	centerBox.Append(container)
 
 	actions := []struct {
 		action state.SessionAction
@@ -79,7 +84,7 @@ func (s *Session) build() {
 		container.Append(btn)
 	}
 
-	scrim.Append(container)
+	scrim.Append(centerBox)
 	s.win.SetChild(scrim)
 }
 
