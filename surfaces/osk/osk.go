@@ -29,7 +29,6 @@ type OSK struct {
 	manualOff     bool
 	visible       bool
 	fullscreen    bool
-	exclusiveZone int
 	viewMode      string // "keyboard", "emoji", "clipboard"
 	stack         *gtk.Stack
 	keys          []*keyButton          // all character keys, for label updates
@@ -72,8 +71,10 @@ func New(app *gtk.Application, b *bus.Bus) *OSK {
 	osk.build()
 	win.SetVisible(false)
 
-	osk.exclusiveZone = 280
-	layershell.SetExclusiveZone(win, osk.exclusiveZone)
+	// Keep exclusive zone in sync with actual window height.
+	win.ConnectMap(func() {
+		osk.updateExclusiveZone()
+	})
 
 	osk.hasTouch = detectTouchDevice()
 
@@ -207,9 +208,13 @@ func (o *OSK) hide() {
 func (o *OSK) updateExclusiveZone() {
 	if o.fullscreen {
 		layershell.SetExclusiveZone(o.win, -1)
-	} else {
-		layershell.SetExclusiveZone(o.win, o.exclusiveZone)
+		return
 	}
+	h := o.win.AllocatedHeight()
+	if h <= 0 {
+		h = 280
+	}
+	layershell.SetExclusiveZone(o.win, h)
 }
 
 func detectTouchDevice() bool {
