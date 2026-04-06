@@ -91,13 +91,20 @@ func (d *AppDrawer) build() {
 	// Main content area.
 	content := gtk.NewBox(gtk.OrientationVertical, 0)
 	content.AddCSSClass("appdrawer-content")
-	content.SetHAlign(gtk.AlignCenter)
+	content.SetHAlign(gtk.AlignFill)
 	content.SetVAlign(gtk.AlignFill)
 	content.SetHExpand(true)
-	content.SetSizeRequest(640, -1)
 	content.SetMarginTop(layershell.BarExclusiveZone + 16)
 	content.SetMarginStart(24)
 	content.SetMarginEnd(24)
+
+	// Prevent clicks inside the content area from dismissing the drawer.
+	stopClick := gtk.NewGestureClick()
+	stopClick.SetButton(0)
+	stopClick.ConnectPressed(func(n int, x, y float64) {
+		stopClick.SetState(gtk.EventSequenceClaimed)
+	})
+	content.AddController(stopClick)
 
 	// Determine icon size from monitor scale factor.
 	d.iconSize = 48 // default for 1x
