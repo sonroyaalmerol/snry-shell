@@ -173,16 +173,20 @@ func installTouchCursorTracker(win *gtk.ApplicationWindow) {
 	defaultCursor := gdk.NewCursorFromName("default", nil)
 
 	setTouchActive := func(active bool) {
-		surf, ok := win.Surface().(*gdk.Surface)
-		if !ok {
-			return
-		}
+		// Always update the CSS class — this is the primary hover suppression mechanism.
 		if active {
 			win.AddCSSClass("touch-active")
-			surf.SetCursor(noneCursor)
 		} else {
 			win.RemoveCSSClass("touch-active")
-			surf.SetCursor(defaultCursor)
+		}
+		// Cursor hiding is best-effort; BaseSurface handles any GdkSurface subtype.
+		if surfacer := win.Surface(); surfacer != nil {
+			surf := gdk.BaseSurface(surfacer)
+			if active {
+				surf.SetCursor(noneCursor)
+			} else {
+				surf.SetCursor(defaultCursor)
+			}
 		}
 	}
 
@@ -194,11 +198,11 @@ func installTouchCursorTracker(win *gtk.ApplicationWindow) {
 	motion.SetPropagationPhase(gtk.PhaseCapture)
 
 	checkDevice := func() {
-		d, ok := motion.CurrentEventDevice().(*gdk.Device)
-		if !ok {
+		dr := motion.CurrentEventDevice()
+		if dr == nil {
 			return
 		}
-		setTouchActive(d.Source() == gdk.SourceTouchscreen)
+		setTouchActive(gdk.BaseDevice(dr).Source() == gdk.SourceTouchscreen)
 	}
 
 	motion.ConnectEnter(func(x, y float64) { checkDevice() })
