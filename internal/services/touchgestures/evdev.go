@@ -121,7 +121,8 @@ func findTouchDevices() ([]string, error) {
 	return devices, scanner.Err()
 }
 
-// isTouchDevice checks sysfs for multitouch capability and INPUT_PROP_DIRECT.
+// isTouchDevice checks sysfs for multitouch capability and that the device
+// is not a pointer/stylus/touchpad.
 func isTouchDevice(eventName, devName string) bool {
 	// Check ABS capabilities via sysfs.
 	absCaps, err := os.ReadFile(fmt.Sprintf("/sys/class/input/%s/device/capabilities/abs", eventName))
@@ -134,14 +135,16 @@ func isTouchDevice(eventName, devName string) bool {
 		return false
 	}
 
-	// Check device properties via sysfs.
+	// Exclude pointer devices (stylus, mouse, touchpad).
 	propCaps, err := os.ReadFile(fmt.Sprintf("/sys/class/input/%s/device/properties", eventName))
-	if err != nil {
-		return false
+	if err == nil {
+		hasPropPointer := hasBit(string(propCaps), inputPropPointer)
+		if hasPropPointer {
+			return false
+		}
 	}
-	hasPropDirect := hasBit(string(propCaps), inputPropDirect)
 
-	return hasPropDirect
+	return true
 }
 
 // hasBit checks if bit n is set in a hex bitmask string like "3 800000000".
