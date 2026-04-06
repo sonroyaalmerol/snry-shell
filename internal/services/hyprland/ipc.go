@@ -187,7 +187,13 @@ func parseWorkspaceEvent(data string) state.Workspace {
 }
 
 func parseActiveWindowEvent(data string) state.ActiveWindow {
-	class, title, _ := strings.Cut(data, ",")
+	parts := strings.SplitN(data, ",", 3)
+	if len(parts) < 2 {
+		return state.ActiveWindow{}
+	}
+	// v2: address,class,title — skip address
+	class := parts[len(parts)-2]
+	title := parts[len(parts)-1]
 	return state.ActiveWindow{Class: class, Title: title}
 }
 
