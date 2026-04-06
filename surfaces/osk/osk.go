@@ -350,41 +350,6 @@ func (o *OSK) build() {
 	root.SetVAlign(gtk.AlignEnd)
 	root.SetHExpand(true)
 
-	// Top toolbar row: emoji, clipboard, spacer, close.
-	topRow := gtk.NewBox(gtk.OrientationHorizontal, 8)
-	topRow.AddCSSClass("osk-row")
-	topRow.SetHExpand(true)
-	topRow.SetHAlign(gtk.AlignFill)
-
-	o.emojiBtn = o.toolbarButton("emoji_emotions", func() {
-		if o.viewMode == "emoji" {
-			o.switchView("keyboard")
-		} else {
-			o.switchView("emoji")
-		}
-	})
-	topRow.Append(o.emojiBtn)
-
-	o.clipboardBtn = o.toolbarButton("content_paste", func() {
-		if o.viewMode == "clipboard" {
-			o.switchView("keyboard")
-		} else {
-			o.switchView("clipboard")
-		}
-	})
-	topRow.Append(o.clipboardBtn)
-
-	spacer := gtk.NewBox(gtk.OrientationHorizontal, 0)
-	spacer.SetHExpand(true)
-	topRow.Append(spacer)
-
-	closeBtn := o.toolbarButton("close", func() {
-		o.manualOff = true
-		o.hide()
-	})
-	topRow.Append(closeBtn)
-	root.Append(topRow)
-
 	// Stack with three views.
 	o.stack = gtk.NewStack()
 	o.stack.SetHExpand(true)
@@ -409,18 +374,6 @@ func (o *OSK) build() {
 	root.Append(o.stack)
 	o.win.SetChild(root)
 	o.updateKeyLabels()
-}
-
-func (o *OSK) toolbarButton(icon string, onClick func()) *gtk.Button {
-	btn := gtk.NewButton()
-	btn.AddCSSClass("osk-toolbar-btn")
-	label := gtk.NewLabel(icon)
-	label.AddCSSClass("osk-key-label")
-	label.AddCSSClass("material-icon")
-	btn.SetChild(label)
-	btn.SetCursorFromName("pointer")
-	btn.ConnectClicked(onClick)
-	return btn
 }
 
 func (o *OSK) buildKeyboard(parent *gtk.Box) {
@@ -500,7 +453,15 @@ func (o *OSK) buildKeyboard(parent *gtk.Box) {
 		{label: "→", key: "Right", class: "osk-key-arrow"},
 	}
 
-	for _, row := range [][]keyDef{numRow, row1, row2, row3, row4} {
+	// Bottom utility row: emoji, clipboard, spacer, close.
+	row5 := []keyDef{
+		{label: "emoji_emotions", action: "emoji", class: "osk-key-wide", special: true},
+		{label: "content_paste", action: "clipboard", class: "osk-key-wide", special: true},
+		{label: "", class: "osk-key-util-spacer"},
+		{label: "close", action: "close", class: "osk-key-util-close", special: true},
+	}
+
+	for _, row := range [][]keyDef{numRow, row1, row2, row3, row4, row5} {
 		o.buildRow(parent, row)
 	}
 }
@@ -684,6 +645,14 @@ func (o *OSK) buildRow(parent *gtk.Box, defs []keyDef) {
 	box.SetHAlign(gtk.AlignCenter)
 
 	for _, d := range defs {
+		// Utility spacer — invisible expanding widget.
+		if d.class == "osk-key-util-spacer" {
+			spacer := gtk.NewBox(gtk.OrientationHorizontal, 0)
+			spacer.SetHExpand(true)
+			box.Append(spacer)
+			continue
+		}
+
 		btn := gtk.NewButton()
 		btn.AddCSSClass("osk-key")
 		if d.class != "" {
@@ -717,6 +686,32 @@ func (o *OSK) buildRow(parent *gtk.Box, defs []keyDef) {
 			o.modBtns[mod] = btn
 			gesture.ConnectReleased(func(int, float64, float64) {
 				o.toggleMod(mod)
+			})
+		case d.action == "emoji":
+			o.emojiBtn = btn
+			label.AddCSSClass("material-icon")
+			gesture.ConnectReleased(func(int, float64, float64) {
+				if o.viewMode == "emoji" {
+					o.switchView("keyboard")
+				} else {
+					o.switchView("emoji")
+				}
+			})
+		case d.action == "clipboard":
+			o.clipboardBtn = btn
+			label.AddCSSClass("material-icon")
+			gesture.ConnectReleased(func(int, float64, float64) {
+				if o.viewMode == "clipboard" {
+					o.switchView("keyboard")
+				} else {
+					o.switchView("clipboard")
+				}
+			})
+		case d.action == "close":
+			label.AddCSSClass("material-icon")
+			gesture.ConnectReleased(func(int, float64, float64) {
+				o.manualOff = true
+				o.hide()
 			})
 		default:
 			kb := &keyButton{btn: btn, label: label, normal: d.normal, shifted: d.shifted}
