@@ -456,7 +456,7 @@ scale.m3-scale slider {
 .popup-panel {
     background-color: @col_surface;
     border-radius: var(--radius-xl);
-    padding: 12px;
+    padding: 20px;
     border: 1px solid alpha(@col_outline, 0.15);
 }
 
@@ -940,7 +940,7 @@ scale.m3-scale slider {
 /* ── Quick setting sliders ──────────────────────────────────────────────────── */
 
 .quick-slider-row {
-    padding: 0 12px 2px;
+    padding: 0 16px 4px;
 }
 
 .quick-slider-icon {
