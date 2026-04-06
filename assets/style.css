@@ -1114,8 +1114,14 @@ scale.m3-scale slider {
 
 /* ── Session power menu ──────────────────────────────────────────────────────── */
 
-.session-overlay {
-    background-color: alpha(@col_background, 0.88);
+.session-scrim {
+    background-color: alpha(@col_background, 0.5);
+}
+
+.session-container {
+    padding: 24px;
+    border-radius: var(--radius-xxl);
+    background-color: @col_surface_container_low;
 }
 
 .session-btn {

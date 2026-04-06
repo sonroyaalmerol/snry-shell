@@ -11,8 +11,8 @@ import (
 	"github.com/sonroyaalmerol/snry-shell/internal/bus"
 	"github.com/sonroyaalmerol/snry-shell/internal/gtkutil"
 	"github.com/sonroyaalmerol/snry-shell/internal/layershell"
-	"github.com/sonroyaalmerol/snry-shell/internal/state"
 	"github.com/sonroyaalmerol/snry-shell/internal/surfaceutil"
+	"github.com/sonroyaalmerol/snry-shell/internal/state"
 )
 
 // Session is a power menu overlay.
@@ -34,24 +34,32 @@ func New(app *gtk.Application, b *bus.Bus) *Session {
 	s.build()
 
 	surfaceutil.AddToggleOnWithFocus(b, win, "toggle-session")
-
 	surfaceutil.AddEscapeToClose(win)
 	win.SetVisible(false)
 	return s
 }
 
 func (s *Session) build() {
-	outer := gtk.NewBox(gtk.OrientationVertical, 0)
-	outer.AddCSSClass("session-overlay")
-	outer.SetHAlign(gtk.AlignCenter)
-	outer.SetVAlign(gtk.AlignCenter)
+	// Dark scrim that covers the entire screen.
+	scrim := gtk.NewBox(gtk.OrientationVertical, 0)
+	scrim.AddCSSClass("session-scrim")
+	scrim.SetHExpand(true)
+	scrim.SetVExpand(true)
 
-	box := gtk.NewBox(gtk.OrientationHorizontal, 0)
-	box.AddCSSClass("session-btn")
-	box.SetHAlign(gtk.AlignCenter)
-	box.SetVAlign(gtk.AlignCenter)
-	box.SetMarginTop(24)
-	box.SetMarginBottom(24)
+	// Click scrim to dismiss.
+	clickGesture := gtk.NewGestureClick()
+	clickGesture.SetButton(1)
+	clickGesture.SetPropagationLimit(gtk.LimitNone)
+	clickGesture.ConnectReleased(func(_ int, _ float64, _ float64) {
+		s.win.SetVisible(false)
+	})
+	scrim.AddController(clickGesture)
+
+	// Centered button container.
+	container := gtk.NewBox(gtk.OrientationHorizontal, 0)
+	container.AddCSSClass("session-container")
+	container.SetHAlign(gtk.AlignCenter)
+	container.SetVAlign(gtk.AlignCenter)
 
 	actions := []struct {
 		action state.SessionAction
@@ -68,10 +76,11 @@ func (s *Session) build() {
 
 	for _, a := range actions {
 		btn := s.buildBtn(a)
-		box.Append(btn)
+		container.Append(btn)
 	}
-	outer.Append(box)
-	s.win.SetChild(outer)
+
+	scrim.Append(container)
+	s.win.SetChild(scrim)
 }
 
 func (s *Session) buildBtn(a struct {
