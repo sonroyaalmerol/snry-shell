@@ -1024,7 +1024,7 @@ scale.m3-scale slider {
 /* ── On-screen keyboard ─────────────────────────────────────────────────────── */
 
 .osk {
-    background-color: @col_surface;
+    background-color: @col_surface_dim;
     padding: 6px 8px;
     border-top: 1px solid alpha(@col_outline_variant, 0.2);
 }
@@ -1084,8 +1084,8 @@ scale.m3-scale slider {
 }
 
 .osk-key-active {
-    background-color: @col_primary !important;
-    color: @col_on_primary !important;
+    background-color: @col_primary;
+    color: @col_on_primary;
 }
 
 .osk-key-close {
