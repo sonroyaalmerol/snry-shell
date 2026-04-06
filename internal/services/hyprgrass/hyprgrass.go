@@ -47,6 +47,8 @@ func (s *Service) Run(ctx context.Context) error {
 	}
 	log.Printf("[HYPRGRASS] plugin loaded successfully")
 
+	s.applyGestures()
+
 	<-ctx.Done()
 	return ctx.Err()
 }
@@ -94,6 +96,32 @@ func (s *Service) install(ctx context.Context, home string) (string, error) {
 		return "", fmt.Errorf("hyprpm completed but .so not found")
 	}
 	return path, nil
+}
+
+// applyGestures registers common touch gesture bindings via hyprctl keyword bindl.
+func (s *Service) applyGestures() {
+	for _, b := range gestureBinds {
+		if err := s.querier.SetKeyword("bindl", b); err != nil {
+			log.Printf("[HYPRGRASS] failed to bind %q: %v", b, err)
+		}
+	}
+}
+
+// gestureBinds are hyprgrass gesture bindings in "bindl" format.
+// Syntax: bindl = , <gesture_trigger>, <dispatcher>, <args>
+var gestureBinds = []string{
+	// 3-finger swipe: workspace navigation
+	", swipe:3:l, workspace, -1",
+	", swipe:3:r, workspace, +1",
+	", swipe:3:u, workspace, e-1",
+	", swipe:3:d, workspace, e+1",
+
+	// 4-finger swipe: fullscreen and split
+	", swipe:4:u, fullscreen, 1",
+	", swipe:4:d, fullscreen, 0",
+
+	// Long press: kill active window
+	", longpress:2, killactive",
 }
 
 func runCmd(ctx context.Context, name string, args ...string) error {
