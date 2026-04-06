@@ -493,26 +493,12 @@ scale.m3-scale slider {
     max-width: 560px;
 }
 
-.appdrawer-search-box {
-    background-color: @col_surface_container_high;
-    border-radius: var(--radius-xl);
-    padding: 6px 16px;
-    margin-bottom: 16px;
-}
-
-.appdrawer-search-icon {
-    color: @col_on_surface_variant;
-    font-size: 20px;
-    margin-right: 8px;
-}
-
 .appdrawer-search-entry {
-    background-color: transparent;
+    background-color: @col_surface_container_high;
     color: @col_on_surface;
     font-size: 15px;
-    border: none;
-    outline: none;
-    box-shadow: none;
+    border-radius: var(--radius-xl);
+    margin-bottom: 16px;
 }
 
 .appdrawer-scroll {

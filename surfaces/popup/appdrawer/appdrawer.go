@@ -90,26 +90,16 @@ func (d *AppDrawer) build() {
 	content.AddCSSClass("appdrawer-content")
 	content.SetHAlign(gtk.AlignCenter)
 	content.SetVAlign(gtk.AlignFill)
+	content.SetHExpand(true)
 	content.SetMarginTop(layershell.BarExclusiveZone + 16)
 	content.SetMarginStart(32)
 	content.SetMarginEnd(32)
-	content.SetMarginBottom(32)
 
 	// Search bar.
-	searchBox := gtk.NewBox(gtk.OrientationHorizontal, 0)
-	searchBox.AddCSSClass("appdrawer-search-box")
-
-	searchIcon := gtkutil.MaterialIcon("search")
-	searchIcon.AddCSSClass("appdrawer-search-icon")
-
 	d.search = gtk.NewSearchEntry()
 	d.search.AddCSSClass("appdrawer-search-entry")
 	d.search.SetHExpand(true)
 	d.search.SetPlaceholderText("Search apps...")
-	d.search.SetVAlign(gtk.AlignCenter)
-
-	searchBox.Append(searchIcon)
-	searchBox.Append(d.search)
 
 	// Scrollable app grid.
 	scrolled := gtk.NewScrolledWindow()
@@ -141,7 +131,7 @@ func (d *AppDrawer) build() {
 	})
 
 	scrolled.SetChild(d.flowBox)
-	content.Append(searchBox)
+	content.Append(d.search)
 	content.Append(scrolled)
 
 	// Wire up scrim click to dismiss.
@@ -183,6 +173,7 @@ func newAppTile(app launcher.App, onLaunch func()) gtk.Widgetter {
 	btn := gtk.NewButton()
 	btn.SetCursorFromName("pointer")
 	btn.AddCSSClass("appdrawer-tile")
+	btn.SetSizeRequest(80, 90)
 
 	icon := gtk.NewImage()
 	iconName := app.Icon
