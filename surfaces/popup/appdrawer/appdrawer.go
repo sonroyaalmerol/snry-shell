@@ -14,18 +14,15 @@ import (
 	"github.com/sonroyaalmerol/snry-shell/internal/surfaceutil"
 )
 
-const gridCols = 5
-
 // AppDrawer is a fullscreen overlay showing all installed apps in a grid.
 type AppDrawer struct {
-	win      *gtk.ApplicationWindow
-	bus      *bus.Bus
-	trigger  gtk.Widgetter
-	monitor  *gdk.Monitor
-	apps     []launcher.App
-	grid     *gtk.Grid
-	search   *gtk.SearchEntry
-	iconSize int
+	win     *gtk.ApplicationWindow
+	bus     *bus.Bus
+	trigger gtk.Widgetter
+	monitor *gdk.Monitor
+	apps    []launcher.App
+	flowBox *gtk.FlowBox
+	search  *gtk.SearchEntry
 }
 
 // New creates and hides the app drawer overlay.
@@ -98,20 +95,13 @@ func (d *AppDrawer) build() {
 	content.SetMarginStart(24)
 	content.SetMarginEnd(24)
 
-	// Prevent clicks inside the content area from dismissing the drawer.
+	// Prevent clicks and scrolls inside content from reaching the scrim dismiss gesture.
 	stopClick := gtk.NewGestureClick()
 	stopClick.SetButton(0)
 	stopClick.ConnectPressed(func(n int, x, y float64) {
 		stopClick.SetState(gtk.EventSequenceClaimed)
 	})
 	content.AddController(stopClick)
-
-	// Determine icon size from monitor scale factor.
-	d.iconSize = 48 // default for 1x
-	if d.monitor != nil {
-		scale := d.monitor.ScaleFactor()
-		d.iconSize = int(48 * scale)
-	}
 
 	// Search bar.
 	d.search = gtk.NewSearchEntry()
@@ -122,14 +112,20 @@ func (d *AppDrawer) build() {
 	// Scrollable app grid.
 	scrolled := gtk.NewScrolledWindow()
 	scrolled.SetVExpand(true)
+	scrolled.SetHExpand(true)
 	scrolled.SetPolicy(gtk.PolicyNever, gtk.PolicyAutomatic)
 	scrolled.AddCSSClass("appdrawer-scroll")
 
-	d.grid = gtk.NewGrid()
-	d.grid.AddCSSClass("appdrawer-grid")
-	d.grid.SetHAlign(gtk.AlignCenter)
-	d.grid.SetColumnSpacing(8)
-	d.grid.SetRowSpacing(8)
+	d.flowBox = gtk.NewFlowBox()
+	d.flowBox.AddCSSClass("appdrawer-grid")
+	d.flowBox.SetHAlign(gtk.AlignFill)
+	d.flowBox.SetHExpand(true)
+	d.flowBox.SetSelectionMode(gtk.SelectionNone)
+	d.flowBox.SetHomogeneous(true)
+	d.flowBox.SetColumnSpacing(8)
+	d.flowBox.SetRowSpacing(8)
+	d.flowBox.SetMinChildrenPerLine(3)
+	d.flowBox.SetMaxChildrenPerLine(20)
 
 	d.populateGrid(d.apps)
 
@@ -143,7 +139,7 @@ func (d *AppDrawer) build() {
 		d.populateGrid(launcher.Filter(d.apps, query))
 	})
 
-	scrolled.SetChild(d.grid)
+	scrolled.SetChild(d.flowBox)
 	content.Append(d.search)
 	content.Append(scrolled)
 
@@ -175,26 +171,25 @@ func (d *AppDrawer) Toggle() {
 }
 
 func (d *AppDrawer) clearGrid() {
-	for child := d.grid.FirstChild(); child != nil; child = d.grid.FirstChild() {
-		d.grid.Remove(child)
+	for {
+		child := d.flowBox.ChildAtIndex(0)
+		if child == nil {
+			break
+		}
+		d.flowBox.Remove(child)
 	}
 }
 
 func (d *AppDrawer) populateGrid(apps []launcher.App) {
-	for i, app := range apps {
-		col := i % gridCols
-		row := i / gridCols
-		tile := newAppTile(app, d.iconSize, func() {
+	for _, app := range apps {
+		tile := newAppTile(app, func() {
 			d.win.SetVisible(false)
 		})
-		tile.SetHExpand(true)
-		tile.SetVExpand(true)
-		tile.SetHAlign(gtk.AlignCenter)
-		d.grid.Attach(tile, col, row, 1, 1)
+		d.flowBox.Append(tile)
 	}
 }
 
-func newAppTile(app launcher.App, iconSize int, onLaunch func()) *gtk.Box {
+func newAppTile(app launcher.App, onLaunch func()) *gtk.Box {
 	box := gtk.NewBox(gtk.OrientationVertical, 6)
 	box.AddCSSClass("appdrawer-tile")
 	box.SetCursorFromName("pointer")
