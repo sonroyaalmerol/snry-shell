@@ -65,6 +65,20 @@ func New(reader EventReader, b *bus.Bus) *Service {
 	}
 }
 
+// SeedClients populates internal tracking maps from an initial client listing.
+// Call before Run to ensure workspace events carry correct state from startup.
+func (s *Service) SeedClients(clients []HyprClient) {
+	for _, c := range clients {
+		wsID := c.Workspace.ID
+		s.windows[c.Address] = wsID
+		s.windowClasses[c.Address] = c.Class
+		s.workspaces[wsID]++
+		if _, ok := s.workspaceIcons[wsID]; !ok {
+			s.workspaceIcons[wsID] = c.Class
+		}
+	}
+}
+
 func (s *Service) Run(ctx context.Context) error {
 	for {
 		select {

@@ -117,7 +117,11 @@ func Run() int {
 
 	// Hyprland event stream.
 	if conn, err := net.Dial("unix", hyprland.SocketPath()); err == nil {
-		go hyprland.New(hyprland.NewSocketReader(conn), b).Run(ctx)
+		svc := hyprland.New(hyprland.NewSocketReader(conn), b)
+		if clients, err := refs.Hyprland.Clients(); err == nil {
+			svc.SeedClients(clients)
+		}
+		go svc.Run(ctx)
 	}
 
 	// UPower battery monitoring.

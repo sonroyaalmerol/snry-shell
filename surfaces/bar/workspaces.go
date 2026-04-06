@@ -127,12 +127,7 @@ func (w *workspacesWidget) update(ws state.Workspace) {
 			} else {
 				pill.RemoveCSSClass("occupied")
 			}
-			// Only update icon if the event carries one, or clear if unoccupied.
-			if ws.Icon != "" {
-				w.setIcon(i, ws.Icon)
-			} else if !ws.Occupied {
-				w.setIcon(i, "")
-			}
+			w.setIcon(i, ws.Icon)
 		} else if ws.Active {
 			pill.RemoveCSSClass("active")
 		}
