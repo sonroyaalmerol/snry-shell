@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"strings"
 
@@ -98,6 +99,7 @@ func (s *Service) Run(ctx context.Context) error {
 }
 
 func (s *Service) handleEvent(event, data string) {
+	log.Printf("[hyprland ipc] %s: %q", event, data)
 	switch event {
 	case "workspace", "workspacev2":
 		ws := parseWorkspaceEvent(data)
