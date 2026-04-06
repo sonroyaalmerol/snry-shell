@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
+	"github.com/sonroyaalmerol/snry-shell/internal/gtkutil"
 	"github.com/sonroyaalmerol/snry-shell/internal/settings"
 )
 
@@ -38,27 +39,10 @@ func (s *shellConfigProvider) Save() error {
 func (s *shellConfigProvider) BuildWidget() gtk.Widgetter {
 	scroll := gtk.NewScrolledWindow()
 	scroll.SetPolicy(gtk.PolicyNever, gtk.PolicyAutomatic)
-	scroll.AddCSSClass("control-panel-provider-scroll")
+	scroll.AddCSSClass("popup-scroll")
 
 	box := gtk.NewBox(gtk.OrientationVertical, 0)
-	box.AddCSSClass("control-panel-provider-content")
-	box.SetMarginStart(32)
-	box.SetMarginEnd(32)
-	box.SetMarginTop(32)
-	box.SetMarginBottom(32)
-
-	// Header
-	header := gtk.NewLabel("Shell Settings")
-	header.AddCSSClass("control-panel-provider-title")
-	header.SetHAlign(gtk.AlignStart)
-	box.Append(header)
-
-	// Description
-	desc := gtk.NewLabel("Configure snry-shell appearance and behavior")
-	desc.AddCSSClass("control-panel-provider-description")
-	desc.SetHAlign(gtk.AlignStart)
-	desc.SetWrap(true)
-	box.Append(desc)
+	box.AddCSSClass("settings-stack")
 
 	// Settings sections
 	box.Append(s.buildAppearanceSection())
@@ -69,21 +53,20 @@ func (s *shellConfigProvider) BuildWidget() gtk.Widgetter {
 }
 
 func (s *shellConfigProvider) buildAppearanceSection() gtk.Widgetter {
-	section := gtk.NewBox(gtk.OrientationVertical, 16)
-	section.AddCSSClass("control-panel-section")
-	section.SetMarginTop(24)
+	section := gtk.NewBox(gtk.OrientationVertical, 12)
+	section.AddCSSClass("settings-page")
 
 	// Section title
 	title := gtk.NewLabel("Appearance")
-	title.AddCSSClass("control-panel-section-title")
+	title.AddCSSClass("settings-label")
 	title.SetHAlign(gtk.AlignStart)
 	section.Append(title)
 
-	// Card container
+	// Card container using system-controls style
 	card := gtk.NewBox(gtk.OrientationVertical, 0)
-	card.AddCSSClass("control-panel-card")
+	card.AddCSSClass("system-controls")
 
-	// Dark mode toggle
+	// Dark mode toggle - use m3-switch style
 	darkModeRow := s.buildSwitchRow("Dark Mode", "Use dark theme", s.cfg.DarkMode, func(active bool) {
 		s.cfg.DarkMode = active
 		s.Save()
@@ -91,7 +74,7 @@ func (s *shellConfigProvider) buildAppearanceSection() gtk.Widgetter {
 	card.Append(darkModeRow)
 
 	// Separator
-	card.Append(s.buildSeparator())
+	card.Append(gtkutil.M3Divider())
 
 	// Bar position dropdown
 	barPosRow := s.buildDropdownRow("Bar Position", "Position of the status bar", []string{"top", "bottom"}, s.cfg.BarPosition, func(value string) {
@@ -101,9 +84,9 @@ func (s *shellConfigProvider) buildAppearanceSection() gtk.Widgetter {
 	card.Append(barPosRow)
 
 	// Separator
-	card.Append(s.buildSeparator())
+	card.Append(gtkutil.M3Divider())
 
-	// Font scale
+	// Font scale using m3-scale slider
 	fontScaleRow := s.buildSliderRow("Font Scale", "Adjust text size", 0.5, 2.0, 0.1, s.cfg.FontScale, func(value float64) {
 		s.cfg.FontScale = value
 		s.Save()
@@ -115,19 +98,19 @@ func (s *shellConfigProvider) buildAppearanceSection() gtk.Widgetter {
 }
 
 func (s *shellConfigProvider) buildBehaviorSection() gtk.Widgetter {
-	section := gtk.NewBox(gtk.OrientationVertical, 16)
-	section.AddCSSClass("control-panel-section")
+	section := gtk.NewBox(gtk.OrientationVertical, 12)
+	section.AddCSSClass("settings-page")
 	section.SetMarginTop(24)
 
 	// Section title
 	title := gtk.NewLabel("Behavior")
-	title.AddCSSClass("control-panel-section-title")
+	title.AddCSSClass("settings-label")
 	title.SetHAlign(gtk.AlignStart)
 	section.Append(title)
 
 	// Card container
 	card := gtk.NewBox(gtk.OrientationVertical, 0)
-	card.AddCSSClass("control-panel-card")
+	card.AddCSSClass("system-controls")
 
 	// Do Not Disturb toggle
 	dndRow := s.buildSwitchRow("Do Not Disturb", "Silence notifications", s.cfg.DoNotDisturb, func(active bool) {
@@ -137,7 +120,7 @@ func (s *shellConfigProvider) buildBehaviorSection() gtk.Widgetter {
 	card.Append(dndRow)
 
 	// Separator
-	card.Append(s.buildSeparator())
+	card.Append(gtkutil.M3Divider())
 
 	// Input mode dropdown
 	inputModeRow := s.buildDropdownRow("Input Mode", "Touch input handling", []string{"auto", "tablet", "desktop"}, s.cfg.InputMode, func(value string) {
@@ -152,34 +135,29 @@ func (s *shellConfigProvider) buildBehaviorSection() gtk.Widgetter {
 
 func (s *shellConfigProvider) buildSwitchRow(title, subtitle string, active bool, callback func(bool)) gtk.Widgetter {
 	row := gtk.NewBox(gtk.OrientationHorizontal, 16)
-	row.AddCSSClass("control-panel-row")
-	row.SetMarginStart(24)
-	row.SetMarginEnd(24)
-	row.SetMarginTop(16)
-	row.SetMarginBottom(16)
+	row.AddCSSClass("m3-switch-row")
 
 	// Text content
 	textBox := gtk.NewBox(gtk.OrientationVertical, 4)
 	textBox.SetHExpand(true)
 
 	titleLabel := gtk.NewLabel(title)
-	titleLabel.AddCSSClass("control-panel-row-title")
+	titleLabel.AddCSSClass("m3-switch-row-label")
 	titleLabel.SetHAlign(gtk.AlignStart)
 	textBox.Append(titleLabel)
 
 	if subtitle != "" {
 		subtitleLabel := gtk.NewLabel(subtitle)
-		subtitleLabel.AddCSSClass("control-panel-row-subtitle")
+		subtitleLabel.AddCSSClass("m3-switch-row-sublabel")
 		subtitleLabel.SetHAlign(gtk.AlignStart)
-		subtitleLabel.AddCSSClass("dim-label")
 		textBox.Append(subtitleLabel)
 	}
 
 	row.Append(textBox)
 
-	// Switch
+	// Use m3-switch class from shell
 	switchBtn := gtk.NewSwitch()
-	switchBtn.AddCSSClass("control-panel-switch")
+	switchBtn.AddCSSClass("m3-switch")
 	switchBtn.SetActive(active)
 	switchBtn.ConnectStateSet(func(state bool) bool {
 		callback(state)
@@ -192,34 +170,29 @@ func (s *shellConfigProvider) buildSwitchRow(title, subtitle string, active bool
 
 func (s *shellConfigProvider) buildDropdownRow(title, subtitle string, options []string, current string, callback func(string)) gtk.Widgetter {
 	row := gtk.NewBox(gtk.OrientationHorizontal, 16)
-	row.AddCSSClass("control-panel-row")
-	row.SetMarginStart(24)
-	row.SetMarginEnd(24)
-	row.SetMarginTop(16)
-	row.SetMarginBottom(16)
+	row.AddCSSClass("m3-switch-row")
 
 	// Text content
 	textBox := gtk.NewBox(gtk.OrientationVertical, 4)
 	textBox.SetHExpand(true)
 
 	titleLabel := gtk.NewLabel(title)
-	titleLabel.AddCSSClass("control-panel-row-title")
+	titleLabel.AddCSSClass("m3-switch-row-label")
 	titleLabel.SetHAlign(gtk.AlignStart)
 	textBox.Append(titleLabel)
 
 	if subtitle != "" {
 		subtitleLabel := gtk.NewLabel(subtitle)
-		subtitleLabel.AddCSSClass("control-panel-row-subtitle")
+		subtitleLabel.AddCSSClass("m3-switch-row-sublabel")
 		subtitleLabel.SetHAlign(gtk.AlignStart)
-		subtitleLabel.AddCSSClass("dim-label")
 		textBox.Append(subtitleLabel)
 	}
 
 	row.Append(textBox)
 
-	// Dropdown
+	// Dropdown with settings-dropdown style
 	dropdown := gtk.NewDropDownFromStrings(options)
-	dropdown.AddCSSClass("control-panel-dropdown")
+	dropdown.AddCSSClass("settings-dropdown")
 
 	// Set current value
 	for i, opt := range options {
@@ -243,23 +216,18 @@ func (s *shellConfigProvider) buildDropdownRow(title, subtitle string, options [
 
 func (s *shellConfigProvider) buildSliderRow(title, subtitle string, min, max, step, current float64, callback func(float64)) gtk.Widgetter {
 	row := gtk.NewBox(gtk.OrientationVertical, 12)
-	row.AddCSSClass("control-panel-row")
-	row.AddCSSClass("control-panel-slider-row")
-	row.SetMarginStart(24)
-	row.SetMarginEnd(24)
-	row.SetMarginTop(16)
-	row.SetMarginBottom(16)
+	row.AddCSSClass("m3-switch-row")
 
 	// Header with title and value
 	header := gtk.NewBox(gtk.OrientationHorizontal, 16)
 
 	titleLabel := gtk.NewLabel(title)
-	titleLabel.AddCSSClass("control-panel-row-title")
+	titleLabel.AddCSSClass("m3-switch-row-label")
 	titleLabel.SetHAlign(gtk.AlignStart)
 	header.Append(titleLabel)
 
 	valueLabel := gtk.NewLabel(fmt.Sprintf("%.1f", current))
-	valueLabel.AddCSSClass("control-panel-slider-value")
+	valueLabel.AddCSSClass("quick-slider-label")
 	valueLabel.SetHAlign(gtk.AlignEnd)
 	valueLabel.SetHExpand(true)
 	header.Append(valueLabel)
@@ -268,18 +236,15 @@ func (s *shellConfigProvider) buildSliderRow(title, subtitle string, min, max, s
 
 	if subtitle != "" {
 		subtitleLabel := gtk.NewLabel(subtitle)
-		subtitleLabel.AddCSSClass("control-panel-row-subtitle")
+		subtitleLabel.AddCSSClass("m3-switch-row-sublabel")
 		subtitleLabel.SetHAlign(gtk.AlignStart)
-		subtitleLabel.AddCSSClass("dim-label")
 		row.Append(subtitleLabel)
 	}
 
-	// Slider
-	slider := gtk.NewScaleWithRange(gtk.OrientationHorizontal, min, max, step)
-	slider.AddCSSClass("control-panel-slider")
+	// Use M3 slider from shell
+	slider := gtkutil.M3Slider(min, max, step)
 	slider.SetValue(current)
 	slider.SetHExpand(true)
-	slider.SetDrawValue(false)
 
 	slider.ConnectValueChanged(func() {
 		value := slider.Value()
@@ -290,10 +255,4 @@ func (s *shellConfigProvider) buildSliderRow(title, subtitle string, min, max, s
 	row.Append(slider)
 
 	return row
-}
-
-func (s *shellConfigProvider) buildSeparator() gtk.Widgetter {
-	sep := gtk.NewSeparator(gtk.OrientationHorizontal)
-	sep.AddCSSClass("control-panel-separator")
-	return sep
 }

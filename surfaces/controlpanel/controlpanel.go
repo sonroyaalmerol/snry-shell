@@ -3,7 +3,6 @@
 package controlpanel
 
 import (
-	"fmt"
 	"os"
 
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
@@ -26,13 +25,9 @@ type ConfigProvider interface {
 
 // Run creates and runs the control panel application.
 func Run() int {
-	fmt.Fprintln(os.Stderr, "[controlpanel] Starting control panel...")
-
 	app := gtk.NewApplication("sh.snry.shell.controlpanel", 0)
 
 	app.ConnectActivate(func() {
-		fmt.Fprintln(os.Stderr, "[controlpanel] Activate signal received")
-
 		window := gtk.NewApplicationWindow(app)
 		window.SetTitle("Control Panel")
 		window.SetDefaultSize(900, 700)
@@ -48,12 +43,9 @@ func Run() int {
 		cp := newControlPanel(cfg)
 		window.SetChild(cp.build())
 
-		fmt.Fprintln(os.Stderr, "[controlpanel] Showing window...")
 		window.SetVisible(true)
-		fmt.Fprintln(os.Stderr, "[controlpanel] Window should be visible now")
 	})
 
 	// Pass only the program name without arguments to avoid GTK parsing --control-panel
-	fmt.Fprintln(os.Stderr, "[controlpanel] Running app...")
 	return app.Run([]string{os.Args[0]})
 }

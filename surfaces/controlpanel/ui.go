@@ -24,15 +24,15 @@ func newControlPanel(cfg settings.Config) *controlPanel {
 }
 
 func (cp *controlPanel) build() gtk.Widgetter {
-	// Main horizontal box: sidebar + content
+	// Main horizontal box: sidebar + content - use settings-panel style
 	root := gtk.NewBox(gtk.OrientationHorizontal, 0)
-	root.AddCSSClass("control-panel-root")
+	root.AddCSSClass("settings-panel")
 
-	// Build sidebar navigation
+	// Build sidebar navigation - use settings-nav style
 	sidebar := cp.buildSidebar()
 	root.Append(sidebar)
 
-	// Build content area with stack
+	// Build content area with stack - use settings-stack style
 	content := cp.buildContent()
 	root.Append(content)
 
@@ -40,28 +40,27 @@ func (cp *controlPanel) build() gtk.Widgetter {
 }
 
 func (cp *controlPanel) buildSidebar() gtk.Widgetter {
+	// Use the existing settings-nav style from shell
 	sidebar := gtk.NewBox(gtk.OrientationVertical, 0)
-	sidebar.AddCSSClass("control-panel-sidebar")
+	sidebar.AddCSSClass("settings-nav")
 	sidebar.SetSizeRequest(280, -1)
 
-	// Header
+	// Header with back button style from shell
 	header := gtk.NewBox(gtk.OrientationHorizontal, 12)
-	header.AddCSSClass("control-panel-sidebar-header")
 	header.SetMarginTop(24)
 	header.SetMarginBottom(24)
 	header.SetMarginStart(24)
 	header.SetMarginEnd(24)
 
 	title := gtk.NewLabel("Settings")
-	title.AddCSSClass("control-panel-sidebar-title")
+	title.AddCSSClass("notif-group-header")
 	title.SetHAlign(gtk.AlignStart)
 	header.Append(title)
 
 	sidebar.Append(header)
 
-	// Navigation list
+	// Navigation list - reuse settings style
 	list := gtk.NewListBox()
-	list.AddCSSClass("control-panel-nav-list")
 	list.SetSelectionMode(gtk.SelectionSingle)
 
 	for i, provider := range cp.providers {
@@ -84,23 +83,23 @@ func (cp *controlPanel) buildSidebar() gtk.Widgetter {
 
 func (cp *controlPanel) buildNavRow(provider ConfigProvider, active bool) *gtk.ListBoxRow {
 	row := gtk.NewListBoxRow()
-	row.AddCSSClass("control-panel-nav-row")
+	row.AddCSSClass("settings-nav-item")
 	if active {
-		row.AddCSSClass("active")
+		// The list will handle selection visually
 	}
 
 	box := gtk.NewBox(gtk.OrientationHorizontal, 16)
-	box.SetMarginStart(24)
-	box.SetMarginEnd(24)
-	box.SetMarginTop(16)
-	box.SetMarginBottom(16)
+	box.SetMarginStart(16)
+	box.SetMarginEnd(16)
+	box.SetMarginTop(12)
+	box.SetMarginBottom(12)
 
 	icon := gtk.NewLabel(provider.Icon())
 	icon.AddCSSClass("material-icon")
-	icon.AddCSSClass("control-panel-nav-icon")
+	icon.AddCSSClass("quick-slider-icon")
 
 	label := gtk.NewLabel(provider.Name())
-	label.AddCSSClass("control-panel-nav-label")
+	label.AddCSSClass("settings-nav-label")
 	label.SetHAlign(gtk.AlignStart)
 	label.SetHExpand(true)
 
@@ -112,13 +111,13 @@ func (cp *controlPanel) buildNavRow(provider ConfigProvider, active bool) *gtk.L
 }
 
 func (cp *controlPanel) buildContent() gtk.Widgetter {
+	// Use settings-stack style from shell
 	content := gtk.NewBox(gtk.OrientationVertical, 0)
-	content.AddCSSClass("control-panel-content")
+	content.AddCSSClass("settings-stack")
 	content.SetHExpand(true)
 
 	// Stack for switching between providers
 	cp.stack = gtk.NewStack()
-	cp.stack.AddCSSClass("control-panel-stack")
 	cp.stack.SetTransitionType(gtk.StackTransitionTypeSlideLeftRight)
 	cp.stack.SetTransitionDuration(200)
 
@@ -139,9 +138,4 @@ func (cp *controlPanel) showProvider(index int) {
 
 func providerName(index int) string {
 	return fmt.Sprintf("provider-%d", index)
-}
-
-// Stack reference for provider switching
-func (cp *controlPanel) stackRef() *gtk.Stack {
-	return cp.stack
 }
