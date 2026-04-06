@@ -1033,9 +1033,10 @@ scale.m3-scale slider {
     padding: 2px 0;
 }
 
+/* Regular character/number keys. */
 .osk-key {
-    background-color: @col_surface_container;
-    border-radius: var(--radius-md);
+    background-color: @col_surface_container_high;
+    border-radius: var(--radius-lg);
     border: none;
     min-width: 36px;
     min-height: 44px;
@@ -1047,17 +1048,34 @@ scale.m3-scale slider {
     background-color: alpha(@col_on_surface, var(--state-hover));
 }
 
+/* Special/functional keys (Esc, Tab, Caps, Shift, Backspace, Enter, Ctrl, Alt). */
+.osk-key-special {
+    background-color: @col_surface_container;
+    border-radius: var(--radius-xl);
+}
+
+.osk-key-special .osk-key-label {
+    color: @col_on_surface_variant;
+}
+
+.osk-key-special:hover {
+    background-color: alpha(@col_on_surface, var(--state-hover));
+}
+
 .osk-key-wide {
     min-width: 62px;
 }
 
 .osk-key-space {
     min-width: 200px;
-    border-radius: var(--radius-lg);
+    border-radius: var(--radius-xl);
+    background-color: @col_surface_container;
 }
 
 .osk-key-arrow {
     min-width: 46px;
+    border-radius: var(--radius-lg);
+    background-color: @col_surface_container;
 }
 
 .osk-key:active {
@@ -1066,8 +1084,8 @@ scale.m3-scale slider {
 }
 
 .osk-key-active {
-    background-color: @col_primary;
-    color: @col_on_primary;
+    background-color: @col_primary !important;
+    color: @col_on_primary !important;
 }
 
 .osk-key-close {

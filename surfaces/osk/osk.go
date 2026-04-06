@@ -193,6 +193,7 @@ type keyDef struct {
 	class     string
 	action    string
 	repeatKey bool
+	special   bool // functional key (Esc, Tab, Caps, Shift, Backspace, Enter, Ctrl, Alt)
 }
 
 func (o *OSK) build() {
@@ -229,7 +230,7 @@ func (o *OSK) build() {
 	root.Append(topRow)
 
 	numRow := []keyDef{
-		{label: "Esc", key: "Escape"},
+		{label: "Esc", key: "Escape", special: true},
 		{normal: "`", shifted: "~"},
 		{normal: "1", shifted: "!"},
 		{normal: "2", shifted: "@"},
@@ -243,11 +244,11 @@ func (o *OSK) build() {
 		{normal: "0", shifted: ")"},
 		{normal: "-", shifted: "_"},
 		{normal: "=", shifted: "+"},
-		{label: "⌫", key: "BackSpace", class: "osk-key-wide"},
+		{label: "⌫", key: "BackSpace", class: "osk-key-wide", special: true},
 	}
 
 	row1 := []keyDef{
-		{label: "Tab", key: "Tab", class: "osk-key-wide"},
+		{label: "Tab", key: "Tab", class: "osk-key-wide", special: true},
 		{normal: "q", shifted: "Q"},
 		{normal: "w", shifted: "W"},
 		{normal: "e", shifted: "E"},
@@ -264,7 +265,7 @@ func (o *OSK) build() {
 	}
 
 	row2 := []keyDef{
-		{label: "Caps", action: "caps", class: "osk-key-wide"},
+		{label: "Caps", action: "caps", class: "osk-key-wide", special: true},
 		{normal: "a", shifted: "A"},
 		{normal: "s", shifted: "S"},
 		{normal: "d", shifted: "D"},
@@ -276,11 +277,11 @@ func (o *OSK) build() {
 		{normal: "l", shifted: "L"},
 		{normal: ";", shifted: ":"},
 		{normal: "'", shifted: "\""},
-		{label: "⏎", key: "Return", class: "osk-key-wide"},
+		{label: "⏎", key: "Return", class: "osk-key-wide", special: true},
 	}
 
 	row3 := []keyDef{
-		{label: "⇧", action: "shift", class: "osk-key-wide"},
+		{label: "⇧", action: "shift", class: "osk-key-wide", special: true},
 		{normal: "z", shifted: "Z"},
 		{normal: "x", shifted: "X"},
 		{normal: "c", shifted: "C"},
@@ -291,12 +292,12 @@ func (o *OSK) build() {
 		{normal: ",", shifted: "<"},
 		{normal: ".", shifted: ">"},
 		{normal: "/", shifted: "?"},
-		{label: "⇧", action: "shift", class: "osk-key-wide"},
+		{label: "⇧", action: "shift", class: "osk-key-wide", special: true},
 	}
 
 	row4 := []keyDef{
-		{label: "Ctrl", mod: "Ctrl_L", class: "osk-key-wide"},
-		{label: "Alt", mod: "Alt_L", class: "osk-key-wide"},
+		{label: "Ctrl", mod: "Ctrl_L", class: "osk-key-wide", special: true},
+		{label: "Alt", mod: "Alt_L", class: "osk-key-wide", special: true},
 		{label: "", normal: " ", class: "osk-key-space"},
 		{label: "←", key: "Left", class: "osk-key-arrow"},
 		{label: "↓", key: "Down", class: "osk-key-arrow"},
@@ -323,6 +324,9 @@ func (o *OSK) buildRow(parent *gtk.Box, defs []keyDef) {
 		btn.AddCSSClass("osk-key")
 		if d.class != "" {
 			btn.AddCSSClass(d.class)
+		}
+		if d.special {
+			btn.AddCSSClass("osk-key-special")
 		}
 		label := gtk.NewLabel(d.label)
 		label.AddCSSClass("osk-key-label")
