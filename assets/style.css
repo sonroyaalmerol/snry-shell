@@ -138,12 +138,12 @@
 scale.m3-scale trough {
     background-color: @col_surface_container_highest;
     border-radius: var(--radius-pill);
-    min-height: 4px;
-    padding: 8px 0;
+    min-height: 20px;
 }
 scale.m3-scale trough highlight {
     background-color: @col_primary;
     border-radius: var(--radius-pill);
+    min-height: 20px;
 }
 scale.m3-scale slider {
     background-color: @col_primary;
@@ -152,7 +152,7 @@ scale.m3-scale slider {
     min-height: 20px;
     border: none;
     box-shadow: none;
-    margin: -2px 0;
+    margin: 0;
 }
 /* Shared icon button base */
 .m3-icon-btn {
@@ -456,7 +456,7 @@ scale.m3-scale slider {
 .popup-panel {
     background-color: @col_surface;
     border-radius: var(--radius-xl);
-    padding: 12px 8px;
+    padding: 12px;
     border: 1px solid alpha(@col_outline, 0.15);
 }
 
@@ -940,7 +940,7 @@ scale.m3-scale slider {
 /* ── Quick setting sliders ──────────────────────────────────────────────────── */
 
 .quick-slider-row {
-    padding: 0 8px 2px;
+    padding: 0 12px 2px;
 }
 
 .quick-slider-icon {
@@ -1065,7 +1065,7 @@ scale.m3-scale slider {
     min-width: 48px;
     min-height: 28px;
     border-radius: var(--radius-pill);
-    background-color: @col_surface_container_highest;
+    background-color: alpha(@col_on_surface, 0.38);
     transition: background-color var(--duration-short4) var(--ease-standard-decel);
 }
 
@@ -1076,7 +1076,7 @@ scale.m3-scale slider {
     border: none;
     box-shadow: none;
     margin: 6px;
-    background-color: @col_outline;
+    background-color: @col_surface;
     transition: all var(--duration-medium1) var(--ease-emphasized-decel);
 }
 
