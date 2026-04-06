@@ -569,6 +569,11 @@ func (o *OSK) addEmojiBtn(char, name string) {
 			if err := exec.Command("wl-copy", em).Run(); err != nil {
 				log.Printf("emoji copy: %v", err)
 				glib.IdleAdd(func() { gtkutil.ErrorDialog(o.win, "Copy failed", "Could not copy to clipboard.") })
+				return
+			}
+			if o.ui != nil {
+				time.Sleep(50 * time.Millisecond)
+				o.ui.TypeChar("v", true, false)
 			}
 		}()
 		o.switchView("keyboard")
@@ -650,13 +655,17 @@ func (o *OSK) refreshClipboard(filter string) {
 				lbl.SetHAlign(gtk.AlignStart)
 				lbl.SetXAlign(0)
 				row.SetChild(lbl)
-
 				text := line
 				row.ConnectClicked(func() {
 					go func() {
 						if err := exec.Command("wl-copy", text).Run(); err != nil {
 							log.Printf("clipboard copy: %v", err)
 							glib.IdleAdd(func() { gtkutil.ErrorDialog(o.win, "Copy failed", "Could not copy to clipboard.") })
+							return
+						}
+						if o.ui != nil {
+							time.Sleep(50 * time.Millisecond)
+							o.ui.TypeChar("v", true, false)
 						}
 					}()
 					o.switchView("keyboard")
