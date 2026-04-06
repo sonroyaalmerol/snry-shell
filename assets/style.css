@@ -483,6 +483,43 @@ scale.m3-scale slider {
     opacity: 1;
 }
 
+/* ── App Drawer ── */
+
+.app-drawer-panel {
+    max-height: 520px;
+}
+
+.app-search-entry {
+    margin: 4px 8px;
+    border-radius: var(--radius-xl);
+    background-color: @col_surface_container_high;
+    font-size: 14px;
+}
+
+.app-grid {
+    padding: 4px;
+}
+
+.app-icon-btn {
+    padding: 8px 4px;
+    border-radius: var(--radius-lg);
+    background-color: transparent;
+}
+
+.app-icon-btn:hover,
+.app-icon-btn:active {
+    background-color: alpha(@col_secondary_container, 0.5);
+}
+
+.app-icon-image {
+    pixel-size: 48px;
+}
+
+.app-icon-label {
+    font-size: 11px;
+    color: @col_on_surface;
+}
+
 .notification-list {
     padding: 4px;
 }

@@ -14,11 +14,12 @@ type Bar struct {
 	Win            *gtk.ApplicationWindow
 	bus            *bus.Bus
 	monitor        *gdk.Monitor
-	NotifTrigger   gtk.Widgetter
-	WifiTrigger    gtk.Widgetter
-	BtTrigger      gtk.Widgetter
-	ClockGroup     gtk.Widgetter
-	TitleTrigger   gtk.Widgetter
+	NotifTrigger     gtk.Widgetter
+	WifiTrigger      gtk.Widgetter
+	BtTrigger        gtk.Widgetter
+	ClockGroup       gtk.Widgetter
+	TitleTrigger     gtk.Widgetter
+	AppDrawerTrigger gtk.Widgetter
 }
 
 // New creates and shows the bar window on the given monitor.
@@ -48,10 +49,14 @@ func (b *Bar) build(refs *servicerefs.ServiceRefs) {
 	b.Win.SetChild(root)
 }
 
-// Left: window title + window mgmt.
+// Left: app drawer + window title + window mgmt.
 func (b *Bar) buildLeft(refs *servicerefs.ServiceRefs) gtk.Widgetter {
 	box := gtk.NewBox(gtk.OrientationHorizontal, 0)
 	box.SetVAlign(gtk.AlignCenter)
+
+	appDrawer := clickableBarGroup(newAppDrawerIcon(), b.bus, "toggle-appdrawer", b.monitor)
+	b.AppDrawerTrigger = appDrawer
+	box.Append(appDrawer)
 
 	box.Append(newWindowTitleWidget(b.bus, refs.Hyprland, b.monitor))
 	b.TitleTrigger = newWindowTitleTrigger

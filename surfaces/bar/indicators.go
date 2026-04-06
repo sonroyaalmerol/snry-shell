@@ -53,6 +53,13 @@ func barSeparator() gtk.Widgetter {
 	return sep
 }
 
+// newAppDrawerIcon returns the app drawer icon.
+func newAppDrawerIcon() gtk.Widgetter {
+	icon := gtkutil.MaterialIcon("apps")
+	icon.AddCSSClass("indicator-icon")
+	return icon
+}
+
 // newNotificationIcon returns a single notification icon with unread badge.
 func newNotificationIcon(b *bus.Bus) gtk.Widgetter {
 	var count atomic.Int32

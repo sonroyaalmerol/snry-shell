@@ -51,6 +51,7 @@ import (
 	"github.com/sonroyaalmerol/snry-shell/surfaces/popup/notifcenter"
 	"github.com/sonroyaalmerol/snry-shell/surfaces/popup/wifi"
 	"github.com/sonroyaalmerol/snry-shell/surfaces/popup/windowmgmt"
+	"github.com/sonroyaalmerol/snry-shell/surfaces/popup/appdrawer"
 	"github.com/sonroyaalmerol/snry-shell/surfaces/recorder"
 	"github.com/sonroyaalmerol/snry-shell/surfaces/regionselector"
 	"github.com/sonroyaalmerol/snry-shell/surfaces/session"
@@ -208,6 +209,7 @@ func Run() int {
 
 		// Use primary bar triggers as defaults for popups.
 		overview.New(app, b, refs.Hyprland)
+		appdrawer.New(app, b, bars[0].AppDrawerTrigger)
 		notifcenter.New(app, b, refs, bars[0].NotifTrigger)
 		wifi.New(app, b, refs, bars[0].WifiTrigger)
 		popupbluetooth.New(app, b, refs, bars[0].BtTrigger)
