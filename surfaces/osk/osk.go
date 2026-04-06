@@ -521,6 +521,7 @@ func (o *OSK) buildEmojiPanel() gtk.Widgetter {
 
 	o.emojiContainer = gtk.NewBox(gtk.OrientationVertical, 0)
 	o.emojiContainer.AddCSSClass("emoji-grid")
+	o.emojiContainer.SetHAlign(gtk.AlignCenter)
 	scroll.SetChild(o.emojiContainer)
 	box.Append(scroll)
 
