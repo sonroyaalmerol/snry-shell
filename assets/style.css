@@ -1100,6 +1100,26 @@ scale.m3-scale slider {
     color: @col_on_surface;
 }
 
+/* OSK panel views (emoji, clipboard) */
+.osk-panel {
+    padding: 4px 8px;
+}
+
+/* OSK toolbar icon buttons (emoji, clipboard, close) */
+.osk-toolbar-btn {
+    background-color: transparent;
+    border: none;
+    border-radius: var(--radius-pill);
+    min-width: 36px;
+    min-height: 36px;
+    padding: 4px;
+    transition: background-color var(--duration-short3) var(--ease-standard-decel);
+}
+
+.osk-toolbar-btn:hover {
+    background-color: alpha(@col_on_surface, var(--state-hover));
+}
+
 /* ── Region selector ────────────────────────────────────────────────────────── */
 
 .region-selector {
@@ -1328,19 +1348,7 @@ scale.m3-scale slider {
     background-color: alpha(@col_on_surface, var(--state-hover));
 }
 
-/* ── Clipboard panel ────────────────────────────────────────────────────────── */
-
-.clipboard-panel {
-    background-color: alpha(@col_surface_container, 0.92);
-    border-radius: var(--radius-md);
-    border: 1px solid alpha(@col_outline_variant, 0.3);
-    padding: 8px;
-}
-
-.clipboard-search {
-    padding: 4px;
-    margin-bottom: 4px;
-}
+/* ── Clipboard (within OSK) ──────────────────────────────────────────────────── */
 
 .clipboard-clear-btn {
     background-color: transparent;
@@ -1355,10 +1363,6 @@ scale.m3-scale slider {
 .clipboard-clear-btn:hover {
     background-color: alpha(@col_error, var(--state-focus));
     color: @col_error;
-}
-
-.clipboard-list {
-    padding: 4px;
 }
 
 .clipboard-row {
@@ -1378,14 +1382,7 @@ scale.m3-scale slider {
     color: @col_on_surface;
 }
 
-/* ── Emoji picker ────────────────────────────────────────────────────────────── */
-
-.emoji-picker {
-    background-color: alpha(@col_surface_container, 0.92);
-    border-radius: var(--radius-md);
-    border: 1px solid alpha(@col_outline_variant, 0.3);
-    padding: 4px;
-}
+/* ── Emoji (within OSK) ──────────────────────────────────────────────────────── */
 
 .emoji-grid {
     padding: 8px;

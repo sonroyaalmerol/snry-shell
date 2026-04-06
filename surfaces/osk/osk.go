@@ -1,4 +1,5 @@
-// Package osk provides an on-screen keyboard surface.
+// Package osk provides an on-screen keyboard surface with integrated
+// emoji picker and clipboard history panels.
 package osk
 
 import (
@@ -11,6 +12,7 @@ import (
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/sonroyaalmerol/snry-shell/internal/bus"
+	"github.com/sonroyaalmerol/snry-shell/internal/gtkutil"
 	"github.com/sonroyaalmerol/snry-shell/internal/layershell"
 	"github.com/sonroyaalmerol/snry-shell/internal/uinput"
 )
@@ -28,10 +30,15 @@ type OSK struct {
 	visible       bool
 	fullscreen    bool
 	exclusiveZone int
+	viewMode      string // "keyboard", "emoji", "clipboard"
+	stack         *gtk.Stack
 	keys          []*keyButton          // all character keys, for label updates
 	modBtns       map[string]*gtk.Button // modifier name -> button widget
 	shiftBtns     []*gtk.Button         // shift buttons for visual feedback
 	capsBtn       *gtk.Button           // caps button for visual feedback
+	emojiBtn      *gtk.Button           // toolbar emoji button
+	clipboardBtn  *gtk.Button           // toolbar clipboard button
+	clipboardList *gtk.Box             // clipboard list widget for refresh
 	mu            sync.Mutex
 	debounce      *time.Timer           // coalesces rapid focus events
 }
@@ -52,7 +59,7 @@ func New(app *gtk.Application, b *bus.Bus) *OSK {
 		Namespace:    "snry-osk",
 	})
 
-	osk := &OSK{win: win, bus: b, modBtns: make(map[string]*gtk.Button)}
+	osk := &OSK{win: win, bus: b, modBtns: make(map[string]*gtk.Button), viewMode: "keyboard"}
 
 	// Connect virtual keyboard via /dev/uinput (primary) or ydotoold (fallback).
 	ui, err := uinput.New()
@@ -70,13 +77,34 @@ func New(app *gtk.Application, b *bus.Bus) *OSK {
 	osk.hasTouch = detectTouchDevice()
 
 	b.Subscribe(bus.TopicSystemControls, func(e bus.Event) {
-		if e.Data == "toggle-osk" {
+		action, _ := e.Data.(string)
+		switch action {
+		case "toggle-osk":
 			glib.IdleAdd(func() {
 				if osk.visible {
 					osk.manualOff = true
 					osk.hide()
 				} else {
 					osk.manualOff = false
+					osk.switchView("keyboard")
+					osk.show()
+				}
+			})
+		case "toggle-emoji":
+			glib.IdleAdd(func() {
+				if osk.visible && osk.viewMode == "emoji" {
+					osk.switchView("keyboard")
+				} else {
+					osk.switchView("emoji")
+					osk.show()
+				}
+			})
+		case "toggle-clipboard":
+			glib.IdleAdd(func() {
+				if osk.visible && osk.viewMode == "clipboard" {
+					osk.switchView("keyboard")
+				} else {
+					osk.switchView("clipboard")
 					osk.show()
 				}
 			})
@@ -90,10 +118,10 @@ func New(app *gtk.Application, b *bus.Bus) *OSK {
 			return
 		}
 		if isText && osk.manualOff {
-			return // user dismissed — don't auto-show for this field
+			return
 		}
 		if !isText {
-			osk.manualOff = false // field lost focus, allow auto-show next time
+			osk.manualOff = false
 		}
 		osk.scheduleFocusUpdate(isText)
 	})
@@ -114,8 +142,37 @@ func New(app *gtk.Application, b *bus.Bus) *OSK {
 	return osk
 }
 
-// scheduleFocusUpdate debounces focus events (300ms) to prevent show/hide
-// thrashing from rapid activate/deactivate sequences.
+func (o *OSK) switchView(mode string) {
+	o.viewMode = mode
+	o.stack.SetVisibleChildName(mode)
+	switch mode {
+	case "keyboard":
+		o.exclusiveZone = 280
+	default:
+		o.exclusiveZone = 500
+	}
+	o.updateExclusiveZone()
+	o.updateViewButtons()
+}
+
+func (o *OSK) updateViewButtons() {
+	cls := "osk-key-active"
+	if o.emojiBtn != nil {
+		if o.viewMode == "emoji" {
+			o.emojiBtn.AddCSSClass(cls)
+		} else {
+			o.emojiBtn.RemoveCSSClass(cls)
+		}
+	}
+	if o.clipboardBtn != nil {
+		if o.viewMode == "clipboard" {
+			o.clipboardBtn.AddCSSClass(cls)
+		} else {
+			o.clipboardBtn.RemoveCSSClass(cls)
+		}
+	}
+}
+
 func (o *OSK) scheduleFocusUpdate(want bool) {
 	want = o.hasTouch && want
 	log.Printf("[OSK] focus: want=%v touch=%v", want, o.hasTouch)
@@ -127,6 +184,7 @@ func (o *OSK) scheduleFocusUpdate(want bool) {
 		glib.IdleAdd(func() {
 			if want && !o.visible {
 				log.Printf("[OSK] auto-showing")
+				o.switchView("keyboard")
 				o.show()
 			} else if !want && o.visible {
 				log.Printf("[OSK] auto-hiding")
@@ -138,7 +196,7 @@ func (o *OSK) scheduleFocusUpdate(want bool) {
 
 func (o *OSK) show() {
 	o.win.SetVisible(true)
-	o.win.Present() // raise above all other overlay surfaces
+	o.win.Present()
 	o.visible = true
 }
 
@@ -188,12 +246,12 @@ type keyDef struct {
 	label     string
 	normal    string
 	shifted   string
-	key       string // wtype key name (BackSpace, Tab, Return, Escape, Left, etc.)
+	key       string
 	mod       string
 	class     string
 	action    string
 	repeatKey bool
-	special   bool // functional key (Esc, Tab, Caps, Shift, Backspace, Enter, Ctrl, Alt)
+	special   bool
 }
 
 func (o *OSK) build() {
@@ -203,32 +261,68 @@ func (o *OSK) build() {
 	root.SetVAlign(gtk.AlignEnd)
 	root.SetHExpand(true)
 
-	// Top row: spacer on left, close button on right.
-	topRow := gtk.NewBox(gtk.OrientationHorizontal, 0)
+	// Top toolbar row: emoji, clipboard, spacer, close.
+	topRow := gtk.NewBox(gtk.OrientationHorizontal, 8)
 	topRow.AddCSSClass("osk-row")
 	topRow.SetHExpand(true)
 	topRow.SetHAlign(gtk.AlignFill)
+
+	o.emojiBtn = o.toolbarButton("emoji_emotions", func() { o.switchView("emoji") })
+	topRow.Append(o.emojiBtn)
+
+	o.clipboardBtn = o.toolbarButton("content_paste", func() { o.switchView("clipboard") })
+	topRow.Append(o.clipboardBtn)
 
 	spacer := gtk.NewBox(gtk.OrientationHorizontal, 0)
 	spacer.SetHExpand(true)
 	topRow.Append(spacer)
 
-	closeBtn := gtk.NewButton()
-	closeBtn.AddCSSClass("osk-key-close")
-	closeLabel := gtk.NewLabel("close")
-	closeLabel.AddCSSClass("osk-key-label")
-	closeLabel.AddCSSClass("material-icon")
-	closeBtn.SetChild(closeLabel)
-	closeGesture := gtk.NewGestureClick()
-	closeGesture.ConnectPressed(func(int, float64, float64) {
-		closeGesture.SetState(gtk.EventSequenceClaimed)
+	closeBtn := o.toolbarButton("close", func() {
 		o.manualOff = true
 		o.hide()
 	})
-	closeBtn.AddController(closeGesture)
 	topRow.Append(closeBtn)
 	root.Append(topRow)
 
+	// Stack with three views.
+	o.stack = gtk.NewStack()
+	o.stack.SetHExpand(true)
+	o.stack.SetVExpand(true)
+	o.stack.SetTransitionDuration(150)
+	o.stack.SetTransitionType(gtk.StackTransitionTypeSlideLeftRight)
+
+	// Keyboard page.
+	kbPage := gtk.NewBox(gtk.OrientationVertical, 0)
+	kbPage.SetHExpand(true)
+	o.buildKeyboard(kbPage)
+	o.stack.AddNamed(kbPage, "keyboard")
+
+	// Emoji page.
+	emojiPage := o.buildEmojiPanel()
+	o.stack.AddNamed(emojiPage, "emoji")
+
+	// Clipboard page.
+	clipboardPage := o.buildClipboardPanel()
+	o.stack.AddNamed(clipboardPage, "clipboard")
+
+	root.Append(o.stack)
+	o.win.SetChild(root)
+	o.updateKeyLabels()
+}
+
+func (o *OSK) toolbarButton(icon string, onClick func()) *gtk.Button {
+	btn := gtk.NewButton()
+	btn.AddCSSClass("osk-toolbar-btn")
+	label := gtk.NewLabel(icon)
+	label.AddCSSClass("osk-key-label")
+	label.AddCSSClass("material-icon")
+	btn.SetChild(label)
+	btn.SetCursorFromName("pointer")
+	btn.ConnectClicked(onClick)
+	return btn
+}
+
+func (o *OSK) buildKeyboard(parent *gtk.Box) {
 	numRow := []keyDef{
 		{label: "Esc", key: "Escape", special: true},
 		{normal: "`", shifted: "~"},
@@ -306,11 +400,237 @@ func (o *OSK) build() {
 	}
 
 	for _, row := range [][]keyDef{numRow, row1, row2, row3, row4} {
-		o.buildRow(root, row)
+		o.buildRow(parent, row)
+	}
+}
+
+func (o *OSK) buildEmojiPanel() gtk.Widgetter {
+	box := gtk.NewBox(gtk.OrientationVertical, 0)
+	box.AddCSSClass("osk-panel")
+
+	search := gtk.NewSearchEntry()
+	search.SetPlaceholderText("Search emoji...")
+	search.SetHExpand(true)
+	search.SetMarginTop(8)
+	search.SetMarginStart(12)
+	search.SetMarginEnd(12)
+	box.Append(search)
+
+	scroll := gtk.NewScrolledWindow()
+	scroll.SetVExpand(true)
+	scroll.SetPolicy(gtk.PolicyNever, gtk.PolicyAutomatic)
+	scroll.SetMarginBottom(8)
+
+	grid := gtk.NewFlowBox()
+	grid.AddCSSClass("emoji-grid")
+	scroll.SetChild(grid)
+	box.Append(scroll)
+
+	// Populate grid with emoji categories.
+	categories := [...]struct{ cat string; emojis [][2]string }{
+		{"Smileys", [][2]string{
+			{"😀", "grinning"}, {"😃", "smiley"}, {"😄", "smile"}, {"😁", "grin"},
+			{"😆", "laughing"}, {"😅", "sweat smile"}, {"🤣", "rolling on floor"}, {"😂", "joy"},
+			{"🙂", "slightly smiling"}, {"🙃", "upside down"}, {"😉", "wink"}, {"😊", "blush"},
+			{"😇", "innocent"}, {"🥰", "smiling heart"}, {"😍", "heart eyes"}, {"🤩", "star struck"},
+			{"😘", "kissing heart"}, {"😗", "kissing"}, {"😚", "relieved"}, {"😙", "kissing closed"},
+			{"🥲", "smiling tear"}, {"😋", "yum"}, {"😛", "tongue"}, {"😜", "zany"},
+			{"🤪", "zany"}, {"😝", "squint tongue"}, {"🤑", "money mouth"}, {"🤗", "hugging"},
+			{"🤭", "hand over mouth"}, {"🤫", "shushing"}, {"🤔", "thinking"}, {"🫡", "salute"},
+			{"🤐", "zipper mouth"}, {"🤨", "raised eyebrow"}, {"😐", "neutral"}, {"😑", "expressionless"},
+			{"😶", "no mouth"}, {"🫥", "dotted line face"}, {"😏", "smirk"}, {"😒", "unamused"},
+			{"🙄", "rolling eyes"}, {"😬", "grimacing"}, {"🤥", "lying"}, {"😌", "relieved"},
+			{"😔", "pensive"}, {"😪", "sleepy"}, {"🤤", "drooling"}, {"😴", "sleeping"},
+			{"😷", "mask"}, {"🤒", "sick"}, {"🤕", "hurt"}, {"🤢", "nauseated"},
+			{"🤮", "vomiting"}, {"🥵", "hot"}, {"🥶", "cold"}, {"🥴", "woozy"},
+			{"😵", "dizzy"}, {"🤯", "exploding head"}, {"🤠", "cowboy"}, {"🥳", "partying"},
+			{"🥸", "disguised"}, {"😎", "cool"}, {"🤓", "nerd"}, {"🧐", "monocle"},
+			{"😕", "confused"}, {"🫤", "diagonal mouth"}, {"😟", "worried"}, {"🙁", "frowning"},
+			{"😮", "open mouth"}, {"😯", "hushed"}, {"😲", "astonished"}, {"😳", "flushed"},
+			{"🥺", "pleading"}, {"🥹", "holding tears"}, {"😦", "frowning open"}, {"😧", "anguished"},
+			{"😨", "fearful"}, {"😰", "anxious"}, {"😥", "sad relieved"}, {"😢", "crying"},
+			{"😭", "sobbing"}, {"😱", "screaming"}, {"😖", "confounded"}, {"😣", "persevere"},
+			{"😞", "disappointed"}, {"😓", "downcast"}, {"😩", "weary"}, {"😫", "tired"},
+			{"🥱", "yawning"}, {"😤", "angry triumph"}, {"😡", "angry"}, {"😠", "pouting"},
+			{"🤬", "cursing"}, {"😈", "smiling devil"}, {"👿", "angry devil"}, {"💀", "skull"},
+			{"☠️", "skull and crossbones"}, {"💩", "poop"}, {"🤡", "clown"}, {"👹", "ogre"},
+			{"👺", "goblin"}, {"👻", "ghost"}, {"👽", "alien"}, {"👾", "space invader"},
+			{"🤖", "robot"},
+		}},
+		{"Gestures", [][2]string{
+			{"👋", "waving"}, {"🤚", "raised back of hand"}, {"🖐️", "hand splayed"},
+			{"✋", "raised hand"}, {"🖖", "vulcan salute"}, {"🫱", "rightwards hand"},
+			{"🫲", "leftwards hand"}, {"🫳", "palm down"}, {"🫴", "palm up"},
+			{"👌", "ok hand"}, {"🤌", "pinched fingers"}, {"🤏", "pinching hand"},
+			{"✌️", "victory"}, {"🤞", "crossed fingers"}, {"🫰", "hand with index and thumb crossed"},
+			{"🤟", "love you"}, {"🤘", "sign of horns"}, {"🤙", "call me"},
+			{"👈", "pointing left"}, {"👉", "pointing right"}, {"👆", "pointing up"},
+			{"🖕", "middle finger"}, {"👇", "pointing down"}, {"☝️", "index pointing up"},
+			{"🫵", "index pointing away"}, {"👍", "thumbs up"}, {"👎", "thumbs down"},
+			{"✊", "fist"}, {"👊", "punch"}, {"🤛", "left fist"}, {"🤜", "right fist"},
+			{"👏", "clapping"}, {"🙌", "raising hands"}, {"🫶", "heart hands"},
+			{"👐", "open hands"}, {"🤲", "palms up"}, {"🤝", "handshake"},
+			{"🙏", "folded hands"}, {"✍️", "writing hand"}, {"💅", "nail polish"},
+		}},
+		{"Hearts", [][2]string{
+			{"❤️", "red heart"}, {"🧡", "orange heart"}, {"💛", "yellow heart"},
+			{"💚", "green heart"}, {"💙", "blue heart"}, {"💜", "purple heart"},
+			{"🖤", "black heart"}, {"🤍", "white heart"}, {"🤎", "brown heart"},
+			{"💔", "broken heart"}, {"❤️‍🔥", "heart on fire"}, {"❤️‍🩹", "mending heart"},
+			{"💕", "two hearts"}, {"💞", "revolving hearts"}, {"💓", "beating heart"},
+			{"💗", "growing heart"}, {"💖", "sparkling heart"}, {"💘", "cupid"},
+			{"💝", "gift heart"}, {"💟", "heart decoration"},
+		}},
+		{"Objects", [][2]string{
+			{"⭐", "star"}, {"🌟", "glowing star"}, {"✨", "sparkles"}, {"💫", "dizzy star"},
+			{"🔥", "fire"}, {"💯", "hundred"}, {"💥", "boom"}, {"💫", "dizzy"},
+			{"🎉", "party"}, {"🎊", "confetti"}, {"🎈", "balloon"}, {"🎁", "gift"},
+			{"🏆", "trophy"}, {"🥇", "gold medal"}, {"⚡", "lightning"}, {"💎", "gem"},
+			{"🔔", "bell"}, {"📎", "paperclip"}, {"📌", "pushpin"}, {"✅", "check mark"},
+			{"❌", "cross mark"}, {"⭕", "circle"}, {"❗", "exclamation"}, {"❓", "question"},
+			{"⏰", "alarm"}, {"📅", "calendar"}, {"📌", "pin"}, {"💡", "light bulb"},
+		}},
+		{"Nature", [][2]string{
+			{"🌸", "cherry blossom"}, {"🌺", "hibiscus"}, {"🌻", "sunflower"}, {"🌹", "rose"},
+			{"🌷", "tulip"}, {"🌱", "seedling"}, {"🌲", "evergreen tree"}, {"🌳", "deciduous tree"},
+			{"🌴", "palm tree"}, {"🍀", "four leaf clover"}, {"🍁", "maple leaf"},
+			{"🍂", "fallen leaf"}, {"🍃", "leaf fluttering"}, {"🌍", "earth"},
+			{"🌙", "crescent moon"}, {"☀️", "sun"}, {"⭐", "star"}, {"🌈", "rainbow"},
+		}},
+		{"Food", [][2]string{
+			{"🍎", "apple"}, {"🍊", "tangerine"}, {"🍋", "lemon"}, {"🍌", "banana"},
+			{"🍉", "watermelon"}, {"🍇", "grapes"}, {"🍓", "strawberry"}, {"🫐", "blueberries"},
+			{"🍑", "peach"}, {"🍒", "cherries"}, {"🥝", "kiwi"}, {"🍕", "pizza"},
+			{"🍔", "hamburger"}, {"🍟", "fries"}, {"🌮", "taco"}, {"🍣", "sushi"},
+			{"🍦", "ice cream"}, {"🍩", "donut"}, {"🍪", "cookie"}, {"🎂", "birthday cake"},
+			{"☕", "coffee"}, {"🍵", "tea"}, {"🍺", "beer"}, {"🍷", "wine"},
+		}},
+		{"Travel", [][2]string{
+			{"🚗", "car"}, {"🚕", "taxi"}, {"🚌", "bus"}, {"🚎", "trolley"},
+			{"🚂", "locomotive"}, {"✈️", "airplane"}, {"🚀", "rocket"}, {"🛸", "flying saucer"},
+			{"🏠", "house"}, {"🏢", "office"}, {"🏥", "hospital"}, {"🏫", "school"},
+			{"🏨", "hotel"}, {"🚪", "door"}, {"🪟", "window"}, {"💡", "light bulb"},
+		}},
 	}
 
-	o.win.SetChild(root)
-	o.updateKeyLabels()
+	for _, cat := range categories {
+		header := gtk.NewLabel(cat.cat)
+		header.AddCSSClass("emoji-category-header")
+		grid.Append(header)
+
+		for _, e := range cat.emojis {
+			btn := gtk.NewButton()
+			btn.SetCursorFromName("pointer")
+			btn.AddCSSClass("emoji-btn")
+			lbl := gtk.NewLabel(e[0])
+			lbl.AddCSSClass("emoji-char")
+			btn.SetChild(lbl)
+			btn.SetTooltipText(e[1])
+			em := e[0]
+			btn.ConnectClicked(func() {
+				go func() {
+					if err := exec.Command("wl-copy", em).Run(); err != nil {
+						log.Printf("emoji copy: %v", err)
+						glib.IdleAdd(func() { gtkutil.ErrorDialog(o.win, "Copy failed", "Could not copy to clipboard.") })
+					}
+				}()
+				o.switchView("keyboard")
+			})
+			grid.Append(btn)
+		}
+	}
+
+	return box
+}
+
+func (o *OSK) buildClipboardPanel() gtk.Widgetter {
+	box := gtk.NewBox(gtk.OrientationVertical, 0)
+	box.AddCSSClass("osk-panel")
+
+	// Search bar.
+	searchBar := gtk.NewBox(gtk.OrientationHorizontal, 8)
+	searchBar.AddCSSClass("osk-clipboard-search")
+
+	search := gtk.NewSearchEntry()
+	search.SetPlaceholderText("Search clipboard...")
+	search.SetHExpand(true)
+	search.ConnectSearchChanged(func() {
+		o.refreshClipboard(search.Text())
+	})
+
+	clearBtn := gtkutil.M3IconButton("delete_sweep", "clipboard-clear-btn")
+	clearBtn.SetTooltipText("Clear all")
+	clearBtn.ConnectClicked(func() {
+		go func() {
+			if err := exec.Command("cliphist", "wipe").Run(); err != nil {
+				log.Printf("clipboard clear: %v", err)
+				glib.IdleAdd(func() { gtkutil.ErrorDialog(o.win, "Clear failed", "Could not clear clipboard history.") })
+			}
+			glib.IdleAdd(func() { o.refreshClipboard("") })
+			}()
+		})
+
+	searchBar.Append(search)
+	searchBar.Append(clearBtn)
+	box.Append(searchBar)
+
+	// Scrollable list.
+	scroll := gtk.NewScrolledWindow()
+	scroll.SetVExpand(true)
+	scroll.SetPolicy(gtk.PolicyNever, gtk.PolicyAutomatic)
+
+	o.clipboardList = gtk.NewBox(gtk.OrientationVertical, 4)
+	o.clipboardList.AddCSSClass("osk-clipboard-list")
+	scroll.SetChild(o.clipboardList)
+	box.Append(scroll)
+
+	return box
+}
+
+func (o *OSK) refreshClipboard(filter string) {
+	go func() {
+		out, err := exec.Command("cliphist", "list").Output()
+		if err != nil {
+			return
+		}
+		lines := strings.Split(strings.TrimSpace(string(out)), "\n")
+		glib.IdleAdd(func() {
+			gtkutil.ClearChildren(&o.clipboardList.Widget, o.clipboardList.Remove)
+
+			for _, line := range lines {
+				if line == "" {
+					continue
+				}
+				if filter != "" && !strings.Contains(strings.ToLower(line), strings.ToLower(filter)) {
+					continue
+				}
+
+				row := gtk.NewButton()
+				row.SetCursorFromName("pointer")
+				row.AddCSSClass("clipboard-row")
+
+				lbl := gtk.NewLabel(line)
+				lbl.AddCSSClass("clipboard-preview")
+				lbl.SetEllipsize(3)
+				lbl.SetHAlign(gtk.AlignStart)
+				lbl.SetXAlign(0)
+				row.SetChild(lbl)
+
+				text := line
+				row.ConnectClicked(func() {
+					go func() {
+						if err := exec.Command("wl-copy", text).Run(); err != nil {
+							log.Printf("clipboard copy: %v", err)
+							glib.IdleAdd(func() { gtkutil.ErrorDialog(o.win, "Copy failed", "Could not copy to clipboard.") })
+						}
+					}()
+					o.switchView("keyboard")
+				})
+
+				o.clipboardList.Append(row)
+			}
+		})
+	}()
 }
 
 func (o *OSK) buildRow(parent *gtk.Box, defs []keyDef) {
@@ -332,9 +652,6 @@ func (o *OSK) buildRow(parent *gtk.Box, defs []keyDef) {
 		label.AddCSSClass("osk-key-label")
 		btn.SetChild(label)
 
-		// Use GestureClick on capture phase so the key fires immediately
-		// on touch-down. ConnectClicked waits for full gesture recognition
-		// (press + release) which intermittently drops touch events.
 		gesture := gtk.NewGestureClick()
 		gesture.ConnectPressed(func(int, float64, float64) {
 			gesture.SetState(gtk.EventSequenceClaimed)
@@ -381,7 +698,6 @@ func (o *OSK) typeKey(d keyDef, kb *keyButton) {
 	o.mu.Lock()
 
 	if d.key != "" {
-		// Special key (BackSpace, Tab, Return, arrows, Escape).
 		o.ui.TypeKey(d.key, o.ctrlL, o.altL, o.shift)
 		o.releaseAllModsLocked()
 		o.mu.Unlock()
@@ -394,8 +710,6 @@ func (o *OSK) typeKey(d keyDef, kb *keyButton) {
 		return
 	}
 
-	// Regular character — resolve via shift/caps state.
-	// Snapshot modifier state before releasing so they're applied to this keystroke.
 	ch := o.activeChar(kb)
 	ctrl, alt := o.ctrlL, o.altL
 	o.releaseAllModsLocked()

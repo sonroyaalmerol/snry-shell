@@ -32,10 +32,8 @@ import (
 	"github.com/sonroyaalmerol/snry-shell/internal/services/upower"
 	"github.com/sonroyaalmerol/snry-shell/surfaces/bar"
 	"github.com/sonroyaalmerol/snry-shell/surfaces/cheatsheet"
-	"github.com/sonroyaalmerol/snry-shell/surfaces/clipboard"
 	"github.com/sonroyaalmerol/snry-shell/surfaces/corners"
 	"github.com/sonroyaalmerol/snry-shell/surfaces/crosshair"
-	"github.com/sonroyaalmerol/snry-shell/surfaces/emoji"
 	"github.com/sonroyaalmerol/snry-shell/surfaces/imageviewer"
 	"github.com/sonroyaalmerol/snry-shell/surfaces/lockscreen"
 	"github.com/sonroyaalmerol/snry-shell/surfaces/mediaoverlay"
@@ -175,8 +173,6 @@ func Run() int {
 		regionselector.New(app, b)
 		cheatsheet.New(app, b)
 		settings.New(app, b)
-		clipboard.New(app, b)
-		emoji.New(app, b)
 		notes.New(app, b)
 		recorder.New(app, b)
 		imageviewer.New(app, b)
