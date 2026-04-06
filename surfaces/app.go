@@ -21,6 +21,7 @@ import (
 	"github.com/sonroyaalmerol/snry-shell/internal/services/bluetooth"
 	"github.com/sonroyaalmerol/snry-shell/internal/services/brightness"
 	serviceclipboard "github.com/sonroyaalmerol/snry-shell/internal/services/clipboard"
+	"github.com/sonroyaalmerol/snry-shell/internal/services/darkmode"
 	"github.com/sonroyaalmerol/snry-shell/internal/services/hyprland"
 	"github.com/sonroyaalmerol/snry-shell/internal/services/inputmode"
 	"github.com/sonroyaalmerol/snry-shell/internal/services/mpris"
@@ -98,6 +99,7 @@ func Run() int {
 		Todo:       todo.New(b),
 		SNI:        sni.New(sesConn, b),
 		InputMode:  inputmode.New(b, sysConn, cfg, true),
+		DarkMode:   darkmode.New(b, cfg),
 	}
 
 	// Start background services.
@@ -111,6 +113,7 @@ func Run() int {
 	go refs.Pomodoro.Run(ctx)
 	go refs.InputMode.Run(ctx)
 	go refs.SNI.Run(ctx)
+	go refs.DarkMode.Run(ctx)
 
 	// Notification daemon.
 	if sesConn != nil {
