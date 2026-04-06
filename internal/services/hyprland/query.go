@@ -144,8 +144,13 @@ func (q *Querier) CloseWindow(address string) error {
 }
 
 // ToggleFullscreenWindow toggles fullscreen for the window with the given address.
+// Since fullscreen doesn't accept a window selector, we focus the window first.
 func (q *Querier) ToggleFullscreenWindow(address string) error {
-	_, err := q.cmd.Run("dispatch", "fullscreen", "1", "address:"+address)
+	// Focus the window first, then toggle fullscreen
+	if _, err := q.cmd.Run("dispatch", "focuswindow", "address:"+address); err != nil {
+		return err
+	}
+	_, err := q.cmd.Run("dispatch", "fullscreen", "1")
 	return err
 }
 
@@ -156,8 +161,13 @@ func (q *Querier) ToggleFloatingWindow(address string) error {
 }
 
 // ToggleSplitWindow toggles split for the window with the given address.
+// Since togglesplit doesn't accept a window selector, we focus the window first.
 func (q *Querier) ToggleSplitWindow(address string) error {
-	_, err := q.cmd.Run("dispatch", "togglesplit", "address:"+address)
+	// Focus the window first, then toggle split
+	if _, err := q.cmd.Run("dispatch", "focuswindow", "address:"+address); err != nil {
+		return err
+	}
+	_, err := q.cmd.Run("dispatch", "togglesplit")
 	return err
 }
 
