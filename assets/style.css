@@ -1153,11 +1153,29 @@ scale.m3-scale slider {
     color: @col_on_surface;
 }
 
-/* Utility icon buttons in bottom key row (emoji, clipboard, close) */
+/* Utility icon buttons in bottom key row (emoji, clipboard) */
 .osk-key-util-icon {
     min-width: 42px;
     min-height: 44px;
     border-radius: var(--radius-full);
+}
+
+/* Floating close button — overlaid top-right */
+.osk-close-float {
+    background-color: transparent;
+    border: none;
+    border-radius: var(--radius-pill);
+    min-width: 28px;
+    min-height: 28px;
+    padding: 2px;
+    margin: 4px 6px;
+    color: @col_on_surface_variant;
+    transition: background-color var(--duration-short3) var(--ease-standard-decel);
+}
+
+.osk-close-float:hover {
+    background-color: alpha(@col_on_surface, var(--state-hover));
+    color: @col_on_surface;
 }
 
 /* ── Region selector ────────────────────────────────────────────────────────── */

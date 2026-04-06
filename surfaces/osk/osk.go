@@ -344,11 +344,15 @@ type keyDef struct {
 }
 
 func (o *OSK) build() {
-	root := gtk.NewBox(gtk.OrientationVertical, 0)
+	root := gtk.NewOverlay()
 	root.AddCSSClass("osk")
 	root.SetHAlign(gtk.AlignFill)
 	root.SetVAlign(gtk.AlignEnd)
 	root.SetHExpand(true)
+
+	// Content box holds the stack (keyboard / emoji / clipboard).
+	content := gtk.NewBox(gtk.OrientationVertical, 0)
+	content.SetHExpand(true)
 
 	// Stack with three views.
 	o.stack = gtk.NewStack()
@@ -370,12 +374,28 @@ func (o *OSK) build() {
 	// Clipboard page.
 	clipboardPage := o.buildClipboardPanel()
 	o.stack.AddNamed(clipboardPage, "clipboard")
-
-	root.Append(o.stack)
+	
+	content.Append(o.stack)
+	
+	// Floating close button — top-right corner, overlaid.
+	closeBtn := gtk.NewButton()
+	closeBtn.AddCSSClass("osk-close-float")
+	closeBtn.SetCursorFromName("pointer")
+	closeLbl := gtk.NewLabel("close")
+	closeLbl.AddCSSClass("osk-key-label")
+	closeLbl.AddCSSClass("material-icon")
+	closeBtn.SetChild(closeLbl)
+	closeBtn.ConnectClicked(func() {
+		o.manualOff = true
+		o.hide()
+	})
+	
+	root.SetChild(content)
+	root.AddOverlay(closeBtn)
 	o.win.SetChild(root)
 	o.updateKeyLabels()
-}
 
+}
 func (o *OSK) buildKeyboard(parent *gtk.Box) {
 	numRow := []keyDef{
 		{label: "Esc", key: "Escape", special: true},
@@ -446,14 +466,13 @@ func (o *OSK) buildKeyboard(parent *gtk.Box) {
 	row4 := []keyDef{
 		{label: "Ctrl", mod: "Ctrl_L", class: "osk-key-wide", special: true},
 		{label: "Alt", mod: "Alt_L", class: "osk-key-wide", special: true},
+		{label: "emoji_emotions", action: "emoji", class: "osk-key-util-icon", special: true},
 		{label: "", normal: " ", class: "osk-key-space"},
+		{label: "content_paste", action: "clipboard", class: "osk-key-util-icon", special: true},
 		{label: "←", key: "Left", class: "osk-key-arrow"},
 		{label: "↓", key: "Down", class: "osk-key-arrow"},
 		{label: "↑", key: "Up", class: "osk-key-arrow"},
 		{label: "→", key: "Right", class: "osk-key-arrow"},
-		{label: "emoji_emotions", action: "emoji", class: "osk-key-util-icon", special: true},
-		{label: "content_paste", action: "clipboard", class: "osk-key-util-icon", special: true},
-		{label: "close", action: "close", class: "osk-key-util-icon", special: true},
 	}
 
 	for _, row := range [][]keyDef{numRow, row1, row2, row3, row4} {
@@ -693,12 +712,6 @@ func (o *OSK) buildRow(parent *gtk.Box, defs []keyDef) {
 				} else {
 					o.switchView("clipboard")
 				}
-			})
-		case d.action == "close":
-			label.AddCSSClass("material-icon")
-			gesture.ConnectReleased(func(int, float64, float64) {
-				o.manualOff = true
-				o.hide()
 			})
 		default:
 			kb := &keyButton{btn: btn, label: label, normal: d.normal, shifted: d.shifted}
