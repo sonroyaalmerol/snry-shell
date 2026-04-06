@@ -40,7 +40,10 @@ const (
 	absMTPressure   = 0x3a
 )
 
-// input device properties (kept for reference; not used for filtering).
+// input device properties.
+const (
+	inputPropSemiMT = 0x04 // semi-multitouch touchpad
+)
 
 // logind constants.
 const (
@@ -141,6 +144,21 @@ func checkTouchDevice(eventName, devName string) (bool, string) {
 	hasMT := hasBit(absStr, absMTPositionX)
 	if !hasMT {
 		return false, fmt.Sprintf("no MT (abs caps: %s)", absStr)
+	}
+
+	// Exclude touchpads: name contains "touchpad" or "trackpad".
+	lower := strings.ToLower(devName)
+	if strings.Contains(lower, "touchpad") || strings.Contains(lower, "trackpad") {
+		return false, fmt.Sprintf("rejected: touchpad name")
+	}
+
+	// Exclude semi-MT devices (a property set on many touchpads).
+	propPath := fmt.Sprintf("/sys/class/input/%s/device/properties", eventName)
+	propCaps, err := os.ReadFile(propPath)
+	if err == nil {
+		if hasBit(strings.TrimSpace(string(propCaps)), inputPropSemiMT) {
+			return false, fmt.Sprintf("rejected: SEMI_MT device")
+		}
 	}
 
 	return true, fmt.Sprintf("accepted (MT yes)")
@@ -260,15 +278,28 @@ func takeDevice(conn *dbus.Conn, devPath string) (int, error) {
 }
 
 func resolveLogindSession(conn *dbus.Conn) (string, error) {
+	mgr := conn.Object(logindDest, "/org/freedesktop/login1")
+
+	// Try GetSessionByPID first.
+	var sessionPath dbus.ObjectPath
+	if err := mgr.Call("org.freedesktop.login1.Manager.GetSessionByPID", 0, uint32(os.Getpid())).Store(&sessionPath); err == nil && sessionPath != "" {
+		return string(sessionPath), nil
+	}
+
+	// Fallback: try XDG_SESSION_ID.
 	if id := os.Getenv("XDG_SESSION_ID"); id != "" {
 		return "/org/freedesktop/login1/session_" + id, nil
 	}
-	mgr := conn.Object(logindDest, "/org/freedesktop/login1")
-	var sessionPath dbus.ObjectPath
-	if err := mgr.Call("org.freedesktop.login1.Manager.GetSessionByPID", 0, uint32(os.Getpid())).Store(&sessionPath); err != nil {
-		return "", err
+
+	// Last resort: list all sessions and return the first active one.
+	var sessions []dbus.ObjectPath
+	if err := mgr.Call("org.freedesktop.login1.Manager.ListSessions", 0).Store(&sessions); err != nil {
+		return "", fmt.Errorf("ListSessions: %w", err)
 	}
-	return string(sessionPath), nil
+	if len(sessions) == 0 {
+		return "", fmt.Errorf("no logind sessions found")
+	}
+	return string(sessions[0]), nil
 }
 
 // readEvents reads raw evdev events from the device file and sends parsed
