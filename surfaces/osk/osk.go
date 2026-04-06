@@ -38,7 +38,7 @@ type OSK struct {
 	emojiBtn      *gtk.Button           // toolbar emoji button
 	clipboardBtn  *gtk.Button           // toolbar clipboard button
 	clipboardList *gtk.Box              // clipboard list widget for refresh
-	emojiGrid     *gtk.FlowBox          // emoji grid for search filtering
+	emojiContainer *gtk.Box              // vertical box holding category FlowBoxes
 	backBtn       *gtk.Button           // floating back-to-keyboard button
 	mu            sync.Mutex
 	debounce      *time.Timer           // coalesces rapid focus events
@@ -519,9 +519,9 @@ func (o *OSK) buildEmojiPanel() gtk.Widgetter {
 	scroll.SetPolicy(gtk.PolicyNever, gtk.PolicyAutomatic)
 	scroll.AddCSSClass("osk-panel-scroll")
 
-	o.emojiGrid = gtk.NewFlowBox()
-	o.emojiGrid.AddCSSClass("emoji-grid")
-	scroll.SetChild(o.emojiGrid)
+	o.emojiContainer = gtk.NewBox(gtk.OrientationVertical, 0)
+	o.emojiContainer.AddCSSClass("emoji-grid")
+	scroll.SetChild(o.emojiContainer)
 	box.Append(scroll)
 
 	o.populateEmojiGrid("")
@@ -529,7 +529,7 @@ func (o *OSK) buildEmojiPanel() gtk.Widgetter {
 }
 
 func (o *OSK) populateEmojiGrid(query string) {
-	gtkutil.ClearChildren(&o.emojiGrid.Widget, o.emojiGrid.Remove)
+	gtkutil.ClearChildren(&o.emojiContainer.Widget, o.emojiContainer.Remove)
 
 	for _, cat := range emojiData {
 		var matched [][2]string
@@ -541,21 +541,22 @@ func (o *OSK) populateEmojiGrid(query string) {
 		if len(matched) == 0 {
 			continue
 		}
-		headerWrap := gtk.NewBox(gtk.OrientationHorizontal, 0)
-		headerWrap.SetHExpand(true)
 		header := gtk.NewLabel(cat.name)
 		header.AddCSSClass("emoji-category-header")
 		header.SetHAlign(gtk.AlignStart)
-		headerWrap.Append(header)
-		o.emojiGrid.Append(headerWrap)
+		o.emojiContainer.Append(header)
 
+		flow := gtk.NewFlowBox()
+		flow.SetColumnSpacing(4)
+		flow.SetRowSpacing(4)
 		for _, e := range matched {
-			o.addEmojiBtn(e[0], e[1])
+			o.addEmojiBtn(flow, e[0], e[1])
 		}
+		o.emojiContainer.Append(flow)
 	}
 }
 
-func (o *OSK) addEmojiBtn(char, name string) {
+func (o *OSK) addEmojiBtn(parent *gtk.FlowBox, char, name string) {
 	btn := gtk.NewButton()
 	btn.SetCursorFromName("pointer")
 	btn.AddCSSClass("emoji-btn")
@@ -578,7 +579,7 @@ func (o *OSK) addEmojiBtn(char, name string) {
 		}()
 		o.switchView("keyboard")
 	})
-	o.emojiGrid.Append(btn)
+	parent.Append(btn)
 }
 
 func (o *OSK) buildClipboardPanel() gtk.Widgetter {
