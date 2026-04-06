@@ -50,6 +50,7 @@ import (
 	"github.com/sonroyaalmerol/snry-shell/surfaces/popup/calendar"
 	"github.com/sonroyaalmerol/snry-shell/surfaces/popup/notifcenter"
 	"github.com/sonroyaalmerol/snry-shell/surfaces/popup/wifi"
+	"github.com/sonroyaalmerol/snry-shell/surfaces/popup/windowmgmt"
 	"github.com/sonroyaalmerol/snry-shell/surfaces/recorder"
 	"github.com/sonroyaalmerol/snry-shell/surfaces/regionselector"
 	"github.com/sonroyaalmerol/snry-shell/surfaces/session"
@@ -210,6 +211,7 @@ func Run() int {
 		notifcenter.New(app, b, refs, bars[0].NotifTrigger)
 		wifi.New(app, b, refs, bars[0].WifiTrigger)
 		popupbluetooth.New(app, b, refs, bars[0].BtTrigger)
+		windowmgmt.New(app, b, refs, bars[0].WinMgmtTrigger)
 		calendar.New(app, b, refs, bars[0].ClockGroup)
 		osd.New(app, b)
 		session.New(app, b)

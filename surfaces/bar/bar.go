@@ -11,13 +11,14 @@ import (
 
 // Bar is the top-edge status bar surface.
 type Bar struct {
-	Win         *gtk.ApplicationWindow
-	bus         *bus.Bus
-	monitor     *gdk.Monitor
-	NotifTrigger gtk.Widgetter
-	WifiTrigger  gtk.Widgetter
-	BtTrigger    gtk.Widgetter
-	ClockGroup   gtk.Widgetter
+	Win            *gtk.ApplicationWindow
+	bus            *bus.Bus
+	monitor        *gdk.Monitor
+	NotifTrigger   gtk.Widgetter
+	WifiTrigger    gtk.Widgetter
+	BtTrigger      gtk.Widgetter
+	ClockGroup     gtk.Widgetter
+	WinMgmtTrigger gtk.Widgetter
 }
 
 // New creates and shows the bar window on the given monitor.
@@ -47,12 +48,18 @@ func (b *Bar) build(refs *servicerefs.ServiceRefs) {
 	b.Win.SetChild(root)
 }
 
-// Left: window title + keyboard layout.
+// Left: window title + window mgmt + keyboard layout.
 func (b *Bar) buildLeft(refs *servicerefs.ServiceRefs) gtk.Widgetter {
 	box := gtk.NewBox(gtk.OrientationHorizontal, 0)
 	box.SetVAlign(gtk.AlignCenter)
 
 	box.Append(newWindowTitleWidget(b.bus))
+	box.Append(barSeparator())
+
+	winMgmt := clickableBarGroup(newWindowMgmtIcon(), b.bus, "toggle-windowmgmt", b.monitor)
+	b.WinMgmtTrigger = winMgmt
+	box.Append(winMgmt)
+
 	box.Append(barSeparator())
 	box.Append(newKeyboardIndicator(b.bus, refs.Hyprland))
 	return box

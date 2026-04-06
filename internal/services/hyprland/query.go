@@ -107,6 +107,36 @@ func (q *Querier) SwitchWorkspace(id int) error {
 	return err
 }
 
+// CloseActiveWindow kills the focused window.
+func (q *Querier) CloseActiveWindow() error {
+	_, err := q.cmd.Run("dispatch", "killactive")
+	return err
+}
+
+// ToggleFullscreen toggles the focused window's fullscreen state.
+func (q *Querier) ToggleFullscreen() error {
+	_, err := q.cmd.Run("dispatch", "fullscreen", "1")
+	return err
+}
+
+// ToggleFloating toggles the focused window between floating and tiled.
+func (q *Querier) ToggleFloating() error {
+	_, err := q.cmd.Run("dispatch", "togglefloating")
+	return err
+}
+
+// MoveToWorkspace moves the focused window to the given workspace ID.
+func (q *Querier) MoveToWorkspace(id int) error {
+	_, err := q.cmd.Run("dispatch", "movetoworkspace", strconv.Itoa(id))
+	return err
+}
+
+// ToggleSplit changes the split direction of the focused window.
+func (q *Querier) ToggleSplit() error {
+	_, err := q.cmd.Run("dispatch", "togglesplit")
+	return err
+}
+
 // SetKeyword sets a Hyprland config option at runtime.
 func (q *Querier) SetKeyword(option, value string) error {
 	log.Printf("[HYPRLAND] keyword %s %s", option, value)
