@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strconv"
 	"strings"
 	"unsafe"
 
@@ -39,11 +40,7 @@ const (
 	absMTPressure   = 0x3a
 )
 
-// input device properties.
-const (
-	inputPropDirect  = 0x01
-	inputPropPointer = 0x02
-)
+// input device properties (kept for reference; not used for filtering).
 
 // logind constants.
 const (
@@ -146,37 +143,21 @@ func checkTouchDevice(eventName, devName string) (bool, string) {
 		return false, fmt.Sprintf("no MT (abs caps: %s)", absStr)
 	}
 
-	// Exclude pointer devices (stylus, mouse, touchpad).
-	propPath := fmt.Sprintf("/sys/class/input/%s/device/properties", eventName)
-	propCaps, err := os.ReadFile(propPath)
-	if err != nil {
-		return true, fmt.Sprintf("accepted (MT yes, no prop file)")
-	}
-	propStr := strings.TrimSpace(string(propCaps))
-	hasPropPointer := hasBit(propStr, inputPropPointer)
-	if hasPropPointer {
-		return false, fmt.Sprintf("rejected: pointer device (prop: %s)", propStr)
-	}
-
-	return true, fmt.Sprintf("accepted (MT yes, prop: %s)", propStr)
+	return true, fmt.Sprintf("accepted (MT yes)")
 }
 
-// hasBit checks if bit n is set in a hex bitmask string like "3 800000000".
+// hasBit checks if bit n is set in a hex bitmask string.
+// sysfs may print the bitmap as one continuous hex number or space-separated
+// groups (32-bit or 64-bit depending on kernel). Parse the whole thing as
+// one number to handle any format.
 func hasBit(hexStr string, n int) bool {
 	hexStr = strings.TrimSpace(hexStr)
-	// sysfs bitmask format: space-separated groups of hex digits, MSB first.
-	// Group 0 is bits 0-31, group 1 is bits 32-63, etc.
-	group := n / 32
-	bit := uint(n % 32)
-
-	fields := strings.Fields(hexStr)
-	if group >= len(fields) {
+	hexStr = strings.Join(strings.Fields(hexStr), "") // remove internal spaces
+	val, err := strconv.ParseUint(hexStr, 16, 64)
+	if err != nil {
 		return false
 	}
-
-	var val uint32
-	fmt.Sscanf(fields[len(fields)-1-group], "%x", &val)
-	return val&(1<<bit) != 0
+	return val&(1<<uint(n)) != 0
 }
 
 // openTouchDevice opens a touch device using logind's TakeDevice to obtain
