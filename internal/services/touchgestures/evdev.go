@@ -83,41 +83,72 @@ type inputAbsInfo struct {
 	Resolution int32
 }
 
-// findTouchDevices parses /proc/bus/input/devices and returns paths for
-// devices whose name contains "touch" and that report multitouch support.
+// findTouchDevices parses /proc/bus/input/devices, opens each event device,
+// and returns paths for devices that have multitouch capability (ABS_MT_POSITION_X).
+// This is more reliable than name matching since touchscreens use many different names.
 func findTouchDevices() ([]string, error) {
 	data, err := os.ReadFile("/proc/bus/input/devices")
 	if err != nil {
 		return nil, fmt.Errorf("read /proc/bus/input/devices: %w", err)
 	}
 
-	var devices []string
-	var name string
-
+	// Collect all event device paths.
+	var candidates []string
 	scanner := bufio.NewScanner(bytes.NewReader(data))
 	for scanner.Scan() {
 		line := scanner.Text()
-		if line == "" {
-			name = ""
-			continue
-		}
-		if strings.HasPrefix(line, "N: Name=") {
-			name = strings.TrimPrefix(line, "N: Name=\"")
-			name = strings.TrimSuffix(name, "\"")
-		}
-		if strings.HasPrefix(line, "H: Handlers=") && name != "" {
-			lower := strings.ToLower(name)
-			if strings.Contains(lower, "touch") && !strings.Contains(lower, "trackpad") && !strings.Contains(lower, "touchpad") {
-				for _, field := range strings.Split(line, " ") {
-					if strings.HasPrefix(field, "event") {
-						devices = append(devices, "/dev/input/"+field)
-					}
+		if strings.HasPrefix(line, "H: Handlers=") {
+			for _, field := range strings.Split(line, " ") {
+				if strings.HasPrefix(field, "event") {
+					candidates = append(candidates, "/dev/input/"+field)
 				}
 			}
-			name = ""
 		}
 	}
-	return devices, scanner.Err()
+	if err := scanner.Err(); err != nil {
+		return nil, err
+	}
+
+	// Probe each device for MT capability via ioctl.
+	var touchDevices []string
+	for _, path := range candidates {
+		fd, err := unix.Open(path, unix.O_RDONLY, 0)
+		if err != nil {
+			continue
+		}
+
+		// Check for ABS_MT_POSITION_X capability.
+		evBits := make([]byte, 128)
+		_, _, errno := unix.Syscall(
+			unix.SYS_IOCTL, uintptr(fd),
+			uintptr(evIOCGBIT(evAbs, len(evBits))),
+			uintptr(unsafe.Pointer(&evBits[0])),
+		)
+		if errno != 0 {
+			unix.Close(fd)
+			continue
+		}
+
+		hasMT := evBits[absMTPositionX/8]&(1<<(absMTPositionX%8)) != 0
+
+		// Check PROP_DIRECT to distinguish touchscreen from touchpad.
+		propBits := make([]byte, 32)
+		_, _, errno = unix.Syscall(
+			unix.SYS_IOCTL, uintptr(fd),
+			uintptr(evIOCGBITProp(len(propBits))),
+			uintptr(unsafe.Pointer(&propBits[0])),
+		)
+		hasPropDirect := errno == 0 && propBits[inputPropDirect/8]&(1<<(inputPropDirect%8)) != 0
+
+		unix.Close(fd)
+
+		// Accept as touch device if it has MT support AND is a direct-touch device
+		// (not a touchpad/trackpad).
+		if hasMT && hasPropDirect {
+			touchDevices = append(touchDevices, path)
+		}
+	}
+	return touchDevices, nil
 }
 
 // openTouchDevice opens an evdev device, verifies multitouch support via
@@ -243,4 +274,8 @@ func evIOCGABS(abs int) uint32 {
 
 func evIOCGNAME(length int) uint32 {
 	return _IOC(2, 'E', 0x06, uintptr(length))
+}
+
+func evIOCGBITProp(length int) uint32 {
+	return _IOC(2, 'E', 0x09, uintptr(length))
 }
