@@ -33,6 +33,7 @@ const (
 	TopicTrayItems        Topic = "trayitems"
 	TopicTrayActivate     Topic = "trayactivate"
 	TopicTextInputFocus   Topic = "textinputfocus"
+	TopicTabletMode     Topic = "tabletmode"
 	TopicFullscreen       Topic = "fullscreen"
 )
 

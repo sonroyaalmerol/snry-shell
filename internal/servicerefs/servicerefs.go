@@ -12,6 +12,7 @@ import (
 	"github.com/sonroyaalmerol/snry-shell/internal/services/pomodoro"
 	"github.com/sonroyaalmerol/snry-shell/internal/services/resources"
 	"github.com/sonroyaalmerol/snry-shell/internal/services/sni"
+	"github.com/sonroyaalmerol/snry-shell/internal/services/tabletmode"
 	"github.com/sonroyaalmerol/snry-shell/internal/services/clipboard"
 	"github.com/sonroyaalmerol/snry-shell/internal/services/todo"
 )
@@ -29,5 +30,6 @@ type ServiceRefs struct {
 	Pomodoro   *pomodoro.Service
 	Todo       *todo.Service
 	SNI        *sni.Service
+	TabletMode *tabletmode.Service
 	Clipboard  *clipboard.Service
 }
