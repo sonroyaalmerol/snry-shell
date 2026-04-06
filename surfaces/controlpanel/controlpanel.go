@@ -5,8 +5,11 @@ package controlpanel
 import (
 	"os"
 
+	"github.com/diamondburned/gotk4/pkg/gdk/v4"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
+	"github.com/sonroyaalmerol/snry-shell/assets"
 	"github.com/sonroyaalmerol/snry-shell/internal/settings"
+	"github.com/sonroyaalmerol/snry-shell/internal/theme"
 )
 
 // ConfigProvider defines the interface for configuration providers
@@ -28,6 +31,22 @@ func Run() int {
 	app := gtk.NewApplication("sh.snry.shell.controlpanel", 0)
 
 	app.ConnectActivate(func() {
+		// Load embedded stylesheet (same as main shell)
+		display := gdk.DisplayGetDefault()
+		if display != nil {
+			provider := gtk.NewCSSProvider()
+			provider.LoadFromString(assets.StyleCSS)
+			gtk.StyleContextAddProviderForDisplay(display, provider, gtk.STYLE_PROVIDER_PRIORITY_USER)
+
+			// Load dynamic theme if it exists
+			themePath := theme.ThemePath()
+			if _, err := os.Stat(themePath); err == nil {
+				themeProvider := gtk.NewCSSProvider()
+				themeProvider.LoadFromPath(themePath)
+				gtk.StyleContextAddProviderForDisplay(display, themeProvider, gtk.STYLE_PROVIDER_PRIORITY_USER+100)
+			}
+		}
+
 		window := gtk.NewApplicationWindow(app)
 		window.SetTitle("Control Panel")
 		window.SetDefaultSize(900, 700)
