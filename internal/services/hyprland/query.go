@@ -172,8 +172,10 @@ func (q *Querier) ToggleSplitWindow(address string) error {
 }
 
 // MoveWindowToWorkspace moves the window with the given address to the specified workspace.
+// Hyprland expects: movetoworkspace [workspace], address:[window]
 func (q *Querier) MoveWindowToWorkspace(address string, id int) error {
-	_, err := q.cmd.Run("dispatch", "movetoworkspace", strconv.Itoa(id), "address:"+address)
+	selector := fmt.Sprintf("%d, address:%s", id, address)
+	_, err := q.cmd.Run("dispatch", "movetoworkspace", selector)
 	return err
 }
 
