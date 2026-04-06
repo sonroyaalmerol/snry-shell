@@ -400,8 +400,8 @@ func (o *OSK) build() {
 	closeBtn.SetVAlign(gtk.AlignStart)
 	closeBtn.ConnectClicked(func() {
 		o.manualOff = true
-	})
 		o.hide()
+	})
 	
 	// Floating back button — top-left corner, shown only in panel views.
 	backBtn := gtk.NewButton()

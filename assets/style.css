@@ -107,6 +107,7 @@
     --spacing-xxl: 48px;
 
     all: unset;
+    cursor: none;
     font-family: "Google Sans Flex", "Google Sans", sans-serif;
     font-size: 13px;
 }
