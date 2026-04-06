@@ -1153,10 +1153,11 @@ scale.m3-scale slider {
     color: @col_on_surface;
 }
 
-/* Utility row close button — smaller, rounder */
-.osk-key-util-close {
-    min-width: 46px;
-    border-radius: var(--radius-xl);
+/* Utility icon buttons in bottom key row (emoji, clipboard, close) */
+.osk-key-util-icon {
+    min-width: 42px;
+    min-height: 44px;
+    border-radius: var(--radius-full);
 }
 
 /* ── Region selector ────────────────────────────────────────────────────────── */

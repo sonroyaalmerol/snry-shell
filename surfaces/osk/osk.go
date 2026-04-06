@@ -451,17 +451,12 @@ func (o *OSK) buildKeyboard(parent *gtk.Box) {
 		{label: "↓", key: "Down", class: "osk-key-arrow"},
 		{label: "↑", key: "Up", class: "osk-key-arrow"},
 		{label: "→", key: "Right", class: "osk-key-arrow"},
+		{label: "emoji_emotions", action: "emoji", class: "osk-key-util-icon", special: true},
+		{label: "content_paste", action: "clipboard", class: "osk-key-util-icon", special: true},
+		{label: "close", action: "close", class: "osk-key-util-icon", special: true},
 	}
 
-	// Bottom utility row: emoji, clipboard, spacer, close.
-	row5 := []keyDef{
-		{label: "emoji_emotions", action: "emoji", class: "osk-key-wide", special: true},
-		{label: "content_paste", action: "clipboard", class: "osk-key-wide", special: true},
-		{label: "", class: "osk-key-util-spacer"},
-		{label: "close", action: "close", class: "osk-key-util-close", special: true},
-	}
-
-	for _, row := range [][]keyDef{numRow, row1, row2, row3, row4, row5} {
+	for _, row := range [][]keyDef{numRow, row1, row2, row3, row4} {
 		o.buildRow(parent, row)
 	}
 }
@@ -645,14 +640,6 @@ func (o *OSK) buildRow(parent *gtk.Box, defs []keyDef) {
 	box.SetHAlign(gtk.AlignCenter)
 
 	for _, d := range defs {
-		// Utility spacer — invisible expanding widget.
-		if d.class == "osk-key-util-spacer" {
-			spacer := gtk.NewBox(gtk.OrientationHorizontal, 0)
-			spacer.SetHExpand(true)
-			box.Append(spacer)
-			continue
-		}
-
 		btn := gtk.NewButton()
 		btn.AddCSSClass("osk-key")
 		if d.class != "" {
