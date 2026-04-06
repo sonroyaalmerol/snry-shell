@@ -53,7 +53,7 @@ func (b *Bar) buildLeft(refs *servicerefs.ServiceRefs) gtk.Widgetter {
 	box := gtk.NewBox(gtk.OrientationHorizontal, 0)
 	box.SetVAlign(gtk.AlignCenter)
 
-	box.Append(newWindowTitleWidget(b.bus))
+	box.Append(newWindowTitleWidget(b.bus, refs.Hyprland))
 	box.Append(barSeparator())
 
 	winMgmt := clickableBarGroup(newWindowMgmtIcon(), b.bus, "toggle-windowmgmt", b.monitor)

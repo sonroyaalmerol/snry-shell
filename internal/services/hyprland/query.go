@@ -137,6 +137,19 @@ func (q *Querier) ToggleSplit() error {
 	return err
 }
 
+// ActiveWindow returns the currently focused window's class and title.
+func (q *Querier) ActiveWindow() (HyprActiveWindow, error) {
+	out, err := q.cmd.Run("activewindow", "-j")
+	if err != nil {
+		return HyprActiveWindow{}, fmt.Errorf("hyprctl activewindow: %w", err)
+	}
+	var win HyprActiveWindow
+	if err := json.Unmarshal(out, &win); err != nil {
+		return HyprActiveWindow{}, fmt.Errorf("parse activewindow: %w", err)
+	}
+	return win, nil
+}
+
 // SetKeyword sets a Hyprland config option at runtime.
 func (q *Querier) SetKeyword(option, value string) error {
 	log.Printf("[HYPRLAND] keyword %s %s", option, value)

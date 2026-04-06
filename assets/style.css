@@ -202,7 +202,7 @@ scale.m3-scale slider {
 
 .bar {
     background-color: @col_surface;
-    min-height: 40px;
+    min-height: 52px;
     padding: 0 6px;
 }
 

@@ -1,4 +1,4 @@
 package layershell
 
 // Default exclusive zones for shell surfaces.
-const BarExclusiveZone = 56
+const BarExclusiveZone = 52

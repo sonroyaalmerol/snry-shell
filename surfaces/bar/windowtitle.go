@@ -4,10 +4,11 @@ import (
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/sonroyaalmerol/snry-shell/internal/bus"
+	"github.com/sonroyaalmerol/snry-shell/internal/services/hyprland"
 	"github.com/sonroyaalmerol/snry-shell/internal/state"
 )
 
-func newWindowTitleWidget(b *bus.Bus) gtk.Widgetter {
+func newWindowTitleWidget(b *bus.Bus, q *hyprland.Querier) gtk.Widgetter {
 	box := gtk.NewBox(gtk.OrientationVertical, 0)
 	box.AddCSSClass("window-title-box")
 
@@ -24,11 +25,22 @@ func newWindowTitleWidget(b *bus.Bus) gtk.Widgetter {
 	box.Append(classLabel)
 	box.Append(titleLabel)
 
+	updateLabels := func(win state.ActiveWindow) {
+		classLabel.SetText(win.Class)
+		titleLabel.SetText(win.Title)
+	}
+
+	// Seed initial state from hyprctl.
+	glib.IdleAdd(func() {
+		if w, err := q.ActiveWindow(); err == nil {
+			updateLabels(state.ActiveWindow{Class: w.Class, Title: w.Title})
+		}
+	})
+
 	b.Subscribe(bus.TopicActiveWindow, func(e bus.Event) {
 		win := e.Data.(state.ActiveWindow)
 		glib.IdleAdd(func() {
-			classLabel.SetText(win.Class)
-			titleLabel.SetText(win.Title)
+			updateLabels(win)
 		})
 	})
 
