@@ -15,7 +15,7 @@ type HyprClient struct {
 		ID int `json:"id"`
 	} `json:"workspace"`
 	PID     int    `json:"pid"`
-	Monitor string `json:"monitor"`
+	Monitor int    `json:"monitor"`
 }
 
 type HyprMonitor struct {
