@@ -64,6 +64,15 @@ func newWindowTitleWidget(b *bus.Bus, q *hyprland.Querier, mon *gdk.Monitor) gtk
 	b.Subscribe(bus.TopicActiveWindow, func(e bus.Event) {
 		win := e.Data.(state.ActiveWindow)
 		glib.IdleAdd(func() {
+			if win.Class == "" && win.Title == "" {
+				// Transient empty state (e.g. overlay focus change).
+				// Re-query after a short delay to confirm.
+				glib.TimeoutAdd(150, func() bool {
+					refresh()
+					return false
+				})
+				return
+			}
 			updateLabels(win)
 		})
 	})
