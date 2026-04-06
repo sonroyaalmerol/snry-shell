@@ -28,7 +28,6 @@ import (
 	"github.com/sonroyaalmerol/snry-shell/internal/services/notifications"
 	"github.com/sonroyaalmerol/snry-shell/internal/services/pomodoro"
 	"github.com/sonroyaalmerol/snry-shell/internal/services/resources"
-	"github.com/sonroyaalmerol/snry-shell/internal/services/hyprgrass"
 	"github.com/sonroyaalmerol/snry-shell/internal/services/sni"
 	"github.com/sonroyaalmerol/snry-shell/internal/services/inputmode"
 	shellsettings "github.com/sonroyaalmerol/snry-shell/internal/settings"
@@ -103,7 +102,6 @@ func Run() int {
 	go refs.Pomodoro.Run(ctx)
 	go refs.InputMode.Run(ctx)
 	go refs.SNI.Run(ctx)
-	go hyprgrass.New(refs.Hyprland).Run(ctx)
 
 	// Notification daemon.
 	if sesConn != nil {
