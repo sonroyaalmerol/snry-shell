@@ -30,11 +30,17 @@ func newWindowTitleWidget(b *bus.Bus, q *hyprland.Querier) gtk.Widgetter {
 		titleLabel.SetText(win.Title)
 	}
 
-	// Seed initial state from hyprctl.
-	glib.IdleAdd(func() {
+	// Seed initial state from hyprctl and re-query on workspace changes
+	// to avoid stale empty titles from the activewindow event race.
+	refresh := func() {
 		if w, err := q.ActiveWindow(); err == nil {
 			updateLabels(state.ActiveWindow{Class: w.Class, Title: w.Title})
 		}
+	}
+	glib.IdleAdd(refresh)
+
+	b.Subscribe(bus.TopicWorkspaces, func(_ bus.Event) {
+		glib.IdleAdd(refresh)
 	})
 
 	b.Subscribe(bus.TopicActiveWindow, func(e bus.Event) {
