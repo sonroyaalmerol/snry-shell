@@ -191,7 +191,7 @@ func installTouchCursorTracker(win *gtk.ApplicationWindow) {
 	legacy := gtk.NewEventControllerLegacy()
 	legacy.SetPropagationPhase(gtk.PhaseCapture)
 	legacy.ConnectEvent(func(ev gdk.Eventer) bool {
-		switch ev.EventType() {
+		switch gdk.BaseEvent(ev).EventType() {
 		case gdk.TouchBegin, gdk.TouchUpdate:
 			setTouchActive(true)
 		}
