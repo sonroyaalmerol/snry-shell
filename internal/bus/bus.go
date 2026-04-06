@@ -40,6 +40,8 @@ const (
 	TopicStore            Topic = "store"
 	TopicThemeChanged     Topic = "themechanged"
 	TopicSettingsChanged  Topic = "settingschanged"
+	TopicFontScale        Topic = "fontscale"
+	TopicDarkMode         Topic = "darkmode"
 )
 
 type Event struct {

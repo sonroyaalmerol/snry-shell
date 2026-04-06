@@ -146,38 +146,10 @@ func (s *Settings) buildBarPage() gtk.Widgetter {
 	page := gtk.NewBox(gtk.OrientationVertical, 12)
 	page.AddCSSClass("settings-page")
 
-	// Bar position dropdown.
-	posRow := gtk.NewBox(gtk.OrientationHorizontal, 8)
-	posRow.AddCSSClass("settings-row")
-
-	posLabel := gtk.NewLabel("Position")
-	posLabel.AddCSSClass("settings-label")
-	posLabel.SetHAlign(gtk.AlignStart)
-
-	posDrop := gtk.NewDropDownFromStrings([]string{"top", "bottom"})
-	posDrop.AddCSSClass("settings-dropdown")
-	posDrop.SetHExpand(true)
-
-	// Select current value.
-	for i, v := range []string{"top", "bottom"} {
-		if v == s.cfg.BarPosition {
-			posDrop.SetSelected(uint(i))
-			break
-		}
-	}
-
-	posDrop.ConnectActivate(func() {
-		idx := posDrop.Selected()
-		if idx >= 0 && idx < 2 {
-			options := []string{"top", "bottom"}
-			s.cfg.BarPosition = options[idx]
-			s.save()
-		}
-	})
-
-	posRow.Append(posLabel)
-	posRow.Append(posDrop)
-	page.Append(posRow)
+	// Bar settings - currently no configurable options
+	placeholder := gtk.NewLabel("Bar position settings have been removed.")
+	placeholder.AddCSSClass("settings-label")
+	page.Append(placeholder)
 
 	return page
 }

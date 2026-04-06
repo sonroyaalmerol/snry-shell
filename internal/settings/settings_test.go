@@ -11,9 +11,6 @@ func TestDefaultConfig(t *testing.T) {
 	if cfg.FontScale != 1.0 {
 		t.Fatalf("expected font scale 1.0, got %f", cfg.FontScale)
 	}
-	if cfg.BarPosition != "top" {
-		t.Fatalf("expected bar position 'top', got %q", cfg.BarPosition)
-	}
 	if !cfg.DarkMode {
 		t.Fatal("expected dark mode enabled by default")
 	}
@@ -29,7 +26,6 @@ func TestSaveAndLoad(t *testing.T) {
 	original := settings.DefaultConfig()
 	original.DoNotDisturb = true
 	original.FontScale = 1.2
-	original.BarPosition = "bottom"
 
 	if err := settings.Save(original); err != nil {
 		t.Fatalf("save: %v", err)
@@ -45,9 +41,6 @@ func TestSaveAndLoad(t *testing.T) {
 	if loaded.FontScale != 1.2 {
 		t.Fatalf("FontScale not persisted: got %f", loaded.FontScale)
 	}
-	if loaded.BarPosition != "bottom" {
-		t.Fatalf("BarPosition not persisted: got %q", loaded.BarPosition)
-	}
 }
 
 func TestLoadMissingReturnsDefaults(t *testing.T) {
@@ -60,9 +53,6 @@ func TestLoadMissingReturnsDefaults(t *testing.T) {
 	}
 	if cfg.FontScale != 1.0 {
 		t.Fatalf("expected default FontScale 1.0, got %f", cfg.FontScale)
-	}
-	if cfg.BarPosition != "top" {
-		t.Fatalf("expected default BarPosition 'top', got %q", cfg.BarPosition)
 	}
 }
 

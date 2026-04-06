@@ -98,16 +98,6 @@ func (s *shellConfigProvider) buildAppearanceSection() gtk.Widgetter {
 	// Separator
 	card.Append(gtkutil.M3Divider())
 
-	// Bar position dropdown
-	barPosRow := s.buildDropdownRow("Bar Position", "Position of the status bar", []string{"top", "bottom"}, s.cfg.BarPosition, func(value string) {
-		s.cfg.BarPosition = value
-		s.Save()
-	})
-	card.Append(barPosRow)
-
-	// Separator
-	card.Append(gtkutil.M3Divider())
-
 	// Font scale using m3-scale slider
 	fontScaleRow := s.buildSliderRow("Font Scale", "Adjust text size", 0.5, 2.0, 0.1, s.cfg.FontScale, func(value float64) {
 		s.cfg.FontScale = value

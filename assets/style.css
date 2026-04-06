@@ -57,27 +57,30 @@
     --radius-full:  28px;
     --radius-pill:  9999px;
 
-    /* Typography scale */
-    --typescale-label-sm:    10px;
-    --typescale-label-md:    11px;
-    --typescale-body-sm:     12px;
-    --typescale-body-md:     13px;
-    --typescale-body-lg:     14px;
-    --typescale-title-sm:    15px;
-    --typescale-title-md:    17px;
-    --typescale-title-lg:    18px;
-    --typescale-headline-sm: 20px;
-    --typescale-headline-md: 22px;
-    --typescale-headline-lg: 24px;
-    --typescale-display-sm:  28px;
-    --typescale-display-md:  32px;
-    --typescale-display-lg:  72px;
+    /* Font scale factor - modified at runtime */
+    --font-scale: 1.0;
 
-    /* Material Symbols sizes */
-    --icon-sm:  18px;
-    --icon-md:  20px;
-    --icon-lg:  24px;
-    --icon-xl:  32px;
+    /* Typography scale (base values, multiplied by --font-scale) */
+    --typescale-label-sm:    calc(10px * var(--font-scale));
+    --typescale-label-md:    calc(11px * var(--font-scale));
+    --typescale-body-sm:     calc(12px * var(--font-scale));
+    --typescale-body-md:     calc(13px * var(--font-scale));
+    --typescale-body-lg:     calc(14px * var(--font-scale));
+    --typescale-title-sm:    calc(15px * var(--font-scale));
+    --typescale-title-md:    calc(17px * var(--font-scale));
+    --typescale-title-lg:    calc(18px * var(--font-scale));
+    --typescale-headline-sm: calc(20px * var(--font-scale));
+    --typescale-headline-md: calc(22px * var(--font-scale));
+    --typescale-headline-lg: calc(24px * var(--font-scale));
+    --typescale-display-sm:  calc(28px * var(--font-scale));
+    --typescale-display-md:  calc(32px * var(--font-scale));
+    --typescale-display-lg:  calc(72px * var(--font-scale));
+
+    /* Material Symbols sizes (scale with font) */
+    --icon-sm:  calc(18px * var(--font-scale));
+    --icon-md:  calc(20px * var(--font-scale));
+    --icon-lg:  calc(24px * var(--font-scale));
+    --icon-xl:  calc(32px * var(--font-scale));
 
     /* Motion durations */
     --duration-short1:  80ms;
