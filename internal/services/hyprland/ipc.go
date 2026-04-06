@@ -108,7 +108,7 @@ func (s *Service) handleEvent(event, data string) {
 	case "activewindow", "activewindowv2":
 		s.bus.Publish(bus.TopicActiveWindow, parseActiveWindowEvent(data))
 
-	case "openwindow":
+	case "openwindow", "openwindowv2":
 		// Format: "windowaddress,workspaceid,class,title"
 		parts := strings.SplitN(data, ",", 4)
 		if len(parts) >= 3 {
@@ -125,7 +125,7 @@ func (s *Service) handleEvent(event, data string) {
 			s.publishWorkspace(wsID)
 		}
 
-	case "closewindow":
+	case "closewindow", "closewindowv2":
 		addr := strings.TrimSpace(data)
 		if wsID, ok := s.windows[addr]; ok {
 			delete(s.windows, addr)
@@ -138,7 +138,7 @@ func (s *Service) handleEvent(event, data string) {
 			s.publishWorkspace(wsID)
 		}
 
-	case "movewindow":
+	case "movewindow", "movewindowv2":
 		// Format: "windowaddress,workspaceid"
 		parts := strings.SplitN(data, ",", 2)
 		if len(parts) == 2 {
