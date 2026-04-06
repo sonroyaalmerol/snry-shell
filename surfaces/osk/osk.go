@@ -3,7 +3,10 @@
 package osk
 
 import (
+	"context"
+	"encoding/json"
 	"log"
+	"os"
 	"os/exec"
 	"strings"
 	"sync"
@@ -26,6 +29,7 @@ type OSK struct {
 	ctrlL         bool
 	altL          bool
 	hasTouch      bool
+	tabletMode    bool // dynamic: true when no physical keyboard (tablet/convertible folded)
 	manualOff     bool
 	visible       bool
 	fullscreen    bool
@@ -51,7 +55,7 @@ type keyButton struct {
 	shifted string
 }
 
-func New(app *gtk.Application, b *bus.Bus) *OSK {
+func New(app *gtk.Application, b *bus.Bus, ctx context.Context) *OSK {
 	win := layershell.NewWindow(app, layershell.WindowConfig{
 		Name:         "snry-osk",
 		Layer:        layershell.LayerOverlay,
@@ -78,6 +82,8 @@ func New(app *gtk.Application, b *bus.Bus) *OSK {
 	})
 
 	osk.hasTouch = detectTouchDevice()
+	osk.tabletMode = detectTabletMode()
+	go osk.pollTabletMode(ctx)
 
 	b.Subscribe(bus.TopicSystemControls, func(e bus.Event) {
 		action, _ := e.Data.(string)
@@ -180,8 +186,8 @@ func (o *OSK) updateViewButtons() {
 }
 
 func (o *OSK) scheduleFocusUpdate(want bool) {
-	want = o.hasTouch && want
-	log.Printf("[OSK] focus: want=%v touch=%v", want, o.hasTouch)
+	want = o.tabletMode && want
+	log.Printf("[OSK] focus: want=%v tablet=%v", want, o.tabletMode)
 
 	if o.debounce != nil {
 		o.debounce.Stop()
@@ -250,6 +256,122 @@ func detectTouchDevice() bool {
 	found := len(after) > 0 && after[0] != ']'
 	log.Printf("[OSK] touch detect (hyprctl): %v", found)
 	return found
+}
+
+// tabletModeSwitchPaths lists sysfs paths where convertibles expose their
+// tablet-mode-switch state (1 = tablet/folded, 0 = laptop).
+var tabletModeSwitchPaths = []string{
+	"/sys/devices/platform/thinkpad_acpi/tablet_mode",
+	"/sys/bus/platform/devices/thinkpad_acpi/tablet_mode",
+}
+
+// virtualKeyboardPatterns matches device names that are NOT real physical keyboards.
+var virtualKeyboardPatterns = []string{
+	"power-button",
+	"sleep-button",
+	"lid-switch",
+	"ydotoold",
+	"virtual",
+}
+
+// logindTabletMode queries systemd-logind's TabletMode property.
+// Returns (true, true) if tablet mode is enabled, (true, false) if disabled,
+// or (false, false) if logind is unavailable.
+func logindTabletMode() (detected, tabletMode bool) {
+	sessionID := os.Getenv("XDG_SESSION_ID")
+	if sessionID == "" {
+		return false, false
+	}
+	out, err := exec.Command("loginctl", "show-session", sessionID, "-p", "TabletMode", "--value").Output()
+	if err != nil {
+		return false, false
+	}
+	switch strings.TrimSpace(string(out)) {
+	case "enabled":
+		return true, true
+	case "disabled":
+		return true, false
+	default: // empty/"indeterminate" — logind can't determine, fall through
+		return false, false
+	}
+}
+
+// detectTabletMode returns true if the device is in tablet mode.
+// Priority: logind TabletMode > sysfs tablet-mode-switch > hyprctl keyboard presence.
+func detectTabletMode() bool {
+	// 1. Check logind TabletMode property (universal: ThinkPad, Surface, HP, Dell).
+	if detected, mode := logindTabletMode(); detected {
+		log.Printf("[OSK] tablet mode (logind): %v", mode)
+		return mode
+	}
+
+	// 2. Check sysfs tablet-mode-switch (secondary for specific hardware).
+	for _, p := range tabletModeSwitchPaths {
+		if data, err := os.ReadFile(p); err == nil {
+			mode := strings.TrimSpace(string(data)) == "1"
+			log.Printf("[OSK] tablet mode (sysfs %s): %v", p, mode)
+			return mode
+		}
+	}
+	// 2. Fall back to keyboard presence via hyprctl.
+	out, err := exec.Command("hyprctl", "devices", "-j").Output()
+	if err != nil {
+		log.Printf("[OSK] hyprctl devices failed: %v", err)
+		return false
+	}
+	tablet := !hasPhysicalKeyboard(out)
+	log.Printf("[OSK] tablet mode (keyboard presence): %v", tablet)
+	return tablet
+}
+
+// hasPhysicalKeyboard parses hyprctl devices JSON and returns true if the
+// main keyboard is a physical (non-virtual) device.
+func hasPhysicalKeyboard(out []byte) bool {
+	var devices struct {
+		Keyboards []struct {
+			Name string `json:"name"`
+			Main bool   `json:"main"`
+		} `json:"keyboards"`
+	}
+	if err := json.Unmarshal(out, &devices); err != nil {
+		log.Printf("[OSK] parse hyprctl devices: %v", err)
+		return true // assume keyboard on parse error (safe default)
+	}
+	for _, kb := range devices.Keyboards {
+		if kb.Main && !isVirtualKeyboard(kb.Name) {
+			return true
+		}
+	}
+	return false
+}
+
+func isVirtualKeyboard(name string) bool {
+	lower := strings.ToLower(name)
+	for _, pat := range virtualKeyboardPatterns {
+		if strings.Contains(lower, pat) {
+			return true
+		}
+	}
+	return false
+}
+
+// pollTabletMode checks tablet mode state every 2 seconds and updates
+// the tabletMode field when it changes.
+func (o *OSK) pollTabletMode(ctx context.Context) {
+	ticker := time.NewTicker(2 * time.Second)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			mode := detectTabletMode()
+			if o.tabletMode != mode {
+				log.Printf("[OSK] tablet mode changed: %v → %v", o.tabletMode, mode)
+				o.tabletMode = mode
+			}
+		}
+	}
 }
 
 // emojiData holds all emoji organised by category for the picker panel.

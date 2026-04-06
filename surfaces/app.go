@@ -173,7 +173,7 @@ func Run() int {
 		lockscreen.New(app, b)
 		mediaoverlay.New(app, b, refs.Mpris)
 		notifpopup.New(app, b)
-		osk.New(app, b)
+		osk.New(app, b, ctx)
 		regionselector.New(app, b)
 		cheatsheet.New(app, b)
 		settings.New(app, b)
