@@ -2,7 +2,7 @@ package state
 
 import "time"
 
-type Workspace struct { ID int; Name string; Active bool; Occupied bool; Icon string }
+type Workspace struct { ID int; Name string; Active bool; Occupied bool; Classes []string }
 type ActiveWindow struct { Class string; Title string }
 type AudioSink struct { Name string; Volume float64; Muted bool }
 type BatteryState struct { Percentage float64; Charging bool; Present bool }

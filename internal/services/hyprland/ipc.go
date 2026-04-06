@@ -46,27 +46,26 @@ func (s *socketReader) Read() (string, string, error) {
 
 // Service listens to Hyprland socket2 events and publishes them on the bus.
 type Service struct {
-	reader         EventReader
-	bus            *bus.Bus
-	windows        map[string]int    // window address → workspace ID
-	windowClasses  map[string]string // window address → class name
-	workspaces     map[int]int       // wsID → window count
-	workspaceIcons map[int]string    // wsID → first window class
+	reader        EventReader
+	bus           *bus.Bus
+	windows       map[string]int    // window address → workspace ID
+	windowClasses map[string]string // window address → class name
+	workspaces    map[int]int       // wsID → window count
+	wsClasses     map[int][]string  // wsID → window classes
 }
 
 func New(reader EventReader, b *bus.Bus) *Service {
 	return &Service{
-		reader:         reader,
-		bus:            b,
-		windows:        make(map[string]int),
-		windowClasses:  make(map[string]string),
-		workspaces:     make(map[int]int),
-		workspaceIcons: make(map[int]string),
+		reader:        reader,
+		bus:           b,
+		windows:       make(map[string]int),
+		windowClasses: make(map[string]string),
+		workspaces:    make(map[int]int),
+		wsClasses:     make(map[int][]string),
 	}
 }
 
 // SeedClients populates internal tracking maps from an initial client listing.
-// Call before Run to ensure workspace events carry correct state from startup.
 func (s *Service) SeedClients(clients []HyprClient) {
 	for _, c := range clients {
 		wsID := c.Workspace.ID
@@ -74,23 +73,8 @@ func (s *Service) SeedClients(clients []HyprClient) {
 		s.windows[addr] = wsID
 		s.windowClasses[addr] = c.Class
 		s.workspaces[wsID]++
-		if _, ok := s.workspaceIcons[wsID]; !ok {
-			s.workspaceIcons[wsID] = c.Class
-		}
+		s.wsClasses[wsID] = append(s.wsClasses[wsID], c.Class)
 	}
-}
-
-// firstClassOnWorkspace returns the class of the first window found on the
-// given workspace, or "" if empty.
-func (s *Service) firstClassOnWorkspace(wsID int) string {
-	for addr, wID := range s.windows {
-		if wID == wsID {
-			if class, ok := s.windowClasses[addr]; ok {
-				return class
-			}
-		}
-	}
-	return ""
 }
 
 func (s *Service) Run(ctx context.Context) error {
@@ -116,14 +100,13 @@ func (s *Service) handleEvent(event, data string) {
 	case "workspace", "workspacev2":
 		ws := parseWorkspaceEvent(data)
 		ws.Occupied = s.workspaces[ws.ID] > 0
-		ws.Icon = s.workspaceIcons[ws.ID]
+		ws.Classes = s.wsClasses[ws.ID]
 		s.bus.Publish(bus.TopicWorkspaces, ws)
 
 	case "activewindow", "activewindowv2":
 		s.bus.Publish(bus.TopicActiveWindow, parseActiveWindowEvent(data))
 
 	case "openwindow", "openwindowv2":
-		// Format: "windowaddress,workspaceid,class,title"
 		parts := strings.SplitN(data, ",", 4)
 		if len(parts) >= 3 {
 			addr := parts[0]
@@ -133,51 +116,36 @@ func (s *Service) handleEvent(event, data string) {
 			s.windows[addr] = wsID
 			s.windowClasses[addr] = class
 			s.workspaces[wsID]++
-			if _, ok := s.workspaceIcons[wsID]; !ok {
-				s.workspaceIcons[wsID] = class
-			}
+			s.wsClasses[wsID] = append(s.wsClasses[wsID], class)
 			s.publishWorkspace(wsID)
 		}
 
 	case "closewindow", "closewindowv2":
 		addr := strings.TrimSpace(data)
 		if wsID, ok := s.windows[addr]; ok {
+			class := s.windowClasses[addr]
 			delete(s.windows, addr)
 			delete(s.windowClasses, addr)
 			s.workspaces[wsID]--
-			if s.workspaces[wsID] <= 0 {
-				delete(s.workspaces, wsID)
-				delete(s.workspaceIcons, wsID)
-			} else {
-				s.workspaceIcons[wsID] = s.firstClassOnWorkspace(wsID)
-			}
+			s.removeWorkspaceClass(wsID, class)
 			s.publishWorkspace(wsID)
 		}
 
 	case "movewindow", "movewindowv2":
-		// Format: "windowaddress,workspaceid"
 		parts := strings.SplitN(data, ",", 2)
 		if len(parts) == 2 {
 			addr := parts[0]
 			var destID int
 			fmt.Sscanf(parts[1], "%d", &destID)
 			if srcID, ok := s.windows[addr]; ok {
+				class := s.windowClasses[addr]
 				s.workspaces[srcID]--
-				if s.workspaces[srcID] <= 0 {
-					delete(s.workspaces, srcID)
-					delete(s.workspaceIcons, srcID)
-				} else {
-					s.workspaceIcons[srcID] = s.firstClassOnWorkspace(srcID)
-				}
+				s.removeWorkspaceClass(srcID, class)
 				s.publishWorkspace(srcID)
 			}
 			s.windows[addr] = destID
 			s.workspaces[destID]++
-			if _, ok := s.workspaceIcons[destID]; !ok {
-				if class, ok := s.windowClasses[addr]; ok {
-					s.workspaceIcons[destID] = class
-				}
-			}
+			s.wsClasses[destID] = append(s.wsClasses[destID], s.windowClasses[addr])
 			s.publishWorkspace(destID)
 		}
 
@@ -189,16 +157,29 @@ func (s *Service) handleEvent(event, data string) {
 	}
 }
 
+// removeWorkspaceClass removes one occurrence of class from the workspace's class list.
+func (s *Service) removeWorkspaceClass(wsID int, class string) {
+	classes := s.wsClasses[wsID]
+	for i, c := range classes {
+		if c == class {
+			s.wsClasses[wsID] = append(classes[:i], classes[i+1:]...)
+			break
+		}
+	}
+	if len(s.wsClasses[wsID]) == 0 {
+		delete(s.wsClasses, wsID)
+	}
+}
+
 func (s *Service) publishWorkspace(wsID int) {
 	s.bus.Publish(bus.TopicWorkspaces, state.Workspace{
 		ID:       wsID,
 		Occupied: s.workspaces[wsID] > 0,
-		Icon:     s.workspaceIcons[wsID],
+		Classes:  s.wsClasses[wsID],
 	})
 }
 
 func parseWorkspaceEvent(data string) state.Workspace {
-	// workspacev2 format: "id,name"
 	id, name, _ := strings.Cut(data, ",")
 	ws := state.Workspace{Name: name, Active: true}
 	fmt.Sscanf(id, "%d", &ws.ID)

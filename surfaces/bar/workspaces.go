@@ -95,18 +95,16 @@ func (w *workspacesWidget) populateInitialIcons() {
 	if err != nil {
 		return
 	}
-	firstClass := make(map[int]string)
+	firstClass := make(map[int][]string)
 	for _, c := range clients {
 		wsID := c.Workspace.ID
 		if wsID < 1 || wsID > maxWorkspacePills {
 			continue
 		}
-		if _, ok := firstClass[wsID]; !ok {
-			firstClass[wsID] = c.Class
-		}
+		firstClass[wsID] = append(firstClass[wsID], c.Class)
 	}
-	for wsID, class := range firstClass {
-		w.setIcon(wsID-1, class)
+	for wsID, classes := range firstClass {
+		w.setIcon(wsID-1, classes)
 	}
 }
 
@@ -127,7 +125,7 @@ func (w *workspacesWidget) update(ws state.Workspace) {
 			} else {
 				pill.RemoveCSSClass("occupied")
 			}
-			w.setIcon(i, ws.Icon)
+			w.setIcon(i, ws.Classes)
 		} else if ws.Active {
 			pill.RemoveCSSClass("active")
 		}
@@ -161,24 +159,27 @@ func (w *workspacesWidget) resolveIcon(class string) string {
 	return ""
 }
 
-func (w *workspacesWidget) setIcon(idx int, class string) {
+func (w *workspacesWidget) setIcon(idx int, classes []string) {
 	img := w.icons[idx]
 	lbl := w.labels[idx]
-	if class == "" {
+	if len(classes) == 0 {
 		img.SetVisible(false)
 		img.SetFromIconName("")
 		lbl.SetVisible(true)
 		return
 	}
-	icon := w.resolveIcon(class)
-	if icon == "" {
-		img.SetVisible(false)
-		img.SetFromIconName("")
-		lbl.SetVisible(true)
-		return
+	// Pick the first class that has a valid icon.
+	for _, class := range classes {
+		if icon := w.resolveIcon(class); icon != "" {
+			img.SetFromIconName(icon)
+			img.SetPixelSize(16)
+			img.SetVisible(true)
+			lbl.SetVisible(false)
+			return
+		}
 	}
-	img.SetFromIconName(icon)
-	img.SetPixelSize(16)
-	img.SetVisible(true)
-	lbl.SetVisible(false)
+	// No class had a valid icon; show number.
+	img.SetVisible(false)
+	img.SetFromIconName("")
+	lbl.SetVisible(true)
 }
