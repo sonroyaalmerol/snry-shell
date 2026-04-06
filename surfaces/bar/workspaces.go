@@ -2,6 +2,7 @@ package bar
 
 import (
 	"fmt"
+	"log"
 	"strings"
 
 	"github.com/diamondburned/gotk4/pkg/gdk/v4"
@@ -15,19 +16,18 @@ import (
 const maxWorkspacePills = 10
 
 type workspacesWidget struct {
-	box      *gtk.Box
-	pills    []*gtk.Button
-	labels   []*gtk.Label
-	icons    []*gtk.Image
-	querier  *hyprland.Querier
-	iconSize int
+	box     *gtk.Box
+	pills   []*gtk.Button
+	labels  []*gtk.Label
+	icons   []*gtk.Image
+	querier *hyprland.Querier
+	theme   *gtk.IconTheme
 }
 
 func newWorkspacesWidget(b *bus.Bus, querier *hyprland.Querier) gtk.Widgetter {
 	w := &workspacesWidget{
-		box:      gtk.NewBox(gtk.OrientationHorizontal, 0),
-		querier:  querier,
-		iconSize: 16,
+		box:     gtk.NewBox(gtk.OrientationHorizontal, 0),
+		querier: querier,
 	}
 	w.box.AddCSSClass("workspaces")
 	w.box.SetVAlign(gtk.AlignCenter)
@@ -36,14 +36,14 @@ func newWorkspacesWidget(b *bus.Bus, querier *hyprland.Querier) gtk.Widgetter {
 		id := i + 1
 
 		image := gtk.NewImage()
-		image.SetPixelSize(w.iconSize)
-		image.SetIconSize(gtk.IconSizeNormal)
+		image.SetPixelSize(16)
 		image.SetVisible(false)
 
 		label := gtk.NewLabel(fmt.Sprintf("%d", id))
 		label.AddCSSClass("workspace-pill-label")
 
 		box := gtk.NewBox(gtk.OrientationHorizontal, 0)
+		box.SetHAlign(gtk.AlignCenter)
 		box.SetVAlign(gtk.AlignCenter)
 		box.Append(image)
 		box.Append(label)
@@ -79,7 +79,36 @@ func newWorkspacesWidget(b *bus.Bus, querier *hyprland.Querier) gtk.Widgetter {
 		glib.IdleAdd(func() { w.update(ws) })
 	})
 
+	// Populate initial workspace icons from current clients.
+	glib.IdleAdd(w.populateInitialIcons)
+
 	return w.box
+}
+
+func (w *workspacesWidget) populateInitialIcons() {
+	w.theme = gtk.IconThemeGetForDisplay(gdk.DisplayGetDefault())
+	if w.querier == nil || w.theme == nil {
+		return
+	}
+	clients, err := w.querier.Clients()
+	if err != nil {
+		log.Printf("[bar] workspace icons: %v", err)
+		return
+	}
+	firstClass := make(map[int]string)
+	for _, c := range clients {
+		wsID := c.Workspace.ID
+		if wsID < 1 || wsID > maxWorkspacePills {
+			continue
+		}
+		if _, ok := firstClass[wsID]; !ok {
+			firstClass[wsID] = c.Class
+		}
+	}
+	for wsID, class := range firstClass {
+		idx := wsID - 1
+		w.setIcon(idx, class)
+	}
 }
 
 func (w *workspacesWidget) update(ws state.Workspace) {
@@ -115,26 +144,21 @@ func (w *workspacesWidget) setIcon(idx int, class string) {
 		lbl.SetVisible(true)
 		return
 	}
-
-	theme := gtk.IconThemeGetForDisplay(gdk.DisplayGetDefault())
-	if theme == nil {
+	if w.theme == nil {
+		w.theme = gtk.IconThemeGetForDisplay(gdk.DisplayGetDefault())
+	}
+	if w.theme == nil {
 		return
 	}
-	if theme.HasIcon(class) {
-		img.SetFromIconName(class)
+	// GTK icon names are always lowercase; Hyprland classes can be mixed case.
+	lower := strings.ToLower(class)
+	if w.theme.HasIcon(lower) {
+		img.SetFromIconName(lower)
 		img.SetVisible(true)
 		lbl.SetVisible(false)
 	} else {
-		// Try lowercase without spaces as fallback.
-		lower := strings.ToLower(strings.ReplaceAll(class, " ", "-"))
-		if lower != class && theme.HasIcon(lower) {
-			img.SetFromIconName(lower)
-			img.SetVisible(true)
-			lbl.SetVisible(false)
-		} else {
-			img.SetVisible(false)
-			img.SetFromIconName("")
-			lbl.SetVisible(true)
-		}
+		img.SetVisible(false)
+		img.SetFromIconName("")
+		lbl.SetVisible(true)
 	}
 }
