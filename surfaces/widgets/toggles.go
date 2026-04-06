@@ -9,6 +9,7 @@ import (
 	"github.com/sonroyaalmerol/snry-shell/internal/bus"
 	"github.com/sonroyaalmerol/snry-shell/internal/gtkutil"
 	"github.com/sonroyaalmerol/snry-shell/internal/servicerefs"
+	"github.com/sonroyaalmerol/snry-shell/internal/settings"
 	"github.com/sonroyaalmerol/snry-shell/internal/state"
 )
 
@@ -31,6 +32,12 @@ func newInputModeControl(b *bus.Bus) gtk.Widgetter {
 
 	setting := false
 
+	// Load saved mode from settings
+	savedMode := settings.DefaultConfig().InputMode
+	if cfg, err := settings.Load(); err == nil && cfg.InputMode != "" {
+		savedMode = cfg.InputMode
+	}
+
 	for i := range segments {
 		seg := &segments[i]
 		btn := gtk.NewToggleButton()
@@ -51,7 +58,10 @@ func newInputModeControl(b *bus.Bus) gtk.Widgetter {
 
 		if i > 0 {
 			btn.SetGroup(segments[0].btn)
-		} else {
+		}
+
+		// Set active based on saved mode
+		if seg.mode == savedMode {
 			btn.SetActive(true)
 		}
 
@@ -126,13 +136,13 @@ func NewQuickToggles(b *bus.Bus, refs *servicerefs.ServiceRefs) gtk.Widgetter {
 	grid.SetHExpand(true)
 
 	type toggleDef struct {
-		icon     string
-		label    string
-		topic    bus.Topic
-		requires string
+		icon      string
+		label     string
+		topic     bus.Topic
+		requires  string
 		button    bool
 		segmented bool
-		toggle   func(active bool)
+		toggle    func(active bool)
 	}
 
 	binInPath := func(name string) bool {
@@ -161,13 +171,25 @@ func NewQuickToggles(b *bus.Bus, refs *servicerefs.ServiceRefs) gtk.Widgetter {
 			if active {
 				val = "0.3"
 			}
-			go func() { if err := exec.Command("hyprctl", "keyword", "decoration:dim_strength", val).Run(); err != nil { log.Printf("toggle anti-flash: %v", err) } }()
+			go func() {
+				if err := exec.Command("hyprctl", "keyword", "decoration:dim_strength", val).Run(); err != nil {
+					log.Printf("toggle anti-flash: %v", err)
+				}
+			}()
 		}},
 		{icon: "mic", label: "Mic Mute", requires: "wpctl", toggle: func(_ bool) {
-			go func() { if err := exec.Command("wpctl", "set-mute", "@DEFAULT_SOURCE@", "toggle").Run(); err != nil { log.Printf("toggle mic-mute: %v", err) } }()
+			go func() {
+				if err := exec.Command("wpctl", "set-mute", "@DEFAULT_SOURCE@", "toggle").Run(); err != nil {
+					log.Printf("toggle mic-mute: %v", err)
+				}
+			}()
 		}},
 		{icon: "equalizer", label: "EasyEffects", requires: "easyeffects", toggle: func(_ bool) {
-			go func() { if err := exec.Command("easyeffects", "-t").Run(); err != nil { log.Printf("toggle easyeffects: %v", err) } }()
+			go func() {
+				if err := exec.Command("easyeffects", "-t").Run(); err != nil {
+					log.Printf("toggle easyeffects: %v", err)
+				}
+			}()
 		}},
 		{icon: "notifications_off", label: "DND", topic: bus.TopicDND, toggle: func(active bool) {
 			b.Publish(bus.TopicDND, active)
@@ -177,23 +199,39 @@ func NewQuickToggles(b *bus.Bus, refs *servicerefs.ServiceRefs) gtk.Widgetter {
 			if active {
 				action = "open"
 			}
-			go func() { if err := exec.Command("hyprctl", "dispatch", "inhibit-activity", action).Run(); err != nil { log.Printf("toggle idle-off: %v", err) } }()
+			go func() {
+				if err := exec.Command("hyprctl", "dispatch", "inhibit-activity", action).Run(); err != nil {
+					log.Printf("toggle idle-off: %v", err)
+				}
+			}()
 		}},
 		{icon: "sports_esports", label: "GameMode", requires: "gamemoderectl", toggle: func(_ bool) {
-			go func() { if err := exec.Command("gamemoderectl", "-t").Run(); err != nil { log.Printf("toggle gamemode: %v", err) } }()
+			go func() {
+				if err := exec.Command("gamemoderectl", "-t").Run(); err != nil {
+					log.Printf("toggle gamemode: %v", err)
+				}
+			}()
 		}},
 		{icon: "speed", label: "Performance", requires: "powerprofilesctl", toggle: func(active bool) {
 			profile := "balanced"
 			if active {
 				profile = "performance"
 			}
-			go func() { if err := exec.Command("powerprofilesctl", "set", profile).Run(); err != nil { log.Printf("toggle performance: %v", err) } }()
+			go func() {
+				if err := exec.Command("powerprofilesctl", "set", profile).Run(); err != nil {
+					log.Printf("toggle performance: %v", err)
+				}
+			}()
 		}},
 		{icon: "screenshot", label: "Screenshot", button: true, toggle: func(_ bool) {
 			b.Publish(bus.TopicSystemControls, "toggle-region-selector")
 		}},
 		{icon: "colorize", label: "Color Pick", requires: "hyprpicker", button: true, toggle: func(_ bool) {
-			go func() { if err := exec.Command("hyprpicker").Run(); err != nil { log.Printf("color picker: %v", err) } }()
+			go func() {
+				if err := exec.Command("hyprpicker").Run(); err != nil {
+					log.Printf("color picker: %v", err)
+				}
+			}()
 		}},
 		{icon: "inputmode", label: "Input Mode", segmented: true},
 	}
@@ -222,11 +260,11 @@ func NewQuickToggles(b *bus.Bus, refs *servicerefs.ServiceRefs) gtk.Widgetter {
 		inner.Append(icon)
 		inner.Append(lbl)
 
-			if toggle.segmented {
-				ctrl := newInputModeControl(b)
-				grid.Attach(ctrl, col, row, 2, 1)
-				col++ // skip the second column
-			} else if toggle.button {
+		if toggle.segmented {
+			ctrl := newInputModeControl(b)
+			grid.Attach(ctrl, col, row, 2, 1)
+			col++ // skip the second column
+		} else if toggle.button {
 			btn := gtk.NewButton()
 			btn.SetCursorFromName("pointer")
 			btn.AddCSSClass("quick-toggle")
