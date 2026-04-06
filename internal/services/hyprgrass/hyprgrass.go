@@ -14,8 +14,12 @@ import (
 	"github.com/sonroyaalmerol/snry-shell/internal/services/hyprland"
 )
 
-// hyprpm plugin manifest path.
-const hyprpmRoot = ".local/share/hyprpm"
+const (
+	// hyprpm plugin manifest path.
+	hyprpmRoot = ".local/share/hyprpm"
+	// hyprpm per-user state file path (may be root-owned).
+	hyprpmStatePath = "/var/cache/hyprpm/%s/state.toml"
+)
 
 // Service manages hyprgrass plugin installation and loading.
 type Service struct {
@@ -83,13 +87,24 @@ func (s *Service) findPlugin(home string) string {
 	return ""
 }
 
-// install uses hyprpm to add and build the hyprgrass plugin.
+// install uses hyprpm to add and enable the hyprgrass plugin.
 func (s *Service) install(ctx context.Context, home string) (string, error) {
+	// Update headers to match current Hyprland version.
+	if err := runCmd(ctx, "hyprpm", "update"); err != nil {
+		log.Printf("[HYPRGRASS] hyprpm update failed (non-fatal): %v", err)
+	}
+	// Add the plugin repository.
 	if err := runCmd(ctx, "hyprpm", "add", "https://github.com/horriblename/hyprgrass"); err != nil {
+		// Likely "Headers outdated" due to root-owned state.toml.
+		home, _ := os.UserHomeDir()
+		user := filepath.Base(home)
+		statePath := fmt.Sprintf(hyprpmStatePath, user)
+		log.Printf("[HYPRGRASS] hyprpm add failed. Try: sudo chown %s %s", os.Getenv("USER"), statePath)
 		return "", fmt.Errorf("hyprpm add: %w", err)
 	}
-	if err := runCmd(ctx, "hyprpm", "ensure"); err != nil {
-		return "", fmt.Errorf("hyprpm ensure: %w", err)
+	// Enable the plugin so it builds and gets loaded.
+	if err := runCmd(ctx, "hyprpm", "enable", "hyprgrass"); err != nil {
+		return "", fmt.Errorf("hyprpm enable: %w", err)
 	}
 	path := s.findPlugin(home)
 	if path == "" {
