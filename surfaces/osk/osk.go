@@ -385,6 +385,8 @@ func (o *OSK) build() {
 	closeLbl.AddCSSClass("osk-key-label")
 	closeLbl.AddCSSClass("material-icon")
 	closeBtn.SetChild(closeLbl)
+	closeBtn.SetHAlign(gtk.AlignEnd)
+	closeBtn.SetVAlign(gtk.AlignStart)
 	closeBtn.ConnectClicked(func() {
 		o.manualOff = true
 		o.hide()
