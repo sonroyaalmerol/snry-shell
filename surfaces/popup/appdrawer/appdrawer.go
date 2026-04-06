@@ -197,7 +197,7 @@ func newAppTile(app launcher.App, iconSize int, onLaunch func()) *gtk.Box {
 		iconName = "application-x-executable"
 	}
 	icon.SetFromIconName(iconName)
-	icon.SetIconSize(6) // gtk.IconSizeLarge (48px base, auto-scales with DPI)
+	icon.SetIconSize(gtk.IconSizeLarge)
 	icon.AddCSSClass("appdrawer-tile-icon")
 
 	label := gtk.NewLabel(app.Name)
