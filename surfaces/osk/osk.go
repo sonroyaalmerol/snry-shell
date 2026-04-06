@@ -39,6 +39,7 @@ type OSK struct {
 	clipboardBtn  *gtk.Button           // toolbar clipboard button
 	clipboardList *gtk.Box              // clipboard list widget for refresh
 	emojiGrid     *gtk.FlowBox          // emoji grid for search filtering
+	backBtn       *gtk.Button           // floating back-to-keyboard button
 	mu            sync.Mutex
 	debounce      *time.Timer           // coalesces rapid focus events
 }
@@ -170,6 +171,11 @@ func (o *OSK) updateViewButtons() {
 		} else {
 			o.clipboardBtn.RemoveCSSClass(cls)
 		}
+	}
+	if o.backBtn != nil {
+		glib.IdleAdd(func() {
+			o.backBtn.SetVisible(o.viewMode != "keyboard")
+		})
 	}
 }
 
@@ -394,11 +400,28 @@ func (o *OSK) build() {
 	closeBtn.SetVAlign(gtk.AlignStart)
 	closeBtn.ConnectClicked(func() {
 		o.manualOff = true
-		o.hide()
 	})
+		o.hide()
+	
+	// Floating back button — top-left corner, shown only in panel views.
+	backBtn := gtk.NewButton()
+	backBtn.AddCSSClass("osk-close-float")
+	backBtn.SetCursorFromName("pointer")
+	backLbl := gtk.NewLabel("arrow_back")
+	backLbl.AddCSSClass("osk-key-label")
+	backLbl.AddCSSClass("material-icon")
+	backBtn.SetChild(backLbl)
+	backBtn.SetHAlign(gtk.AlignStart)
+	backBtn.SetVAlign(gtk.AlignStart)
+	backBtn.SetVisible(false)
+	backBtn.ConnectClicked(func() {
+		o.switchView("keyboard")
+	})
+	o.backBtn = backBtn
 	
 	root.SetChild(content)
 	root.AddOverlay(closeBtn)
+	root.AddOverlay(backBtn)
 	o.win.SetChild(root)
 	o.updateKeyLabels()
 
@@ -491,14 +514,6 @@ func (o *OSK) buildEmojiPanel() gtk.Widgetter {
 	box := gtk.NewBox(gtk.OrientationVertical, 0)
 	box.AddCSSClass("osk-panel")
 
-	search := gtk.NewSearchEntry()
-	search.AddCSSClass("osk-panel-search")
-	search.SetPlaceholderText("Search emoji...")
-	search.SetHExpand(true)
-	search.ConnectSearchChanged(func() {
-		o.populateEmojiGrid(strings.ToLower(search.Text()))
-	})
-
 	scroll := gtk.NewScrolledWindow()
 	scroll.SetVExpand(true)
 	scroll.SetPolicy(gtk.PolicyNever, gtk.PolicyAutomatic)
@@ -507,7 +522,6 @@ func (o *OSK) buildEmojiPanel() gtk.Widgetter {
 	o.emojiGrid = gtk.NewFlowBox()
 	o.emojiGrid.AddCSSClass("emoji-grid")
 	scroll.SetChild(o.emojiGrid)
-	box.Append(search)
 	box.Append(scroll)
 
 	o.populateEmojiGrid("")
@@ -567,33 +581,6 @@ func (o *OSK) buildClipboardPanel() gtk.Widgetter {
 	box := gtk.NewBox(gtk.OrientationVertical, 0)
 	box.AddCSSClass("osk-panel")
 
-	// Search bar.
-	searchBar := gtk.NewBox(gtk.OrientationHorizontal, 8)
-	searchBar.AddCSSClass("osk-clipboard-search")
-
-	search := gtk.NewSearchEntry()
-	search.AddCSSClass("osk-panel-search")
-	search.SetPlaceholderText("Search clipboard...")
-	search.SetHExpand(true)
-	search.ConnectSearchChanged(func() {
-		o.refreshClipboard(search.Text())
-	})
-
-	clearBtn := gtkutil.M3IconButton("delete_sweep", "clipboard-clear-btn")
-	clearBtn.SetTooltipText("Clear all")
-	clearBtn.ConnectClicked(func() {
-		go func() {
-			if err := exec.Command("cliphist", "wipe").Run(); err != nil {
-				log.Printf("clipboard clear: %v", err)
-				glib.IdleAdd(func() { gtkutil.ErrorDialog(o.win, "Clear failed", "Could not clear clipboard history.") })
-			}
-			glib.IdleAdd(func() { o.refreshClipboard("") })
-			}()
-		})
-
-	searchBar.Append(search)
-	searchBar.Append(clearBtn)
-	box.Append(searchBar)
 
 	// Scrollable list.
 	scroll := gtk.NewScrolledWindow()

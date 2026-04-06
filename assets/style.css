@@ -1105,21 +1105,6 @@ scale.m3-scale slider {
     padding: 2px 8px;
 }
 
-.osk-panel-search {
-    background-color: @col_surface_container_high;
-    border-radius: var(--radius-pill);
-    color: @col_on_surface;
-    font-size: var(--typescale-body-md);
-    caret-color: @col_primary;
-    border: none;
-    padding: 8px 14px;
-    margin: 4px 8px;
-}
-
-.osk-panel-search:focus-within {
-    box-shadow: 0 0 0 2px @col_primary;
-}
-
 .osk-panel-scroll > scrollbar {
     background-color: transparent;
     opacity: 0;
