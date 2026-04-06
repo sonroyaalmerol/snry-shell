@@ -163,50 +163,30 @@ func NewWindow(app *gtk.Application, cfg WindowConfig) *gtk.ApplicationWindow {
 	return win
 }
 
-// installTouchCursorTracker uses capture-phase event controllers on the window
-// to detect the input device source. When a touchscreen is active the cursor
-// is hidden and a "touch-active" CSS class is added to suppress :hover rules
-// (which GTK synthesizes from touch but never reliably clears). When a mouse
-// is active, the cursor is restored and "touch-active" is removed.
+// installTouchCursorTracker hides the cursor when a touchscreen is the active
+// input device and restores it on mouse motion.
 func installTouchCursorTracker(win *gtk.ApplicationWindow) {
 	noneCursor := gdk.NewCursorFromName("none", nil)
 	defaultCursor := gdk.NewCursorFromName("default", nil)
 
-	setTouchActive := func(active bool) {
-		// Always update the CSS class — this is the primary hover suppression mechanism.
-		if active {
-			win.AddCSSClass("touch-active")
-		} else {
-			win.RemoveCSSClass("touch-active")
-		}
-		// Cursor hiding is best-effort; BaseSurface handles any GdkSurface subtype.
-		if surfacer := win.Surface(); surfacer != nil {
-			surf := gdk.BaseSurface(surfacer)
-			if active {
-				surf.SetCursor(noneCursor)
-			} else {
-				surf.SetCursor(defaultCursor)
-			}
-		}
-	}
-
-	// Use a capture-phase motion controller to detect device source.
-	// ConnectEnter fires when the synthesized pointer enters a widget (which is
-	// what triggers :hover), so checking device source there lets us set
-	// touch-active before the hover state is rendered.
 	motion := gtk.NewEventControllerMotion()
 	motion.SetPropagationPhase(gtk.PhaseCapture)
-
-	checkDevice := func() {
+	motion.ConnectMotion(func(x, y float64) {
 		dr := motion.CurrentEventDevice()
 		if dr == nil {
 			return
 		}
-		setTouchActive(gdk.BaseDevice(dr).Source() == gdk.SourceTouchscreen)
-	}
-
-	motion.ConnectEnter(func(x, y float64) { checkDevice() })
-	motion.ConnectMotion(func(x, y float64) { checkDevice() })
+		surfacer := win.Surface()
+		if surfacer == nil {
+			return
+		}
+		surf := gdk.BaseSurface(surfacer)
+		if gdk.BaseDevice(dr).Source() == gdk.SourceTouchscreen {
+			surf.SetCursor(noneCursor)
+		} else {
+			surf.SetCursor(defaultCursor)
+		}
+	})
 	win.AddController(motion)
 }
 
