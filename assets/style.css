@@ -138,21 +138,21 @@
 scale.m3-scale trough {
     background-color: @col_surface_container_highest;
     border-radius: var(--radius-pill);
-    min-height: 20px;
+    min-height: 8px;
 }
 scale.m3-scale trough highlight {
     background-color: @col_primary;
-    border-radius: var(--radius-pill);
-    min-height: 20px;
+    border-radius: var(--radius-pill) 0 0 var(--radius-pill);
+    min-height: 8px;
 }
 scale.m3-scale slider {
-    background-color: @col_primary;
+    background-color: @col_surface;
     border-radius: 50%;
-    min-width: 20px;
-    min-height: 20px;
-    border: none;
-    box-shadow: none;
-    margin: -10px 0;
+    min-width: 16px;
+    min-height: 16px;
+    border: 4px solid @col_primary;
+    box-shadow: 0 1px 3px alpha(#000000, 0.3);
+    margin: -4px -8px;
 }
 /* Shared icon button base */
 .m3-icon-btn {
