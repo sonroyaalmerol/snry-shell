@@ -2,7 +2,9 @@ package widgets
 
 import (
 	"log"
+	"os"
 	"os/exec"
+	"path/filepath"
 
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
@@ -110,7 +112,19 @@ func NewQuickToggles(b *bus.Bus, refs *servicerefs.ServiceRefs) gtk.Widgetter {
 	settingsBtn.SetChild(gtkutil.MaterialIcon("settings"))
 	settingsBtn.ConnectClicked(func() {
 		go func() {
-			if err := exec.Command("snry-shell", "--control-panel").Start(); err != nil {
+			// Get the path to the current executable
+			exePath, err := os.Executable()
+			if err != nil {
+				log.Printf("get executable path: %v", err)
+				return
+			}
+			// Resolve symlinks to get the real path
+			exePath, err = filepath.EvalSymlinks(exePath)
+			if err != nil {
+				log.Printf("resolve executable path: %v", err)
+				return
+			}
+			if err := exec.Command(exePath, "--control-panel").Start(); err != nil {
 				log.Printf("launch control panel: %v", err)
 			}
 		}()
