@@ -112,18 +112,48 @@ func NewQuickToggles(b *bus.Bus, refs *servicerefs.ServiceRefs) gtk.Widgetter {
 	settingsBtn.SetChild(gtkutil.MaterialIcon("settings"))
 	settingsBtn.ConnectClicked(func() {
 		go func() {
-			// Get the path to the current executable
-			exePath, err := os.Executable()
-			if err != nil {
-				log.Printf("get executable path: %v", err)
+			// Try to find the snry-shell executable
+			var exePath string
+
+			// First try the current executable (works when binary is installed)
+			if currentExe, err := os.Executable(); err == nil {
+				if resolved, err := filepath.EvalSymlinks(currentExe); err == nil {
+					// Check if it's actually our binary by looking at the name
+					if filepath.Base(resolved) == "snry-shell" || filepath.Base(resolved) == "main" {
+						exePath = resolved
+					}
+				}
+			}
+
+			// If not found, try to find in PATH
+			if exePath == "" {
+				if pathExe, err := exec.LookPath("snry-shell"); err == nil {
+					exePath = pathExe
+				}
+			}
+
+			// If still not found, try common locations
+			if exePath == "" {
+				candidates := []string{
+					"/usr/local/bin/snry-shell",
+					"/usr/bin/snry-shell",
+					filepath.Join(os.Getenv("HOME"), ".local/bin/snry-shell"),
+					filepath.Join(os.Getenv("HOME"), "go/bin/snry-shell"),
+				}
+				for _, candidate := range candidates {
+					if _, err := os.Stat(candidate); err == nil {
+						exePath = candidate
+						break
+					}
+				}
+			}
+
+			if exePath == "" {
+				log.Printf("launch control panel: could not find snry-shell executable")
 				return
 			}
-			// Resolve symlinks to get the real path
-			exePath, err = filepath.EvalSymlinks(exePath)
-			if err != nil {
-				log.Printf("resolve executable path: %v", err)
-				return
-			}
+
+			log.Printf("launching control panel from: %s", exePath)
 			if err := exec.Command(exePath, "--control-panel").Start(); err != nil {
 				log.Printf("launch control panel: %v", err)
 			}
