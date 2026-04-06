@@ -211,7 +211,7 @@ func Run() int {
 		notifcenter.New(app, b, refs, bars[0].NotifTrigger)
 		wifi.New(app, b, refs, bars[0].WifiTrigger)
 		popupbluetooth.New(app, b, refs, bars[0].BtTrigger)
-		windowmgmt.New(app, b, refs, bars[0].WinMgmtTrigger)
+		windowmgmt.New(app, b, refs, bars[0].TitleTrigger)
 		calendar.New(app, b, refs, bars[0].ClockGroup)
 		osd.New(app, b)
 		session.New(app, b)

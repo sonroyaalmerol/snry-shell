@@ -1,16 +1,34 @@
 package bar
 
 import (
+	"github.com/diamondburned/gotk4/pkg/gdk/v4"
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/sonroyaalmerol/snry-shell/internal/bus"
 	"github.com/sonroyaalmerol/snry-shell/internal/services/hyprland"
 	"github.com/sonroyaalmerol/snry-shell/internal/state"
+	"github.com/sonroyaalmerol/snry-shell/internal/surfaceutil"
 )
 
-func newWindowTitleWidget(b *bus.Bus, q *hyprland.Querier) gtk.Widgetter {
+var newWindowTitleTrigger gtk.Widgetter
+
+func newWindowTitleWidget(b *bus.Bus, q *hyprland.Querier, mon *gdk.Monitor) gtk.Widgetter {
 	box := gtk.NewBox(gtk.OrientationVertical, 0)
 	box.AddCSSClass("window-title-box")
+	box.AddCSSClass("bar-group-clickable")
+	box.SetCursorFromName("pointer")
+
+	click := gtk.NewGestureClick()
+	click.SetButton(1)
+	click.ConnectReleased(func(_ int, _ float64, _ float64) {
+		b.Publish(bus.TopicPopupTrigger, surfaceutil.PopupTrigger{
+			Action: "toggle-windowmgmt", Trigger: box, Monitor: mon,
+		})
+		b.Publish(bus.TopicSystemControls, "toggle-windowmgmt")
+	})
+	box.AddController(click)
+
+	newWindowTitleTrigger = box
 
 	classLabel := gtk.NewLabel("")
 	classLabel.AddCSSClass("window-class")

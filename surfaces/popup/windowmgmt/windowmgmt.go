@@ -22,15 +22,14 @@ const (
 
 // WindowMgmt is a popup for touch-friendly window management actions.
 type WindowMgmt struct {
-	win        *gtk.ApplicationWindow
-	bus        *bus.Bus
-	refs       *servicerefs.ServiceRefs
-	trigger    gtk.Widgetter
-	monitor    *gdk.Monitor
-	root       *gtk.Box
-	wsRows     []*gtk.Box
-	activeWS   int
-	hasWindow  bool
+	win      *gtk.ApplicationWindow
+	bus      *bus.Bus
+	refs     *servicerefs.ServiceRefs
+	trigger  gtk.Widgetter
+	monitor  *gdk.Monitor
+	root     *gtk.Box
+	wsRows   []*gtk.Box
+	activeWS int
 }
 
 // New creates and hides the window management popup anchored to the given trigger widget.
@@ -79,21 +78,12 @@ func New(app *gtk.Application, b *bus.Bus, refs *servicerefs.ServiceRefs, trigge
 		}
 	})
 
-	b.Subscribe(bus.TopicActiveWindow, func(e bus.Event) {
-		win := e.Data.(state.ActiveWindow)
-		glib.IdleAdd(func() {
-			w.hasWindow = win.Class != ""
-		})
-	})
-
 	return w
 }
 
 func (w *WindowMgmt) Toggle() {
 	if w.win.Visible() {
 		w.win.SetVisible(false)
-	} else if !w.hasWindow {
-		return
 	} else {
 		if w.monitor != nil {
 			layershell.SetMonitor(w.win, w.monitor)

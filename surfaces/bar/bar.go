@@ -18,7 +18,7 @@ type Bar struct {
 	WifiTrigger    gtk.Widgetter
 	BtTrigger      gtk.Widgetter
 	ClockGroup     gtk.Widgetter
-	WinMgmtTrigger gtk.Widgetter
+	TitleTrigger   gtk.Widgetter
 }
 
 // New creates and shows the bar window on the given monitor.
@@ -53,12 +53,9 @@ func (b *Bar) buildLeft(refs *servicerefs.ServiceRefs) gtk.Widgetter {
 	box := gtk.NewBox(gtk.OrientationHorizontal, 0)
 	box.SetVAlign(gtk.AlignCenter)
 
-	box.Append(newWindowTitleWidget(b.bus, refs.Hyprland))
+	box.Append(newWindowTitleWidget(b.bus, refs.Hyprland, b.monitor))
+	b.TitleTrigger = newWindowTitleTrigger
 	box.Append(barSeparator())
-
-	winMgmt := clickableBarGroup(newWindowMgmtIcon(), b.bus, "toggle-windowmgmt", b.monitor)
-	b.WinMgmtTrigger = winMgmt
-	box.Append(winMgmt)
 
 	return box
 }
