@@ -541,9 +541,13 @@ func (o *OSK) populateEmojiGrid(query string) {
 		if len(matched) == 0 {
 			continue
 		}
+		headerWrap := gtk.NewBox(gtk.OrientationHorizontal, 0)
+		headerWrap.SetHExpand(true)
 		header := gtk.NewLabel(cat.name)
 		header.AddCSSClass("emoji-category-header")
-		o.emojiGrid.Append(header)
+		header.SetHAlign(gtk.AlignStart)
+		headerWrap.Append(header)
+		o.emojiGrid.Append(headerWrap)
 
 		for _, e := range matched {
 			o.addEmojiBtn(e[0], e[1])
