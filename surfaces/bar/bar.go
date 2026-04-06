@@ -26,12 +26,13 @@ type Bar struct {
 // New creates and shows the bar window on the given monitor.
 func New(app *gtk.Application, b *bus.Bus, refs *servicerefs.ServiceRefs, mon *gdk.Monitor) *Bar {
 	win := layershell.NewWindow(app, layershell.WindowConfig{
-		Name:         "snry-bar",
-		Layer:        layershell.LayerTop,
-		Anchors:      layershell.TopEdgeAnchors(),
-		KeyboardMode: layershell.KeyboardModeOnDemand,
-		Namespace:    "snry-bar",
-		Monitor:      mon,
+		Name:          "snry-bar",
+		Layer:         layershell.LayerTop,
+		Anchors:       layershell.TopEdgeAnchors(),
+		KeyboardMode:  layershell.KeyboardModeOnDemand,
+		ExclusiveZone: layershell.BarHeight(), // default until realize updates it
+		Namespace:     "snry-bar",
+		Monitor:       mon,
 	})
 
 	bar := &Bar{Win: win, bus: b, monitor: mon}
