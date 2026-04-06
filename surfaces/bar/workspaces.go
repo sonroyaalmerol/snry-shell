@@ -2,7 +2,9 @@ package bar
 
 import (
 	"fmt"
+	"strings"
 
+	"github.com/diamondburned/gotk4/pkg/gdk/v4"
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/sonroyaalmerol/snry-shell/internal/bus"
@@ -13,28 +15,43 @@ import (
 const maxWorkspacePills = 10
 
 type workspacesWidget struct {
-	box     *gtk.Box
-	pills   []*gtk.Button
-	querier *hyprland.Querier
+	box      *gtk.Box
+	pills    []*gtk.Button
+	labels   []*gtk.Label
+	icons    []*gtk.Image
+	querier  *hyprland.Querier
+	iconSize int
 }
 
 func newWorkspacesWidget(b *bus.Bus, querier *hyprland.Querier) gtk.Widgetter {
 	w := &workspacesWidget{
-		box:     gtk.NewBox(gtk.OrientationHorizontal, 0),
-		querier: querier,
+		box:      gtk.NewBox(gtk.OrientationHorizontal, 0),
+		querier:  querier,
+		iconSize: 16,
 	}
 	w.box.AddCSSClass("workspaces")
 	w.box.SetVAlign(gtk.AlignCenter)
 
 	for i := range maxWorkspacePills {
 		id := i + 1
+
+		image := gtk.NewImage()
+		image.SetPixelSize(w.iconSize)
+		image.SetIconSize(gtk.IconSizeNormal)
+		image.SetVisible(false)
+
 		label := gtk.NewLabel(fmt.Sprintf("%d", id))
 		label.AddCSSClass("workspace-pill-label")
+
+		box := gtk.NewBox(gtk.OrientationHorizontal, 0)
+		box.SetVAlign(gtk.AlignCenter)
+		box.Append(image)
+		box.Append(label)
 
 		btn := gtk.NewButton()
 		btn.SetCursorFromName("pointer")
 		btn.AddCSSClass("workspace-pill")
-		btn.SetChild(label)
+		btn.SetChild(box)
 		btn.SetTooltipText(fmt.Sprintf("Workspace %d", id))
 
 		btn.ConnectClicked(func() {
@@ -45,6 +62,8 @@ func newWorkspacesWidget(b *bus.Bus, querier *hyprland.Querier) gtk.Widgetter {
 
 		w.box.Append(btn)
 		w.pills = append(w.pills, btn)
+		w.labels = append(w.labels, label)
+		w.icons = append(w.icons, image)
 	}
 
 	// Right-click on the workspace area opens overview.
@@ -80,8 +99,42 @@ func (w *workspacesWidget) update(ws state.Workspace) {
 			} else {
 				pill.RemoveCSSClass("occupied")
 			}
+			w.setIcon(i, ws.Icon)
 		} else if ws.Active {
 			pill.RemoveCSSClass("active")
+		}
+	}
+}
+
+func (w *workspacesWidget) setIcon(idx int, class string) {
+	img := w.icons[idx]
+	lbl := w.labels[idx]
+	if class == "" {
+		img.SetVisible(false)
+		img.SetFromIconName("")
+		lbl.SetVisible(true)
+		return
+	}
+
+	theme := gtk.IconThemeGetForDisplay(gdk.DisplayGetDefault())
+	if theme == nil {
+		return
+	}
+	if theme.HasIcon(class) {
+		img.SetFromIconName(class)
+		img.SetVisible(true)
+		lbl.SetVisible(false)
+	} else {
+		// Try lowercase without spaces as fallback.
+		lower := strings.ToLower(strings.ReplaceAll(class, " ", "-"))
+		if lower != class && theme.HasIcon(lower) {
+			img.SetFromIconName(lower)
+			img.SetVisible(true)
+			lbl.SetVisible(false)
+		} else {
+			img.SetVisible(false)
+			img.SetFromIconName("")
+			lbl.SetVisible(true)
 		}
 	}
 }
