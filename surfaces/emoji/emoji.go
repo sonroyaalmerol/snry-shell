@@ -67,7 +67,7 @@ func New(app *gtk.Application, b *bus.Bus) *Picker {
 				if win.Visible() {
 					win.SetVisible(false)
 				} else {
-					populateGrid(grid)
+					populateGrid(grid, win)
 					search.SetText("")
 					win.SetVisible(true)
 					search.GrabFocus()
@@ -81,7 +81,7 @@ func New(app *gtk.Application, b *bus.Bus) *Picker {
 	return p
 }
 
-func emojiButton(parent *gtk.FlowBox, emoji, name string) {
+func emojiButton(parent *gtk.FlowBox, win *gtk.ApplicationWindow, emoji, name string) {
 	btn := gtk.NewButton()
 	btn.SetCursorFromName("pointer")
 	btn.AddCSSClass("emoji-btn")
@@ -90,12 +90,17 @@ func emojiButton(parent *gtk.FlowBox, emoji, name string) {
 	btn.SetChild(lbl)
 	btn.SetTooltipText(name)
 	btn.ConnectClicked(func() {
-		go func() { if err := exec.Command("wl-copy", emoji).Run(); err != nil { log.Printf("emoji copy: %v", err) } }()
+		go func() {
+			if err := exec.Command("wl-copy", emoji).Run(); err != nil {
+				log.Printf("emoji copy: %v", err)
+				glib.IdleAdd(func() { gtkutil.ErrorDialog(win, "Copy failed", "Could not copy to clipboard.") })
+			}
+		}()
 	})
 	parent.Append(btn)
 }
 
-func populateGrid(grid *gtk.FlowBox) {
+func populateGrid(grid *gtk.FlowBox, win *gtk.ApplicationWindow) {
 	gtkutil.ClearChildren(&grid.Widget, grid.Remove)
 
 	categories := map[string][]struct {
@@ -193,7 +198,7 @@ func populateGrid(grid *gtk.FlowBox) {
 		grid.Append(header)
 
 		for _, e := range emojis {
-			emojiButton(grid, e.e, e.n)
+			emojiButton(grid, win, e.e, e.n)
 		}
 	}
 }

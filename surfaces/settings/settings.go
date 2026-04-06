@@ -6,6 +6,7 @@ import (
 
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/sonroyaalmerol/snry-shell/internal/bus"
+	"github.com/sonroyaalmerol/snry-shell/internal/gtkutil"
 	"github.com/sonroyaalmerol/snry-shell/internal/layershell"
 	appsettings "github.com/sonroyaalmerol/snry-shell/internal/settings"
 	"github.com/sonroyaalmerol/snry-shell/internal/surfaceutil"
@@ -184,5 +185,8 @@ func (s *Settings) buildBarPage() gtk.Widgetter {
 }
 
 func (s *Settings) save() {
-	if err := appsettings.Save(s.cfg); err != nil { log.Printf("settings save: %v", err) }
+	if err := appsettings.Save(s.cfg); err != nil {
+		log.Printf("settings save: %v", err)
+		gtkutil.ErrorDialog(s.win, "Save failed", "Could not save settings.")
+	}
 }

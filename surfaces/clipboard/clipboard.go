@@ -8,8 +8,8 @@ import (
 
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
-	"github.com/sonroyaalmerol/snry-shell/internal/bus"
 	"github.com/sonroyaalmerol/snry-shell/internal/gtkutil"
+	"github.com/sonroyaalmerol/snry-shell/internal/bus"
 	"github.com/sonroyaalmerol/snry-shell/internal/layershell"
 	"github.com/sonroyaalmerol/snry-shell/internal/surfaceutil"
 )
@@ -53,7 +53,12 @@ func New(app *gtk.Application, b *bus.Bus) *Panel {
 	clearBtn := gtkutil.M3IconButton("delete_sweep", "clipboard-clear-btn")
 	clearBtn.SetTooltipText("Clear all")
 	clearBtn.ConnectClicked(func() {
-		go func() { if err := exec.Command("cliphist", "wipe").Run(); err != nil { log.Printf("clipboard clear: %v", err) } }()
+		go func() {
+			if err := exec.Command("cliphist", "wipe").Run(); err != nil {
+				log.Printf("clipboard clear: %v", err)
+				glib.IdleAdd(func() { gtkutil.ErrorDialog(p.win, "Clear failed", "Could not clear clipboard history.") })
+			}
+		}()
 		p.refresh("")
 	})
 
@@ -124,7 +129,10 @@ func (p *Panel) refresh(filter string) {
 				text := line
 				row.ConnectClicked(func() {
 					go func() {
-						if err := exec.Command("wl-copy", text).Run(); err != nil { log.Printf("clipboard copy: %v", err) }
+						if err := exec.Command("wl-copy", text).Run(); err != nil {
+						log.Printf("clipboard copy: %v", err)
+						glib.IdleAdd(func() { gtkutil.ErrorDialog(p.win, "Copy failed", "Could not copy to clipboard.") })
+						}
 					}()
 					p.win.SetVisible(false)
 				})
