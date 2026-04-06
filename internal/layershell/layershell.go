@@ -163,34 +163,51 @@ func NewWindow(app *gtk.Application, cfg WindowConfig) *gtk.ApplicationWindow {
 	return win
 }
 
-// installTouchCursorTracker uses a capture-phase motion controller on the
-// window to detect the input device source. When a touchscreen is active
-// the cursor is hidden; when a mouse is active it is restored. This
-// prevents stuck hover states on Wayland touchscreens.
+// installTouchCursorTracker uses capture-phase event controllers on the window
+// to detect the input device source. When a touchscreen is active the cursor
+// is hidden and a "touch-active" CSS class is added to suppress :hover rules
+// (which GTK synthesizes from touch but never reliably clears). When a mouse
+// is active, the cursor is restored and "touch-active" is removed.
 func installTouchCursorTracker(win *gtk.ApplicationWindow) {
 	noneCursor := gdk.NewCursorFromName("none", nil)
 	defaultCursor := gdk.NewCursorFromName("default", nil)
 
+	setTouchActive := func(active bool) {
+		surf, ok := win.Surface().(*gdk.Surface)
+		if !ok {
+			return
+		}
+		if active {
+			win.AddCSSClass("touch-active")
+			surf.SetCursor(noneCursor)
+		} else {
+			win.RemoveCSSClass("touch-active")
+			surf.SetCursor(defaultCursor)
+		}
+	}
+
+	// Catch touch begin/end at capture phase so touch-active is set before GTK
+	// synthesizes the pointer-enter (hover) event for child widgets.
+	legacy := gtk.NewEventControllerLegacy()
+	legacy.SetPropagationPhase(gtk.PhaseCapture)
+	legacy.ConnectEvent(func(ev gdk.Eventer) bool {
+		switch ev.EventType() {
+		case gdk.TouchBegin, gdk.TouchUpdate:
+			setTouchActive(true)
+		}
+		return false // never consume
+	})
+	win.AddController(legacy)
+
+	// Detect real mouse motion to switch back out of touch mode.
 	motion := gtk.NewEventControllerMotion()
 	motion.SetPropagationPhase(gtk.PhaseCapture)
 	motion.ConnectMotion(func(x, y float64) {
-		s, ok := win.Surface().(*gdk.Surface)
-		if !ok {
-			return
-			}
-		ev := motion.CurrentEventDevice()
-		if ev == nil {
-			return
-		}
-		d, ok := ev.(*gdk.Device)
+		d, ok := motion.CurrentEventDevice().(*gdk.Device)
 		if !ok {
 			return
 		}
-		if d.Source() == gdk.SourceTouchscreen {
-			s.SetCursor(noneCursor)
-		} else {
-			s.SetCursor(defaultCursor)
-		}
+		setTouchActive(d.Source() == gdk.SourceTouchscreen)
 	})
 	win.AddController(motion)
 }

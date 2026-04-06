@@ -163,7 +163,7 @@ scale.m3-scale slider {
     min-height: 32px;
     transition: background-color var(--duration-short3) var(--ease-standard-decel);
 }
-.m3-icon-btn:hover {
+window:not(.touch-active) .m3-icon-btn:hover {
     background-color: alpha(@col_on_surface, var(--state-hover));
     color: @col_on_surface;
 }
@@ -178,7 +178,7 @@ scale.m3-scale slider {
     font-weight: 500;
     transition: background-color var(--duration-short3) var(--ease-emphasized-decel);
 }
-.m3-filled-btn:hover {
+window:not(.touch-active) .m3-filled-btn:hover {
     background-color: @col_primary_container;
     color: @col_on_primary_container;
 }
@@ -194,7 +194,7 @@ scale.m3-scale slider {
     color: @col_primary;
     transition: background-color var(--duration-short3) var(--ease-standard-decel);
 }
-.m3-text-btn:hover {
+window:not(.touch-active) .m3-text-btn:hover {
     background-color: alpha(@col_on_surface, var(--state-hover));
 }
 
@@ -217,7 +217,7 @@ scale.m3-scale slider {
     transition: background-color var(--duration-short2) var(--ease-standard-decel);
 }
 
-.bar-group-clickable:hover {
+window:not(.touch-active) .bar-group-clickable:hover {
     background-color: alpha(@col_on_surface, var(--state-hover));
 }
 
@@ -252,7 +252,7 @@ scale.m3-scale slider {
     font-weight: 500;
 }
 
-.workspace-pill:hover {
+window:not(.touch-active) .workspace-pill:hover {
     background-color: alpha(@col_on_surface, var(--state-hover));
 }
 
@@ -349,7 +349,7 @@ scale.m3-scale slider {
     transition: background-color var(--duration-short3) var(--ease-standard-decel);
 }
 
-.tray-item:hover {
+window:not(.touch-active) .tray-item:hover {
     background-color: alpha(@col_on_surface, var(--state-hover));
 }
 
@@ -388,7 +388,7 @@ scale.m3-scale slider {
     transition: background-color var(--duration-short3) var(--ease-emphasized-decel);
 }
 
-.search-result-row:hover,
+window:not(.touch-active) .search-result-row:hover,
 .search-result-row:focus {
     background-color: alpha(@col_secondary_container, 0.5);
 }
@@ -415,7 +415,7 @@ scale.m3-scale slider {
     transition: background-color var(--duration-short3) var(--ease-emphasized-decel);
 }
 
-.window-preview-card:hover {
+window:not(.touch-active) .window-preview-card:hover {
     background-color: @col_surface_container_high;
     box-shadow: var(--elevation-1);
 }
@@ -532,7 +532,7 @@ scale.m3-scale slider {
     min-width: 80px;
 }
 
-.appdrawer-tile:hover,
+window:not(.touch-active) .appdrawer-tile:hover,
 .appdrawer-tile:active {
     background-color: alpha(@col_primary_container, 0.35);
 }
@@ -593,7 +593,7 @@ scale.m3-scale slider {
     transition: background-color var(--duration-short3) var(--ease-emphasized-decel);
 }
 
-.notification-dismiss-btn:hover {
+window:not(.touch-active) .notification-dismiss-btn:hover {
     background-color: alpha(@col_on_surface, var(--state-focus));
 }
 
@@ -741,7 +741,7 @@ scale.m3-scale slider {
     transition: background-color var(--duration-short3) var(--ease-standard-decel);
 }
 
-.media-btn:hover {
+window:not(.touch-active) .media-btn:hover {
     background-color: alpha(@col_on_surface, var(--state-hover));
 }
 
@@ -752,7 +752,7 @@ scale.m3-scale slider {
     min-height: 44px;
 }
 
-.media-btn.play-pause:hover {
+window:not(.touch-active) .media-btn.play-pause:hover {
     background-color: @col_primary;
     color: @col_on_primary;
 }
@@ -817,7 +817,7 @@ scale.m3-scale slider {
     transition: background-color var(--duration-short3) var(--ease-standard-decel);
 }
 
-.cal-nav-btn:hover {
+window:not(.touch-active) .cal-nav-btn:hover {
     background-color: alpha(@col_on_surface, var(--state-hover));
 }
 
@@ -879,7 +879,7 @@ scale.m3-scale slider {
     transition: background-color var(--duration-short3) var(--ease-standard-decel);
 }
 
-.quick-power-btn:hover {
+window:not(.touch-active) .quick-power-btn:hover {
     background-color: alpha(@col_on_surface, var(--state-hover));
 }
 
@@ -903,7 +903,7 @@ scale.m3-scale slider {
     transition: background-color var(--duration-short4) var(--ease-emphasized-decel);
 }
 
-.quick-toggle:hover {
+window:not(.touch-active) .quick-toggle:hover {
     background-color: alpha(@col_on_surface, var(--state-focus));
 }
 
@@ -966,7 +966,7 @@ scale.m3-scale slider {
     border-top: 1px solid alpha(@col_outline_variant, 0.3);
 }
 
-.conn-section-header:hover {
+window:not(.touch-active) .conn-section-header:hover {
     background-color: alpha(@col_on_surface, var(--state-hover));
 }
 
@@ -997,7 +997,7 @@ scale.m3-scale slider {
     transition: background-color var(--duration-short3) var(--ease-standard-decel);
 }
 
-.conn-row:hover {
+window:not(.touch-active) .conn-row:hover {
     background-color: alpha(@col_on_surface, var(--state-hover));
 }
 
@@ -1005,7 +1005,7 @@ scale.m3-scale slider {
     background-color: alpha(@col_primary_container, 0.25);
 }
 
-.conn-row-connected:hover {
+window:not(.touch-active) .conn-row-connected:hover {
     background-color: alpha(@col_primary_container, 0.35);
 }
 
@@ -1050,7 +1050,7 @@ scale.m3-scale slider {
     transition: background-color var(--duration-short3) var(--ease-standard-decel);
 }
 
-.conn-scan-btn:hover {
+window:not(.touch-active) .conn-scan-btn:hover {
     background-color: alpha(@col_primary, var(--state-hover));
     color: @col_primary;
 }
@@ -1127,7 +1127,7 @@ scale.m3-scale slider {
     padding: 0 4px;
 }
 
-.osk-key:hover {
+window:not(.touch-active) .osk-key:hover {
     background-color: alpha(@col_on_surface, var(--state-hover));
 }
 
@@ -1141,7 +1141,7 @@ scale.m3-scale slider {
     color: @col_on_surface_variant;
 }
 
-.osk-key-special:hover {
+window:not(.touch-active) .osk-key-special:hover {
     background-color: alpha(@col_on_surface, var(--state-hover));
 }
 
@@ -1216,7 +1216,7 @@ scale.m3-scale slider {
     transition: background-color var(--duration-short3) var(--ease-standard-decel);
 }
 
-.osk-toolbar-btn:hover {
+window:not(.touch-active) .osk-toolbar-btn:hover {
     background-color: alpha(@col_on_surface, var(--state-hover));
     color: @col_on_surface;
 }
@@ -1241,7 +1241,7 @@ scale.m3-scale slider {
     transition: background-color var(--duration-short3) var(--ease-standard-decel);
 }
 
-.osk-close-float:hover {
+window:not(.touch-active) .osk-close-float:hover {
     background-color: alpha(@col_on_surface, var(--state-hover));
     color: @col_on_surface;
 }
@@ -1301,7 +1301,7 @@ scale.m3-scale slider {
         box-shadow var(--duration-short3) var(--ease-emphasized-decel);
 }
 
-.session-btn:hover {
+window:not(.touch-active) .session-btn:hover {
     background-color: @col_primary_container;
     box-shadow: var(--elevation-2);
 }
@@ -1312,7 +1312,7 @@ scale.m3-scale slider {
     color: @col_on_surface;
 }
 
-.session-btn:hover .material-icon {
+window:not(.touch-active) .session-btn:hover .material-icon {
     color: @col_on_primary_container;
 }
 
@@ -1380,7 +1380,7 @@ scale.m3-scale slider {
     transition: background-color var(--duration-short3) var(--ease-emphasized-decel);
 }
 
-.lockscreen-unlock-btn:hover {
+window:not(.touch-active) .lockscreen-unlock-btn:hover {
     background-color: @col_primary_container;
     color: @col_on_primary_container;
 }
@@ -1401,7 +1401,7 @@ scale.m3-scale slider {
     transition: background-color var(--duration-short3) var(--ease-standard-decel);
 }
 
-.settings-nav-item:hover {
+window:not(.touch-active) .settings-nav-item:hover {
     background-color: alpha(@col_on_surface, var(--state-hover));
 }
 
@@ -1470,7 +1470,7 @@ scale.m3-scale slider {
     transition: background-color var(--duration-short3) var(--ease-standard-decel);
 }
 
-.settings-row:hover {
+window:not(.touch-active) .settings-row:hover {
     background-color: alpha(@col_on_surface, var(--state-hover));
 }
 
@@ -1486,7 +1486,7 @@ scale.m3-scale slider {
     transition: background-color var(--duration-short3) var(--ease-standard-decel);
 }
 
-.clipboard-clear-btn:hover {
+window:not(.touch-active) .clipboard-clear-btn:hover {
     background-color: alpha(@col_error, var(--state-focus));
     color: @col_error;
 }
@@ -1499,7 +1499,7 @@ scale.m3-scale slider {
     transition: background-color var(--duration-short3) var(--ease-emphasized-decel);
 }
 
-.clipboard-row:hover {
+window:not(.touch-active) .clipboard-row:hover {
     background-color: alpha(@col_primary_container, 0.3);
 }
 
@@ -1530,7 +1530,7 @@ scale.m3-scale slider {
     transition: background-color var(--duration-short2) var(--ease-emphasized-decel);
 }
 
-.emoji-btn:hover {
+window:not(.touch-active) .emoji-btn:hover {
     background-color: alpha(@col_primary_container, 0.3);
 }
 
@@ -1567,7 +1567,7 @@ scale.m3-scale slider {
     transition: background-color var(--duration-short3) var(--ease-standard-decel);
 }
 
-.notes-action-btn:hover {
+window:not(.touch-active) .notes-action-btn:hover {
     background-color: alpha(@col_on_surface, var(--state-hover));
 }
 
@@ -1677,7 +1677,7 @@ scale.m3-scale slider {
     transition: background-color var(--duration-short3) var(--ease-standard-decel);
 }
 
-.polkit-cancel-btn:hover {
+window:not(.touch-active) .polkit-cancel-btn:hover {
     background-color: alpha(@col_on_surface, var(--state-hover));
 }
 
@@ -1691,7 +1691,7 @@ scale.m3-scale slider {
     transition: background-color var(--duration-short3) var(--ease-standard-decel);
 }
 
-.polkit-auth-btn:hover {
+window:not(.touch-active) .polkit-auth-btn:hover {
     background-color: @col_primary_container;
     color: @col_on_primary_container;
 }
@@ -1743,7 +1743,7 @@ scale.m3-scale slider {
     transition: background-color var(--duration-short3) var(--ease-standard-decel);
 }
 
-.m3-dialog-btn:hover {
+window:not(.touch-active) .m3-dialog-btn:hover {
     background-color: alpha(@col_on_surface, var(--state-hover));
 }
 
@@ -1754,7 +1754,7 @@ scale.m3-scale slider {
     color: @col_on_primary;
 }
 
-.m3-dialog-btn-primary:hover {
+window:not(.touch-active) .m3-dialog-btn-primary:hover {
     background-color: alpha(@col_on_primary, 0.12);
 }
 
@@ -1762,7 +1762,7 @@ scale.m3-scale slider {
     color: @col_error;
 }
 
-.m3-dialog-btn-error:hover {
+window:not(.touch-active) .m3-dialog-btn-error:hover {
     background-color: alpha(@col_error, var(--state-focus));
 }
 
@@ -1809,7 +1809,7 @@ scale.m3-scale slider {
     font-size: 18px;
 }
 
-.m3-password-eye:hover {
+window:not(.touch-active) .m3-password-eye:hover {
     background-color: alpha(@col_on_surface, var(--state-hover));
     color: @col_on_surface;
 }
