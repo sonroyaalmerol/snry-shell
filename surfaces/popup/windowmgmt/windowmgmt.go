@@ -2,7 +2,6 @@ package windowmgmt
 
 import (
 	"fmt"
-	"strconv"
 
 	"github.com/diamondburned/gotk4/pkg/gdk/v4"
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
@@ -160,10 +159,9 @@ func buildContent(b *bus.Bus, refs *servicerefs.ServiceRefs, w *WindowMgmt) gtk.
 	// Workspace rows.
 	for i := range maxWorkspaces {
 		wsID := i + 1
-		icon := fmt.Sprintf("looks_%s", numberWord(wsID))
 		lbl := fmt.Sprintf("Workspace %d", wsID)
 		id := wsID
-		row := actionRow(icon, lbl, func() {
+		row := actionRow("space_dashboard", lbl, func() {
 			if refs.Hyprland != nil {
 				go refs.Hyprland.MoveToWorkspace(id)
 			}
@@ -195,29 +193,4 @@ func actionRow(icon, label string, onActivate func()) *gtk.Box {
 	gtkutil.ClaimedClick(&row.Widget, onActivate)
 
 	return row
-}
-
-func numberWord(n int) string {
-	switch n {
-	case 1:
-		return "one"
-	case 2:
-		return "two"
-	case 3:
-		return "3"
-	case 4:
-		return "4"
-	case 5:
-		return "5"
-	case 6:
-		return "6"
-	case 7:
-		return "7"
-	case 8:
-		return "8"
-	case 9:
-		return "9"
-	default:
-		return strconv.Itoa(n)
-	}
 }

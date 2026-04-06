@@ -57,7 +57,7 @@ func barSeparator() gtk.Widgetter {
 
 // newWindowMgmtIcon returns a window management icon.
 func newWindowMgmtIcon() gtk.Widgetter {
-	icon := gtkutil.MaterialIcon("window_control")
+	icon := gtkutil.MaterialIcon("settings")
 	icon.AddCSSClass("indicator-icon")
 	return icon
 }
