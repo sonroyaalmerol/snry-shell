@@ -14,6 +14,8 @@ import (
 	"github.com/sonroyaalmerol/snry-shell/internal/surfaceutil"
 )
 
+const gridCols = 5
+
 // AppDrawer is a fullscreen overlay showing all installed apps in a grid.
 type AppDrawer struct {
 	win      *gtk.ApplicationWindow
@@ -21,8 +23,9 @@ type AppDrawer struct {
 	trigger  gtk.Widgetter
 	monitor  *gdk.Monitor
 	apps     []launcher.App
-	flowBox  *gtk.FlowBox
+	grid     *gtk.Grid
 	search   *gtk.SearchEntry
+	iconSize int
 }
 
 // New creates and hides the app drawer overlay.
@@ -92,8 +95,15 @@ func (d *AppDrawer) build() {
 	content.SetVAlign(gtk.AlignFill)
 	content.SetHExpand(true)
 	content.SetMarginTop(layershell.BarExclusiveZone + 16)
-	content.SetMarginStart(32)
-	content.SetMarginEnd(32)
+	content.SetMarginStart(24)
+	content.SetMarginEnd(24)
+
+	// Determine icon size from monitor scale factor.
+	d.iconSize = 48 // default for 1x
+	if d.monitor != nil {
+		scale := d.monitor.ScaleFactor()
+		d.iconSize = int(48 * scale)
+	}
 
 	// Search bar.
 	d.search = gtk.NewSearchEntry()
@@ -107,22 +117,17 @@ func (d *AppDrawer) build() {
 	scrolled.SetPolicy(gtk.PolicyNever, gtk.PolicyAutomatic)
 	scrolled.AddCSSClass("appdrawer-scroll")
 
-	d.flowBox = gtk.NewFlowBox()
-	d.flowBox.AddCSSClass("appdrawer-grid")
-	d.flowBox.SetHomogeneous(true)
-	d.flowBox.SetColumnSpacing(8)
-	d.flowBox.SetRowSpacing(8)
-	d.flowBox.SetMaxChildrenPerLine(5)
-	d.flowBox.SetSelectionMode(gtk.SelectionNone)
-	d.flowBox.SetVExpand(true)
+	d.grid = gtk.NewGrid()
+	d.grid.AddCSSClass("appdrawer-grid")
+	d.grid.SetHAlign(gtk.AlignCenter)
+	d.grid.SetColumnSpacing(8)
+	d.grid.SetRowSpacing(8)
 
 	d.populateGrid(d.apps)
 
 	d.search.ConnectSearchChanged(func() {
 		query := d.search.Text()
-		for child := d.flowBox.FirstChild(); child != nil; child = d.flowBox.FirstChild() {
-			d.flowBox.Remove(child)
-		}
+		d.clearGrid()
 		if query == "" {
 			d.populateGrid(d.apps)
 			return
@@ -130,7 +135,7 @@ func (d *AppDrawer) build() {
 		d.populateGrid(launcher.Filter(d.apps, query))
 	})
 
-	scrolled.SetChild(d.flowBox)
+	scrolled.SetChild(d.grid)
 	content.Append(d.search)
 	content.Append(scrolled)
 
@@ -161,15 +166,27 @@ func (d *AppDrawer) Toggle() {
 	}
 }
 
-func (d *AppDrawer) populateGrid(apps []launcher.App) {
-	for _, app := range apps {
-		d.flowBox.Append(newAppTile(app, func() {
-			d.win.SetVisible(false)
-		}))
+func (d *AppDrawer) clearGrid() {
+	for child := d.grid.FirstChild(); child != nil; child = d.grid.FirstChild() {
+		d.grid.Remove(child)
 	}
 }
 
-func newAppTile(app launcher.App, onLaunch func()) gtk.Widgetter {
+func (d *AppDrawer) populateGrid(apps []launcher.App) {
+	for i, app := range apps {
+		col := i % gridCols
+		row := i / gridCols
+		tile := newAppTile(app, d.iconSize, func() {
+			d.win.SetVisible(false)
+		})
+		tile.SetHExpand(true)
+		tile.SetVExpand(true)
+		tile.SetHAlign(gtk.AlignCenter)
+		d.grid.Attach(tile, col, row, 1, 1)
+	}
+}
+
+func newAppTile(app launcher.App, iconSize int, onLaunch func()) *gtk.Box {
 	box := gtk.NewBox(gtk.OrientationVertical, 6)
 	box.AddCSSClass("appdrawer-tile")
 	box.SetCursorFromName("pointer")
@@ -180,6 +197,7 @@ func newAppTile(app launcher.App, onLaunch func()) gtk.Widgetter {
 		iconName = "application-x-executable"
 	}
 	icon.SetFromIconName(iconName)
+	icon.SetIconSize(6) // gtk.IconSizeLarge (48px base, auto-scales with DPI)
 	icon.AddCSSClass("appdrawer-tile-icon")
 
 	label := gtk.NewLabel(app.Name)

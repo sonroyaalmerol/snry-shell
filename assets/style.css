@@ -490,7 +490,7 @@ scale.m3-scale slider {
 }
 
 .appdrawer-content {
-    max-width: 560px;
+    max-width: 640px;
 }
 
 .appdrawer-search-entry {
@@ -539,7 +539,7 @@ scale.m3-scale slider {
 }
 
 .appdrawer-tile-icon {
-    pixel-size: 56px;
+    icon-size: 48px;
 }
 
 .appdrawer-tile-label {
