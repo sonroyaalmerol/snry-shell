@@ -36,7 +36,6 @@ func newWorkspacesWidget(b *bus.Bus, querier *hyprland.Querier) gtk.Widgetter {
 		id := i + 1
 
 		image := gtk.NewImage()
-		image.SetPixelSize(16)
 		image.SetVisible(false)
 
 		label := gtk.NewLabel(fmt.Sprintf("%d", id))
@@ -106,8 +105,7 @@ func (w *workspacesWidget) populateInitialIcons() {
 		}
 	}
 	for wsID, class := range firstClass {
-		idx := wsID - 1
-		w.setIcon(idx, class)
+		w.setIcon(wsID-1, class)
 	}
 }
 
@@ -150,10 +148,10 @@ func (w *workspacesWidget) setIcon(idx int, class string) {
 	if w.theme == nil {
 		return
 	}
-	// GTK icon names are always lowercase; Hyprland classes can be mixed case.
 	lower := strings.ToLower(class)
 	if w.theme.HasIcon(lower) {
 		img.SetFromIconName(lower)
+		img.SetPixelSize(16)
 		img.SetVisible(true)
 		lbl.SetVisible(false)
 	} else {
