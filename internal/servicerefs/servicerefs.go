@@ -15,7 +15,6 @@ import (
 	"github.com/sonroyaalmerol/snry-shell/internal/services/inputmode"
 	"github.com/sonroyaalmerol/snry-shell/internal/services/clipboard"
 	"github.com/sonroyaalmerol/snry-shell/internal/services/todo"
-	"github.com/sonroyaalmerol/snry-shell/internal/services/touchgestures"
 )
 
 type ServiceRefs struct {
@@ -33,5 +32,4 @@ type ServiceRefs struct {
 	SNI        *sni.Service
 	InputMode  *inputmode.Service
 	Clipboard  *clipboard.Service
-	TouchGestures *touchgestures.Service
 }

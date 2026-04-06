@@ -28,7 +28,7 @@ import (
 	"github.com/sonroyaalmerol/snry-shell/internal/services/notifications"
 	"github.com/sonroyaalmerol/snry-shell/internal/services/pomodoro"
 	"github.com/sonroyaalmerol/snry-shell/internal/services/resources"
-	"github.com/sonroyaalmerol/snry-shell/internal/services/touchgestures"
+	"github.com/sonroyaalmerol/snry-shell/internal/services/hyprgrass"
 	"github.com/sonroyaalmerol/snry-shell/internal/services/sni"
 	"github.com/sonroyaalmerol/snry-shell/internal/services/inputmode"
 	shellsettings "github.com/sonroyaalmerol/snry-shell/internal/settings"
@@ -92,10 +92,6 @@ func Run() int {
 		InputMode:  inputmode.New(b, sysConn, shellsettings.DefaultConfig(), true),
 	}
 
-	// Load config for services that need it.
-	cfg, _ := shellsettings.Load()
-	refs.TouchGestures = touchgestures.New(b, refs.Hyprland, sysConn, cfg.GestureSensitivity, cfg.GestureLongPressDelay, cfg.GestureWorkspaceFingers)
-
 	// Start background services.
 	go refs.Audio.Run(ctx)
 	go refs.Brightness.Run(ctx)
@@ -107,7 +103,7 @@ func Run() int {
 	go refs.Pomodoro.Run(ctx)
 	go refs.InputMode.Run(ctx)
 	go refs.SNI.Run(ctx)
-	go refs.TouchGestures.Run(ctx)
+	go hyprgrass.New(refs.Hyprland).Run(ctx)
 
 	// Notification daemon.
 	if sesConn != nil {

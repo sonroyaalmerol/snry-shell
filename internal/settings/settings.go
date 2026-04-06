@@ -14,10 +14,6 @@ type Config struct {
 	BarPosition  string  `json:"bar_position"`
 	DoNotDisturb bool    `json:"do_not_disturb"`
 	InputMode     string  `json:"input_mode"` // "auto", "tablet", "desktop"
-
-	GestureSensitivity      float64 `json:"gesture_sensitivity"`       // default 1.0
-	GestureLongPressDelay   int     `json:"gesture_long_press_delay"`  // default 400ms
-	GestureWorkspaceFingers int     `json:"gesture_workspace_fingers"` // default 3
 }
 
 func DefaultConfig() Config {
@@ -27,9 +23,6 @@ func DefaultConfig() Config {
 		BarPosition:  "top",
 		DoNotDisturb: false,
 		InputMode:     "auto",
-		GestureSensitivity:      1.0,
-		GestureLongPressDelay:   400,
-		GestureWorkspaceFingers: 3,
 	}
 }
 
