@@ -125,11 +125,9 @@ func (s *Settings) buildAppearancePage() gtk.Widgetter {
 	fontLabel.AddCSSClass("settings-label")
 	fontLabel.SetHAlign(gtk.AlignStart)
 
-	fontScale := gtk.NewScaleWithRange(gtk.OrientationHorizontal, 0.5, 2.0, 0.1)
+	fontScale := gtkutil.M3Slider(0.5, 2.0, 0.1)
 	fontScale.AddCSSClass("settings-scale")
-	fontScale.AddCSSClass("m3-scale")
 	fontScale.SetDrawValue(true)
-	fontScale.SetHExpand(true)
 	fontScale.SetValue(s.cfg.FontScale)
 	fontScale.ConnectChangeValue(func(_ gtk.ScrollType, value float64) bool {
 		s.cfg.FontScale = value

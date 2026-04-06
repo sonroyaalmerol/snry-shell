@@ -81,10 +81,8 @@ func buildMediaGroupWithPrefix(b *bus.Bus, mprisSvc *mpris.Service, cssPrefix st
 	mc.posLabel.AddCSSClass(cls("media-position"))
 	mc.posLabel.SetHAlign(gtk.AlignStart)
 
-	mc.scale = gtk.NewScaleWithRange(gtk.OrientationHorizontal, 0, 1, 0.001)
+	mc.scale = gtkutil.M3Slider(0, 1, 0.001)
 	mc.scale.AddCSSClass("media-progress")
-	mc.scale.SetDrawValue(false)
-	mc.scale.SetHExpand(true)
 	mc.scale.SetSensitive(true)
 	mc.changeHandle = mc.scale.ConnectChangeValue(func(_ gtk.ScrollType, value float64) bool {
 		go mc.mprisSvc.SeekTo(mc.player.PlayerName, value*mc.player.Duration)

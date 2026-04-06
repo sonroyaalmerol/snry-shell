@@ -9,6 +9,7 @@ import (
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/sonroyaalmerol/snry-shell/internal/bus"
+	"github.com/sonroyaalmerol/snry-shell/internal/gtkutil"
 	"github.com/sonroyaalmerol/snry-shell/internal/layershell"
 	"github.com/sonroyaalmerol/snry-shell/internal/state"
 )
@@ -77,12 +78,9 @@ func (o *OSD) build() {
 	o.icon.AddCSSClass("osd-icon")
 	o.icon.SetVAlign(gtk.AlignCenter)
 
-	o.scale = gtk.NewScaleWithRange(gtk.OrientationHorizontal, 0, 1, 0.01)
+	o.scale = gtkutil.M3Slider(0, 1, 0.01)
 	o.scale.AddCSSClass("osd-slider")
-	o.scale.AddCSSClass("m3-scale")
-	o.scale.SetDrawValue(false)
 	o.scale.SetSensitive(false) // display only
-	o.scale.SetHExpand(true)
 	o.scale.SetSizeRequest(200, -1)
 
 	box.Append(o.icon)

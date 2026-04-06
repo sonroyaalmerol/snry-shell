@@ -62,6 +62,26 @@ func M3FilledButton(text string, classes ...string) *gtk.Button {
 	return btn
 }
 
+// M3Slider creates a Material Design 3 styled horizontal slider.
+// The slider has an enlarged touch target and blocks vertical scroll
+// events from propagating to parent ScrolledWindows, which is required
+// for reliable touch drag interaction inside scrollable containers.
+func M3Slider(min, max, step float64) *gtk.Scale {
+	scale := gtk.NewScaleWithRange(gtk.OrientationHorizontal, min, max, step)
+	scale.AddCSSClass("m3-scale")
+	scale.SetDrawValue(false)
+	scale.SetHExpand(true)
+
+	// Block vertical scroll events at capture phase so a parent
+	// ScrolledWindow doesn't steal the touch drag for scrolling.
+	scrollCtrl := gtk.NewEventControllerScroll(gtk.EventControllerScrollVertical)
+	scrollCtrl.SetPropagationPhase(gtk.PhaseCapture)
+	scrollCtrl.ConnectScroll(func(_, _ float64) bool { return true })
+	scale.AddController(scrollCtrl)
+
+	return scale
+}
+
 // M3Divider creates a horizontal separator line.
 func M3Divider() *gtk.Separator {
 	s := gtk.NewSeparator(gtk.OrientationHorizontal)

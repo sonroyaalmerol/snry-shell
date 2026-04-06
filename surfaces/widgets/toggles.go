@@ -289,11 +289,8 @@ func NewQuickToggles(b *bus.Bus, refs *servicerefs.ServiceRefs) gtk.Widgetter {
 	box.Append(grid)
 
 	// Brightness slider.
-	brightnessScale := gtk.NewScaleWithRange(gtk.OrientationHorizontal, 0, 1, 0.01)
+	brightnessScale := gtkutil.M3Slider(0, 1, 0.01)
 	brightnessScale.AddCSSClass("quick-slider")
-	brightnessScale.AddCSSClass("m3-scale")
-	brightnessScale.SetDrawValue(false)
-	brightnessScale.SetHExpand(true)
 
 	settingBrightness := false
 	brightnessScale.ConnectChangeValue(func(_ gtk.ScrollType, value float64) bool {
@@ -336,11 +333,8 @@ func NewQuickToggles(b *bus.Bus, refs *servicerefs.ServiceRefs) gtk.Widgetter {
 	sliderGrid.Attach(brightnessScale, 2, 0, 1, 1)
 
 	// Volume slider.
-	volumeScale := gtk.NewScaleWithRange(gtk.OrientationHorizontal, 0, 1, 0.01)
+	volumeScale := gtkutil.M3Slider(0, 1, 0.01)
 	volumeScale.AddCSSClass("quick-slider")
-	volumeScale.AddCSSClass("m3-scale")
-	volumeScale.SetDrawValue(false)
-	volumeScale.SetHExpand(true)
 	volumeScale.ConnectChangeValue(func(_ gtk.ScrollType, value float64) bool {
 		refs.Audio.SetVolume(value)
 		return false
