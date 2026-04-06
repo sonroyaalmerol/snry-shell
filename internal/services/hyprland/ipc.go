@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"os"
 	"strings"
 
@@ -71,8 +70,9 @@ func New(reader EventReader, b *bus.Bus) *Service {
 func (s *Service) SeedClients(clients []HyprClient) {
 	for _, c := range clients {
 		wsID := c.Workspace.ID
-		s.windows[c.Address] = wsID
-		s.windowClasses[c.Address] = c.Class
+		addr := strings.TrimPrefix(c.Address, "0x")
+		s.windows[addr] = wsID
+		s.windowClasses[addr] = c.Class
 		s.workspaces[wsID]++
 		if _, ok := s.workspaceIcons[wsID]; !ok {
 			s.workspaceIcons[wsID] = c.Class
@@ -99,7 +99,6 @@ func (s *Service) Run(ctx context.Context) error {
 }
 
 func (s *Service) handleEvent(event, data string) {
-	log.Printf("[hyprland ipc] %s: %q", event, data)
 	switch event {
 	case "workspace", "workspacev2":
 		ws := parseWorkspaceEvent(data)
