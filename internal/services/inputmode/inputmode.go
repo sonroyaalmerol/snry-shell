@@ -27,8 +27,8 @@ import (
 )
 
 const (
-	logindDest   = "org.freedesktop.login1"
-	logindIface  = "org.freedesktop.login1.Session"
+	logindDest  = "org.freedesktop.login1"
+	logindIface = "org.freedesktop.login1.Session"
 	logindProp  = "TabletMode"
 
 	kbInactivityTimeout = 30 * time.Second
@@ -46,9 +46,9 @@ var virtualKeyboardNames = []string{
 
 // Service manages input mode and publishes effective tablet-mode state.
 type Service struct {
-	bus   *bus.Bus
-	conn  dbusutil.DBusConn
-	mu    sync.Mutex
+	bus  *bus.Bus
+	conn dbusutil.DBusConn
+	mu   sync.Mutex
 
 	mode       string // "auto", "tablet", "desktop"
 	logindMode string // "enabled", "disabled", "indeterminate"
@@ -89,7 +89,10 @@ func (s *Service) Run(ctx context.Context) error {
 	// Detect initial touch state.
 	s.hasTouch = detectTouchDevice()
 
-	// Publish initial state after a short delay to let keyboard monitor start.
+	// Publish initial state immediately so late subscribers get the saved mode.
+	s.publish()
+
+	// Re-publish after keyboard monitor has had time to detect activity.
 	time.AfterFunc(500*time.Millisecond, func() { s.publish() })
 
 	<-ctx.Done()

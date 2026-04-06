@@ -9,7 +9,6 @@ import (
 	"github.com/sonroyaalmerol/snry-shell/internal/bus"
 	"github.com/sonroyaalmerol/snry-shell/internal/gtkutil"
 	"github.com/sonroyaalmerol/snry-shell/internal/servicerefs"
-	"github.com/sonroyaalmerol/snry-shell/internal/settings"
 	"github.com/sonroyaalmerol/snry-shell/internal/state"
 )
 
@@ -32,12 +31,6 @@ func newInputModeControl(b *bus.Bus) gtk.Widgetter {
 
 	setting := false
 
-	// Load saved mode from settings
-	savedMode := settings.DefaultConfig().InputMode
-	if cfg, err := settings.Load(); err == nil && cfg.InputMode != "" {
-		savedMode = cfg.InputMode
-	}
-
 	for i := range segments {
 		seg := &segments[i]
 		btn := gtk.NewToggleButton()
@@ -58,11 +51,6 @@ func newInputModeControl(b *bus.Bus) gtk.Widgetter {
 
 		if i > 0 {
 			btn.SetGroup(segments[0].btn)
-		}
-
-		// Set active based on saved mode
-		if seg.mode == savedMode {
-			btn.SetActive(true)
 		}
 
 		btn.ConnectToggled(func() {
