@@ -34,6 +34,7 @@ const (
 	TopicTrayActivate     Topic = "trayactivate"
 	TopicTextInputFocus   Topic = "textinputfocus"
 	TopicTabletMode     Topic = "tabletmode"
+	TopicInputMode       Topic = "inputmode"
 	TopicFullscreen       Topic = "fullscreen"
 )
 

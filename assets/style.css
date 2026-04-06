@@ -1721,6 +1721,48 @@ scale.m3-scale slider {
     transition: opacity var(--duration-short2);
 }
 
+/* ── Input mode segmented control ─────────────────────────────── */
+
+.quick-toggle-segmented {
+    border-radius: var(--radius-md);
+    background: alpha(@col_on_surface, var(--state-hover));
+    overflow: hidden;
+}
+
+.quick-toggle-segment {
+    border: none;
+    border-radius: 0;
+    padding: 10px 16px;
+    background: transparent;
+    transition: background var(--duration-short1);
+    box-shadow: none;
+    font-size: 13px;
+    font-weight: 500;
+    color: @col_on_surface;
+    min-width: 0;
+}
+
+.quick-toggle-segment:first-child {
+    border-radius: var(--radius-md) 0 0 var(--radius-md);
+}
+
+.quick-toggle-segment:last-child {
+    border-radius: 0 0 var(--radius-md) var(--radius-md);
+}
+
+.quick-toggle-segment:checked {
+    background: @col_primary;
+    color: @col_on_primary;
+}
+
+.quick-toggle-segment .material-icon {
+    font-size: 18px;
+}
+
+.quick-toggle-segment .segment-label {
+    margin-left: 6px;
+}
+
 .conn-row-loading {
     opacity: 0.6;
 }

@@ -14,7 +14,6 @@ import (
 	"github.com/sonroyaalmerol/snry-shell/internal/bus"
 	"github.com/sonroyaalmerol/snry-shell/internal/gtkutil"
 	"github.com/sonroyaalmerol/snry-shell/internal/layershell"
-	"github.com/sonroyaalmerol/snry-shell/internal/services/tabletmode"
 	"github.com/sonroyaalmerol/snry-shell/internal/uinput"
 )
 
@@ -131,16 +130,14 @@ func New(app *gtk.Application, b *bus.Bus) *OSK {
 		osk.scheduleFocusUpdate(isText)
 	})
 
-// Update tablet mode state from logind (event-driven via tabletmode service).
+// Update tablet mode state from the inputmode service (bool).
 	b.Subscribe(bus.TopicTabletMode, func(e bus.Event) {
-		mode, ok := e.Data.(string)
+		tablet, ok := e.Data.(bool)
 		if !ok {
 			return
 		}
-		osk.tabletMode = tabletmode.IsEnabled(mode)
+		osk.tabletMode = tablet
 		log.Printf("[OSK] tablet mode: %v", osk.tabletMode)
-		// If we just entered tablet mode and OSK is visible, that's fine.
-		// If we left tablet mode and OSK is auto-shown, hide it.
 		if !osk.tabletMode && osk.visible && !osk.manualOff {
 			osk.hide()
 		}

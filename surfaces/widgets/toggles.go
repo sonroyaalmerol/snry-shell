@@ -12,6 +12,81 @@ import (
 	"github.com/sonroyaalmerol/snry-shell/internal/state"
 )
 
+func newInputModeControl(b *bus.Bus) gtk.Widgetter {
+	box := gtk.NewBox(gtk.OrientationHorizontal, 0)
+	box.AddCSSClass("quick-toggle-segmented")
+	box.SetHExpand(true)
+
+	type segment struct {
+		icon  string
+		label string
+		mode  string
+		btn   *gtk.ToggleButton
+	}
+	segments := []segment{
+		{icon: "auto_awesome", label: "Auto", mode: "auto"},
+		{icon: "touch_app", label: "Tablet", mode: "tablet"},
+		{icon: "computer", label: "Desktop", mode: "desktop"},
+	}
+
+	setting := false
+
+	for i := range segments {
+		seg := &segments[i]
+		btn := gtk.NewToggleButton()
+		btn.AddCSSClass("quick-toggle-segment")
+		btn.SetCursorFromName("pointer")
+		seg.btn = btn
+
+		inner := gtk.NewBox(gtk.OrientationHorizontal, 0)
+		icon := gtk.NewLabel(seg.icon)
+		icon.AddCSSClass("material-icon")
+		icon.AddCSSClass("segment-icon")
+		lbl := gtk.NewLabel(seg.label)
+		lbl.AddCSSClass("segment-label")
+		inner.Append(icon)
+		inner.Append(lbl)
+		btn.SetChild(inner)
+		btn.SetHExpand(true)
+
+		if i > 0 {
+			btn.SetGroup(segments[0].btn)
+		} else {
+			btn.SetActive(true)
+		}
+
+		btn.ConnectToggled(func() {
+			if setting {
+				return
+			}
+			if btn.Active() {
+				b.Publish(bus.TopicSystemControls, "set-input-mode:"+seg.mode)
+			}
+		})
+
+		box.Append(btn)
+	}
+
+	b.Subscribe(bus.TopicInputMode, func(e bus.Event) {
+		mode, ok := e.Data.(string)
+		if !ok {
+			return
+		}
+		glib.IdleAdd(func() {
+			setting = true
+			for _, seg := range segments {
+				if seg.mode == mode {
+					seg.btn.SetActive(true)
+					break
+				}
+			}
+			setting = false
+		})
+	})
+
+	return box
+}
+
 const quickToggleCols = 2
 
 // NewQuickToggles creates the quick toggle grid with equal-width columns.
@@ -55,7 +130,8 @@ func NewQuickToggles(b *bus.Bus, refs *servicerefs.ServiceRefs) gtk.Widgetter {
 		label    string
 		topic    bus.Topic
 		requires string
-		button   bool
+		button    bool
+		segmented bool
 		toggle   func(active bool)
 	}
 
@@ -119,9 +195,7 @@ func NewQuickToggles(b *bus.Bus, refs *servicerefs.ServiceRefs) gtk.Widgetter {
 		{icon: "colorize", label: "Color Pick", requires: "hyprpicker", button: true, toggle: func(_ bool) {
 			go func() { if err := exec.Command("hyprpicker").Run(); err != nil { log.Printf("color picker: %v", err) } }()
 		}},
-		{icon: "keyboard", label: "On-Screen Keyboard", button: true, toggle: func(_ bool) {
-			b.Publish(bus.TopicSystemControls, "toggle-osk")
-		}},
+		{icon: "inputmode", label: "Input Mode", segmented: true},
 	}
 
 	col := 0
@@ -148,7 +222,11 @@ func NewQuickToggles(b *bus.Bus, refs *servicerefs.ServiceRefs) gtk.Widgetter {
 		inner.Append(icon)
 		inner.Append(lbl)
 
-		if toggle.button {
+			if toggle.segmented {
+				ctrl := newInputModeControl(b)
+				grid.Attach(ctrl, col, row, 2, 1)
+				col++ // skip the second column
+			} else if toggle.button {
 			btn := gtk.NewButton()
 			btn.SetCursorFromName("pointer")
 			btn.AddCSSClass("quick-toggle")

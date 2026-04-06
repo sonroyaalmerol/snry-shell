@@ -28,7 +28,8 @@ import (
 	"github.com/sonroyaalmerol/snry-shell/internal/services/pomodoro"
 	"github.com/sonroyaalmerol/snry-shell/internal/services/resources"
 	"github.com/sonroyaalmerol/snry-shell/internal/services/sni"
-	"github.com/sonroyaalmerol/snry-shell/internal/services/tabletmode"
+	"github.com/sonroyaalmerol/snry-shell/internal/services/inputmode"
+	shellsettings "github.com/sonroyaalmerol/snry-shell/internal/settings"
 	"github.com/sonroyaalmerol/snry-shell/internal/services/todo"
 	"github.com/sonroyaalmerol/snry-shell/internal/services/upower"
 	"github.com/sonroyaalmerol/snry-shell/surfaces/bar"
@@ -86,7 +87,7 @@ func Run() int {
 		Pomodoro:   pomodoro.New(b),
 		Todo:       todo.New(b),
 		SNI:        sni.New(sesConn, b),
-		TabletMode:  tabletmode.New(sysConn, b),
+		InputMode:  inputmode.New(b, sysConn, shellsettings.DefaultConfig(), true),
 	}
 
 	// Start background services.
@@ -98,7 +99,7 @@ func Run() int {
 	go refs.Resources.Run(ctx)
 	go refs.AudioMixer.Run(ctx)
 	go refs.Pomodoro.Run(ctx)
-	go refs.TabletMode.Run(ctx)
+	go refs.InputMode.Run(ctx)
 	go refs.SNI.Run(ctx)
 
 	// Notification daemon.

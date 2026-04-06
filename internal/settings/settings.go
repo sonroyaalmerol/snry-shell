@@ -13,6 +13,7 @@ type Config struct {
 	FontScale    float64 `json:"font_scale"`
 	BarPosition  string  `json:"bar_position"`
 	DoNotDisturb bool    `json:"do_not_disturb"`
+	InputMode     string  `json:"input_mode"` // "auto", "tablet", "desktop"
 }
 
 func DefaultConfig() Config {
@@ -21,6 +22,7 @@ func DefaultConfig() Config {
 		FontScale:    1.0,
 		BarPosition:  "top",
 		DoNotDisturb: false,
+		InputMode:     "auto",
 	}
 }
 
