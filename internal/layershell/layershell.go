@@ -26,6 +26,7 @@ import "C"
 import (
 	"unsafe"
 
+	"github.com/diamondburned/gotk4/pkg/gdk/v4"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 )
 
@@ -145,7 +146,42 @@ func NewWindow(app *gtk.Application, cfg WindowConfig) *gtk.ApplicationWindow {
 		SetNamespace(win, cfg.Namespace)
 	}
 
+	// Track input device: hide cursor on touch, restore on mouse.
+	installTouchCursorTracker(win)
+
 	return win
+}
+
+// installTouchCursorTracker uses a capture-phase motion controller on the
+// window to detect the input device source. When a touchscreen is active
+// the cursor is hidden; when a mouse is active it is restored. This
+// prevents stuck hover states on Wayland touchscreens.
+func installTouchCursorTracker(win *gtk.ApplicationWindow) {
+	noneCursor := gdk.NewCursorFromName("none", nil)
+	defaultCursor := gdk.NewCursorFromName("default", nil)
+
+	motion := gtk.NewEventControllerMotion()
+	motion.SetPropagationPhase(gtk.PhaseCapture)
+	motion.ConnectMotion(func(x, y float64) {
+		s, ok := win.Surface().(*gdk.Surface)
+		if !ok {
+			return
+			}
+		ev := motion.CurrentEventDevice()
+		if ev == nil {
+			return
+		}
+		d, ok := ev.(*gdk.Device)
+		if !ok {
+			return
+		}
+		if d.Source() == gdk.SourceTouchscreen {
+			s.SetCursor(noneCursor)
+		} else {
+			s.SetCursor(defaultCursor)
+		}
+	})
+	win.AddController(motion)
 }
 
 func FullscreenAnchors() map[Edge]bool {

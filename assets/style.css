@@ -107,7 +107,6 @@
     --spacing-xxl: 48px;
 
     all: unset;
-    cursor: none;
     font-family: "Google Sans Flex", "Google Sans", sans-serif;
     font-size: 13px;
 }
@@ -1445,7 +1444,6 @@ scale.m3-scale slider {
     border-radius: var(--radius-sm);
     min-width: 40px;
     min-height: 40px;
-    max-width: 52px;
     transition: background-color var(--duration-short2) var(--ease-emphasized-decel);
 }
 
