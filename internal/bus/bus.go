@@ -36,6 +36,7 @@ const (
 	TopicTabletMode     Topic = "tabletmode"
 	TopicInputMode       Topic = "inputmode"
 	TopicFullscreen       Topic = "fullscreen"
+	TopicPopupTrigger     Topic = "popuptrigger"
 )
 
 type Event struct { Topic Topic; Data any }

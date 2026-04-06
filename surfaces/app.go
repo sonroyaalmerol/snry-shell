@@ -8,6 +8,7 @@ import (
 	"os"
 
 	"github.com/diamondburned/gotk4/pkg/gdk/v4"
+	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/godbus/dbus/v5"
 	"github.com/sonroyaalmerol/snry-shell/assets"
@@ -161,18 +162,57 @@ func Run() int {
 			provider := gtk.NewCSSProvider()
 			provider.LoadFromString(assets.StyleCSS)
 			gtk.StyleContextAddProviderForDisplay(display, provider, gtk.STYLE_PROVIDER_PRIORITY_USER)
-
 		}
 
-		shellBar := bar.New(app, b, refs)
+		// Per-monitor surfaces: bar and corners.
+		var bars []*bar.Bar
+		var allCorners []*corners.Corners
+
+		refreshMonitors := func() {
+			for _, br := range bars {
+				br.Win.Close()
+			}
+			for _, c := range allCorners {
+				c.Close()
+			}
+			bars = nil
+			allCorners = nil
+
+			d := gdk.DisplayGetDefault()
+			if d == nil {
+				return
+			}
+			monitors := d.Monitors()
+			n := monitors.NItems()
+			for i := uint(0); i < n; i++ {
+				item := monitors.Item(i)
+				if item == nil {
+					continue
+				}
+				mon := &gdk.Monitor{Object: item}
+				bars = append(bars, bar.New(app, b, refs, mon))
+				allCorners = append(allCorners, corners.New(app, b, mon))
+			}
+			log.Printf("[SHELL] monitors: %d bars created", len(bars))
+		}
+
+		refreshMonitors()
+
+		// Watch for monitor hotplug.
+		if display != nil {
+			display.Monitors().ConnectItemsChanged(func(_, _, _ uint) {
+				glib.IdleAdd(refreshMonitors)
+			})
+		}
+
+		// Use primary bar triggers as defaults for popups.
 		overview.New(app, b, refs.Hyprland)
-		notifcenter.New(app, b, refs, shellBar.NotifTrigger)
-		wifi.New(app, b, refs, shellBar.WifiTrigger)
-		popupbluetooth.New(app, b, refs, shellBar.BtTrigger)
-		calendar.New(app, b, refs, shellBar.ClockGroup)
+		notifcenter.New(app, b, refs, bars[0].NotifTrigger)
+		wifi.New(app, b, refs, bars[0].WifiTrigger)
+		popupbluetooth.New(app, b, refs, bars[0].BtTrigger)
+		calendar.New(app, b, refs, bars[0].ClockGroup)
 		osd.New(app, b)
 		session.New(app, b)
-		corners.New(app, b)
 		crosshair.New(app, b)
 		lockscreen.New(app, b)
 		mediaoverlay.New(app, b, refs.Mpris)

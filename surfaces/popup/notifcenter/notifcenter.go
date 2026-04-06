@@ -1,10 +1,12 @@
 package notifcenter
 
 import (
+	"github.com/diamondburned/gotk4/pkg/gdk/v4"
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/sonroyaalmerol/snry-shell/internal/bus"
 	"github.com/sonroyaalmerol/snry-shell/internal/gtkutil"
+	"github.com/sonroyaalmerol/snry-shell/internal/layershell"
 	"github.com/sonroyaalmerol/snry-shell/internal/servicerefs"
 	"github.com/sonroyaalmerol/snry-shell/internal/surfaceutil"
 	"github.com/sonroyaalmerol/snry-shell/surfaces/widgets"
@@ -21,6 +23,7 @@ type NotifCenter struct {
 	bus     *bus.Bus
 	refs    *servicerefs.ServiceRefs
 	trigger gtk.Widgetter
+	monitor *gdk.Monitor
 	root    *gtk.Box
 }
 
@@ -56,6 +59,17 @@ func New(app *gtk.Application, b *bus.Bus, refs *servicerefs.ServiceRefs, trigge
 	panel.Append(scroll)
 	root.Append(panel)
 
+	b.Subscribe(bus.TopicPopupTrigger, func(e bus.Event) {
+		pt, ok := e.Data.(surfaceutil.PopupTrigger)
+		if !ok {
+			return
+		}
+		if pt.Action == "toggle-notif-center" {
+			nc.trigger = pt.Trigger
+			nc.monitor = pt.Monitor
+		}
+	})
+
 	b.Subscribe(bus.TopicSystemControls, func(e bus.Event) {
 		if e.Data == "toggle-notif-center" {
 			glib.IdleAdd(func() { nc.Toggle() })
@@ -69,7 +83,10 @@ func (nc *NotifCenter) Toggle() {
 	if nc.win.Visible() {
 		nc.win.SetVisible(false)
 	} else {
-		surfaceutil.PositionUnderTrigger(nc.root, nc.trigger, panelWidth, panelMargin)
+		if nc.monitor != nil {
+			layershell.SetMonitor(nc.win, nc.monitor)
+		}
+		surfaceutil.PositionUnderTrigger(nc.root, nc.trigger, panelWidth, panelMargin, nc.monitor)
 		nc.win.SetVisible(true)
 	}
 }

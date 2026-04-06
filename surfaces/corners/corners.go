@@ -20,28 +20,20 @@ const (
 	BottomRight
 )
 
-func New(app *gtk.Application, b *bus.Bus) {
-	display := gdk.DisplayGetDefault()
-	if display == nil {
-		return
-	}
+// Corners holds the windows for one monitor's corner hotspots.
+type Corners struct {
+	windows []*gtk.ApplicationWindow
+}
 
-	monitors := display.Monitors()
-	if monitors.NItems() == 0 {
-		return
+// Close destroys all corner windows.
+func (c *Corners) Close() {
+	for _, w := range c.windows {
+		w.Close()
 	}
+}
 
-	// Use MonitorAtSurface requires a surface. Instead, build a temporary
-	// offscreen surface to get the primary monitor geometry, or use the
-	// monitor from the list directly via casting through the glib type system.
-	// Since Monitor embeds *coreglib.Object and ListModel.Item returns *coreglib.Object,
-	// we can construct a Monitor from the Object pointer.
-	item := monitors.Item(0)
-	if item == nil {
-		return
-	}
-
-	mon := &gdk.Monitor{Object: item}
+// New creates four invisible corner hotspots on the given monitor.
+func New(app *gtk.Application, b *bus.Bus, mon *gdk.Monitor) *Corners {
 	geom := mon.Geometry()
 
 	actions := map[CornerPosition]string{
@@ -58,6 +50,8 @@ func New(app *gtk.Application, b *bus.Bus) {
 		BottomRight: {int(geom.Width()) - cornerSize, int(geom.Height()) - cornerSize},
 	}
 
+	c := &Corners{}
+
 	for pos, action := range actions {
 		win := layershell.NewWindow(app, layershell.WindowConfig{
 			Name:          "snry-corner",
@@ -66,6 +60,7 @@ func New(app *gtk.Application, b *bus.Bus) {
 			KeyboardMode:  layershell.KeyboardModeNone,
 			ExclusiveZone: -1,
 			Namespace:     "snry-corner",
+			Monitor:       mon,
 		})
 
 		box := gtk.NewBox(gtk.OrientationHorizontal, 0)
@@ -84,5 +79,9 @@ func New(app *gtk.Application, b *bus.Bus) {
 			b.Publish(bus.TopicSystemControls, a)
 		})
 		box.AddController(ctrl)
+
+		c.windows = append(c.windows, win)
 	}
+
+	return c
 }

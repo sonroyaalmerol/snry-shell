@@ -2,6 +2,7 @@
 package bar
 
 import (
+	"github.com/diamondburned/gotk4/pkg/gdk/v4"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/sonroyaalmerol/snry-shell/internal/bus"
 	"github.com/sonroyaalmerol/snry-shell/internal/layershell"
@@ -10,16 +11,17 @@ import (
 
 // Bar is the top-edge status bar surface.
 type Bar struct {
-	win         *gtk.ApplicationWindow
+	Win         *gtk.ApplicationWindow
 	bus         *bus.Bus
+	monitor     *gdk.Monitor
 	NotifTrigger gtk.Widgetter
 	WifiTrigger  gtk.Widgetter
 	BtTrigger    gtk.Widgetter
 	ClockGroup   gtk.Widgetter
 }
 
-// New creates and shows the bar window.
-func New(app *gtk.Application, b *bus.Bus, refs *servicerefs.ServiceRefs) *Bar {
+// New creates and shows the bar window on the given monitor.
+func New(app *gtk.Application, b *bus.Bus, refs *servicerefs.ServiceRefs, mon *gdk.Monitor) *Bar {
 	win := layershell.NewWindow(app, layershell.WindowConfig{
 		Name:          "snry-bar",
 		Layer:         layershell.LayerTop,
@@ -27,9 +29,10 @@ func New(app *gtk.Application, b *bus.Bus, refs *servicerefs.ServiceRefs) *Bar {
 		KeyboardMode:  layershell.KeyboardModeOnDemand,
 		ExclusiveZone: layershell.BarExclusiveZone,
 		Namespace:     "snry-bar",
+		Monitor:       mon,
 	})
 
-	bar := &Bar{win: win, bus: b}
+	bar := &Bar{Win: win, bus: b, monitor: mon}
 	bar.build(refs)
 	win.SetVisible(true)
 	return bar
@@ -41,7 +44,7 @@ func (b *Bar) build(refs *servicerefs.ServiceRefs) {
 	root.SetStartWidget(b.buildLeft(refs))
 	root.SetCenterWidget(b.buildCenter(refs))
 	root.SetEndWidget(b.buildRight(refs))
-	b.win.SetChild(root)
+	b.Win.SetChild(root)
 }
 
 // Left: window title + keyboard layout.
@@ -73,16 +76,16 @@ func (b *Bar) buildRight(refs *servicerefs.ServiceRefs) gtk.Widgetter {
 	box := gtk.NewBox(gtk.OrientationHorizontal, 6)
 	box.SetVAlign(gtk.AlignCenter)
 
-	notif := clickableBarGroup(newNotificationIcon(b.bus), b.bus, "toggle-notif-center")
+	notif := clickableBarGroup(newNotificationIcon(b.bus), b.bus, "toggle-notif-center", b.monitor)
 	b.NotifTrigger = notif
 
-	wifi := clickableBarGroup(newWifiIcon(b.bus), b.bus, "toggle-wifi")
+	wifi := clickableBarGroup(newWifiIcon(b.bus), b.bus, "toggle-wifi", b.monitor)
 	b.WifiTrigger = wifi
 
-	bt := clickableBarGroup(newBluetoothIcon(b.bus, refs), b.bus, "toggle-bluetooth")
+	bt := clickableBarGroup(newBluetoothIcon(b.bus, refs), b.bus, "toggle-bluetooth", b.monitor)
 	b.BtTrigger = bt
 
-	clockGroup := clickableBarGroup(newClockGroup(b.bus), b.bus, "toggle-calendar")
+	clockGroup := clickableBarGroup(newClockGroup(b.bus), b.bus, "toggle-calendar", b.monitor)
 	b.ClockGroup = clockGroup
 
 	box.Append(notif)

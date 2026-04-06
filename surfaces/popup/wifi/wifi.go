@@ -1,9 +1,11 @@
 package wifi
 
 import (
+	"github.com/diamondburned/gotk4/pkg/gdk/v4"
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/sonroyaalmerol/snry-shell/internal/bus"
+	"github.com/sonroyaalmerol/snry-shell/internal/layershell"
 	"github.com/sonroyaalmerol/snry-shell/internal/servicerefs"
 	"github.com/sonroyaalmerol/snry-shell/internal/surfaceutil"
 	"github.com/sonroyaalmerol/snry-shell/surfaces/widgets"
@@ -20,6 +22,7 @@ type WiFi struct {
 	bus     *bus.Bus
 	refs    *servicerefs.ServiceRefs
 	trigger gtk.Widgetter
+	monitor *gdk.Monitor
 	root    *gtk.Box
 }
 
@@ -50,6 +53,17 @@ func New(app *gtk.Application, b *bus.Bus, refs *servicerefs.ServiceRefs, trigge
 	panel.Append(scroll)
 	root.Append(panel)
 
+	b.Subscribe(bus.TopicPopupTrigger, func(e bus.Event) {
+		pt, ok := e.Data.(surfaceutil.PopupTrigger)
+		if !ok {
+			return
+		}
+		if pt.Action == "toggle-wifi" {
+			w.trigger = pt.Trigger
+			w.monitor = pt.Monitor
+		}
+	})
+
 	b.Subscribe(bus.TopicSystemControls, func(e bus.Event) {
 		if e.Data == "toggle-wifi" {
 			glib.IdleAdd(func() { w.Toggle() })
@@ -63,7 +77,10 @@ func (w *WiFi) Toggle() {
 	if w.win.Visible() {
 		w.win.SetVisible(false)
 	} else {
-		surfaceutil.PositionUnderTrigger(w.root, w.trigger, panelWidth, panelMargin)
+		if w.monitor != nil {
+			layershell.SetMonitor(w.win, w.monitor)
+		}
+		surfaceutil.PositionUnderTrigger(w.root, w.trigger, panelWidth, panelMargin, w.monitor)
 		if w.refs.Network != nil {
 			go w.refs.Network.ScanWiFi()
 		}

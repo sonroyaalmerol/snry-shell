@@ -20,12 +20,14 @@ extern void gtk_layer_set_margin(GtkWindow *window, int edge, int margin);
 extern void gtk_layer_set_exclusive_zone(GtkWindow *window, int zone);
 extern void gtk_layer_set_keyboard_mode(GtkWindow *window, int mode);
 extern void gtk_layer_set_namespace(GtkWindow *window, const char *namespace);
+extern void gtk_layer_set_monitor(GtkWindow *window, GdkMonitor *monitor);
 */
 import "C"
 
 import (
 	"unsafe"
 
+	"github.com/diamondburned/gotk4/pkg/core/glib"
 	"github.com/diamondburned/gotk4/pkg/gdk/v4"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 )
@@ -100,6 +102,14 @@ func SetNamespace(w any, namespace string) {
 	C.free(unsafe.Pointer(cstr))
 }
 
+func SetMonitor(w any, monitor *gdk.Monitor) {
+	var monPtr *C.GdkMonitor
+	if monitor != nil {
+		monPtr = (*C.GdkMonitor)(unsafe.Pointer(glib.InternObject(monitor).Native()))
+	}
+	C.gtk_layer_set_monitor(WindowPtr(w), monPtr)
+}
+
 type WindowConfig struct {
 	Name          string
 	Layer         Layer
@@ -108,6 +118,7 @@ type WindowConfig struct {
 	KeyboardMode  KeyboardMode
 	ExclusiveZone int
 	Namespace     string
+	Monitor       *gdk.Monitor
 }
 
 func NewWindow(app *gtk.Application, cfg WindowConfig) *gtk.ApplicationWindow {
@@ -140,6 +151,10 @@ func NewWindow(app *gtk.Application, cfg WindowConfig) *gtk.ApplicationWindow {
 
 	if cfg.Namespace != "" {
 		SetNamespace(win, cfg.Namespace)
+	}
+
+	if cfg.Monitor != nil {
+		SetMonitor(win, cfg.Monitor)
 	}
 
 	// Track input device: hide cursor on touch, restore on mouse.

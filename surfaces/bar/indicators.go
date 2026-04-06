@@ -5,6 +5,7 @@ import (
 	"log"
 	"sync/atomic"
 
+	"github.com/diamondburned/gotk4/pkg/gdk/v4"
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/sonroyaalmerol/snry-shell/internal/bus"
@@ -12,6 +13,7 @@ import (
 	"github.com/sonroyaalmerol/snry-shell/internal/services/hyprland"
 	"github.com/sonroyaalmerol/snry-shell/internal/servicerefs"
 	"github.com/sonroyaalmerol/snry-shell/internal/state"
+	"github.com/sonroyaalmerol/snry-shell/internal/surfaceutil"
 )
 
 // barGroup wraps a widget in a rounded container matching illogical-impulse BarGroup.
@@ -25,7 +27,7 @@ func barGroup(child gtk.Widgetter) gtk.Widgetter {
 
 // clickableBarGroup wraps a widget like barGroup but adds a click gesture
 // that publishes the given action string to TopicSystemControls.
-func clickableBarGroup(child gtk.Widgetter, b *bus.Bus, action string) gtk.Widgetter {
+func clickableBarGroup(child gtk.Widgetter, b *bus.Bus, action string, mon *gdk.Monitor) gtk.Widgetter {
 	box := gtk.NewBox(gtk.OrientationHorizontal, 0)
 	box.AddCSSClass("bar-group")
 	box.AddCSSClass("bar-group-clickable")
@@ -36,6 +38,9 @@ func clickableBarGroup(child gtk.Widgetter, b *bus.Bus, action string) gtk.Widge
 	click := gtk.NewGestureClick()
 	click.SetButton(1)
 	click.ConnectReleased(func(_ int, _ float64, _ float64) {
+		b.Publish(bus.TopicPopupTrigger, surfaceutil.PopupTrigger{
+			Action: action, Trigger: box, Monitor: mon,
+		})
 		b.Publish(bus.TopicSystemControls, action)
 	})
 	box.AddController(click)

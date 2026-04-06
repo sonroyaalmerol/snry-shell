@@ -135,6 +135,15 @@ func MonitorWidth() int {
 	return geom.Width()
 }
 
+// PopupTrigger carries the widget and monitor for a popup trigger click.
+// Published to TopicPopupTrigger before TopicSystemControls so popups
+// can update their trigger reference before toggling.
+type PopupTrigger struct {
+	Action  string
+	Trigger gtk.Widgetter
+	Monitor *gdk.Monitor
+}
+
 // PopupPanelConfig configures a standard popup panel surface.
 type PopupPanelConfig struct {
 	Name      string      // window name (e.g. "snry-controls")
@@ -204,11 +213,16 @@ func NewPopupPanel(app *gtk.Application, b *bus.Bus, cfg PopupPanelConfig) (*gtk
 }
 
 // PositionUnderTrigger centers root under the trigger widget, clamping to monitor bounds.
-func PositionUnderTrigger(root *gtk.Box, trigger gtk.Widgetter, panelWidth, panelMargin int) {
+// If mon is nil, uses the primary monitor width.
+func PositionUnderTrigger(root *gtk.Box, trigger gtk.Widgetter, panelWidth, panelMargin int, mon *gdk.Monitor) {
 	triggerX := WidgetXRelativeToRoot(trigger)
 	triggerW := WidgetWidth(trigger)
 	popupW := panelWidth + panelMargin*2
 	monW := MonitorWidth()
+	if mon != nil {
+		geom := mon.Geometry()
+		monW = geom.Width()
+	}
 
 	desiredLeft := triggerX + triggerW/2 - popupW/2
 	if monW > 0 {
