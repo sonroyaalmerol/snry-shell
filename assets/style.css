@@ -141,7 +141,7 @@ scale.m3-scale trough {
     min-height: 8px;
 }
 scale.m3-scale trough highlight {
-    background-color: @col_primary;
+    background-color: @col_outline;
     border-radius: var(--radius-pill) 0 0 var(--radius-pill);
     min-height: 8px;
 }
@@ -150,7 +150,7 @@ scale.m3-scale slider {
     border-radius: 50%;
     min-width: 16px;
     min-height: 16px;
-    border: 4px solid @col_primary;
+    border: 4px solid @col_outline;
     box-shadow: 0 1px 3px alpha(#000000, 0.3);
     margin: -4px -8px;
 }
