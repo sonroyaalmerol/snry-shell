@@ -213,7 +213,7 @@ scale.m3-scale slider {
 .bar-group {
     background-color: @col_surface_container;
     border-radius: var(--radius-md);
-    padding: 6px 8px;
+    padding: 4px 6px;
 }
 
 .bar-group-clickable {
@@ -326,7 +326,7 @@ scale.m3-scale slider {
 .indicator-icon {
     font-size: 19px;
     color: @col_on_surface;
-    padding: 0 4px;
+    padding: 0 2px;
 }
 
 /* Status values inside bar groups */
@@ -339,7 +339,7 @@ scale.m3-scale slider {
 /* ── System tray ─────────────────────────────────────────────────────────────── */
 
 .tray {
-    margin: 0 4px;
+    margin: 0 2px;
 }
 
 .tray-item {

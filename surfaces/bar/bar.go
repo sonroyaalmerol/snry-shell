@@ -94,7 +94,7 @@ func newClockGroup(b *bus.Bus) gtk.Widgetter {
 
 // Right: individual indicator icons + system tray + clock.
 func (b *Bar) buildRight(refs *servicerefs.ServiceRefs) gtk.Widgetter {
-	box := gtk.NewBox(gtk.OrientationHorizontal, 6)
+	box := gtk.NewBox(gtk.OrientationHorizontal, 2)
 	box.SetVAlign(gtk.AlignCenter)
 
 	notif := clickableBarGroup(newNotificationIcon(b.bus), b.bus, "toggle-notif-center", b.monitor)
