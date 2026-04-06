@@ -27,8 +27,21 @@ jobs:
           sudo apt-get update -q
           sudo apt-get install -y --no-install-recommends \
             libgtk-4-dev libwayland-dev wayland-protocols \
-            pkg-config meson ninja-build gcc g++ \
+            pkg-config meson ninja-build gcc g++ ccache \
             libgirepository1.0-dev
+
+      - name: Cache ccache
+        uses: actions/cache@v4
+        with:
+          path: ~/.ccache
+          key: ccache-${{ runner.os }}-${{ hashFiles('**/go.sum') }}
+          restore-keys: ccache-${{ runner.os }}-
+
+      - name: Configure ccache for CGo
+        run: |
+          echo "CC=ccache gcc" >> $GITHUB_ENV
+          echo "CXX=ccache g++" >> $GITHUB_ENV
+          ccache --set-config=max_size=500M
 
       - name: Cache gtk4-layer-shell
         id: cache-layershell
