@@ -115,22 +115,14 @@ func (s *Session) buildBtn(a struct {
 	action := a
 	cmd := a.cmd
 	btn.ConnectClicked(func() {
-		gtkutil.ConfirmDialog(
-			s.win,
-			a.label,
-			"",
-			a.label,
-			func() {
-				s.bus.Publish(bus.TopicSessionAction, action.action)
-				s.win.SetVisible(false)
-				go func() {
-					time.Sleep(200 * time.Millisecond)
-					if err := exec.Command(cmd[0], cmd[1:]...).Run(); err != nil {
-						log.Printf("session: %s: %v", cmd[0], err)
-					}
-				}()
-			},
-		)
+		s.bus.Publish(bus.TopicSessionAction, action.action)
+		s.win.SetVisible(false)
+		go func() {
+			time.Sleep(200 * time.Millisecond)
+			if err := exec.Command(cmd[0], cmd[1:]...).Run(); err != nil {
+				log.Printf("session: %s: %v", cmd[0], err)
+			}
+		}()
 	})
 	return btn
 }
