@@ -498,6 +498,7 @@ scale.m3-scale slider {
     color: @col_on_surface;
     font-size: 15px;
     border-radius: var(--radius-xl);
+    padding: 12px 16px;
     margin-bottom: 16px;
 }
 
@@ -526,11 +527,10 @@ scale.m3-scale slider {
 }
 
 .appdrawer-tile {
-    padding: 8px;
+    padding: 8px 4px;
     border-radius: var(--radius-xl);
     background-color: transparent;
-    min-width: 80px;
-    min-height: 90px;
+    min-width: 72px;
 }
 
 .appdrawer-tile:hover,
@@ -539,12 +539,13 @@ scale.m3-scale slider {
 }
 
 .appdrawer-tile-icon {
-    pixel-size: 48px;
+    pixel-size: 56px;
 }
 
 .appdrawer-tile-label {
-    font-size: 12px;
+    font-size: 11px;
     color: @col_on_surface;
+    text-align: center;
 }
 
 .notification-list {

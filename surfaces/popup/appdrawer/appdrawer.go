@@ -170,10 +170,9 @@ func (d *AppDrawer) populateGrid(apps []launcher.App) {
 }
 
 func newAppTile(app launcher.App, onLaunch func()) gtk.Widgetter {
-	btn := gtk.NewButton()
-	btn.SetCursorFromName("pointer")
-	btn.AddCSSClass("appdrawer-tile")
-	btn.SetSizeRequest(80, 90)
+	box := gtk.NewBox(gtk.OrientationVertical, 6)
+	box.AddCSSClass("appdrawer-tile")
+	box.SetCursorFromName("pointer")
 
 	icon := gtk.NewImage()
 	iconName := app.Icon
@@ -181,22 +180,18 @@ func newAppTile(app launcher.App, onLaunch func()) gtk.Widgetter {
 		iconName = "application-x-executable"
 	}
 	icon.SetFromIconName(iconName)
-	icon.SetIconSize(6) // gtk.IconSizeLarge
 	icon.AddCSSClass("appdrawer-tile-icon")
 
 	label := gtk.NewLabel(app.Name)
 	label.AddCSSClass("appdrawer-tile-label")
 
-	box := gtk.NewBox(gtk.OrientationVertical, 4)
-	box.SetHAlign(gtk.AlignCenter)
 	box.Append(icon)
 	box.Append(label)
-	btn.SetChild(box)
 
-	gtkutil.ClaimedClick(&btn.Widget, func() {
+	gtkutil.ClaimedClick(&box.Widget, func() {
 		go launcher.Launch(app)
 		onLaunch()
 	})
 
-	return btn
+	return box
 }
