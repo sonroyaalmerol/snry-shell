@@ -22,7 +22,7 @@ type Bar struct {
 func New(app *gtk.Application, b *bus.Bus, refs *servicerefs.ServiceRefs) *Bar {
 	win := layershell.NewWindow(app, layershell.WindowConfig{
 		Name:          "snry-bar",
-		Layer:         layershell.LayerBackground,
+		Layer:         layershell.LayerTop,
 		Anchors:       layershell.TopEdgeAnchors(),
 		KeyboardMode:  layershell.KeyboardModeOnDemand,
 		ExclusiveZone: layershell.BarExclusiveZone,
