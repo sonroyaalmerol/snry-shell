@@ -1449,33 +1449,68 @@ scale.quick-slider {
 
 .settings-dropdown {
     background-color: @col_surface_container;
-    border-radius: var(--radius-sm);
-    padding: 4px 8px;
-    min-height: 36px;
+    border-radius: var(--radius-md);
+    padding: 8px 16px;
+    min-height: 48px;
+    border: 1px solid alpha(@col_outline, 0.2);
 }
 
 .settings-dropdown > button {
     background-color: transparent;
     color: @col_on_surface;
-    font-size: 13px;
+    font-size: var(--typescale-body-lg);
+    font-weight: 500;
     border: none;
-    padding: 4px 8px;
+    padding: 0;
 }
 
-.settings-dropdown > list {
-    background-color: @col_surface_container_high;
+.settings-dropdown > button:hover {
+    background-color: transparent;
+}
+
+.settings-dropdown > button:focus {
+    outline: none;
+}
+
+/* Dropdown popup menu - Material 3 style */
+popover.menu {
+    background-color: @col_surface_container;
+    border-radius: var(--radius-md);
+    padding: 8px 0;
+    box-shadow: var(--elevation-2);
+    border: 1px solid alpha(@col_outline, 0.1);
+}
+
+popover.menu box {
+    background-color: transparent;
+}
+
+popover.menu listview row,
+popover.menu list row {
+    background-color: transparent;
+    padding: 12px 16px;
+    margin: 0 8px;
     border-radius: var(--radius-sm);
-}
-
-.settings-dropdown > list row {
-    padding: 8px 12px;
-    font-size: 13px;
+    font-size: var(--typescale-body-lg);
     color: @col_on_surface;
+    min-height: 48px;
 }
 
-.settings-dropdown > list row:selected {
+popover.menu listview row:hover,
+popover.menu list row:hover {
+    background-color: alpha(@col_on_surface, 0.08);
+}
+
+popover.menu listview row:selected,
+popover.menu list row:selected {
     background-color: @col_primary_container;
     color: @col_on_primary_container;
+}
+
+/* Arrow button in dropdown */
+.settings-dropdown > button > box > image {
+    color: @col_on_surface_variant;
+    margin-left: 8px;
 }
 
 .settings-nav {

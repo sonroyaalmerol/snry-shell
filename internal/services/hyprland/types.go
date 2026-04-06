@@ -6,26 +6,26 @@ type HyprWorkspace struct {
 }
 
 type HyprClient struct {
-	Class    string `json:"class"`
-	Title    string `json:"title"`
-	Address  string `json:"address"`
-	At       [2]int `json:"at"`
-	Size     [2]int `json:"size"`
+	Class     string `json:"class"`
+	Title     string `json:"title"`
+	Address   string `json:"address"`
+	At        [2]int `json:"at"`
+	Size      [2]int `json:"size"`
 	Workspace struct {
 		ID int `json:"id"`
 	} `json:"workspace"`
-	PID     int    `json:"pid"`
-	Monitor int    `json:"monitor"`
+	PID     int `json:"pid"`
+	Monitor int `json:"monitor"`
 }
 
 type HyprMonitor struct {
-	ID              int    `json:"id"`
-	Name            string `json:"name"`
-	Width           int    `json:"width"`
-	Height          int    `json:"height"`
+	ID              int     `json:"id"`
+	Name            string  `json:"name"`
+	Width           int     `json:"width"`
+	Height          int     `json:"height"`
 	Scale           float64 `json:"scale"`
-	X               int    `json:"x"`
-	Y               int    `json:"y"`
+	X               int     `json:"x"`
+	Y               int     `json:"y"`
 	ActiveWorkspace struct {
 		ID   int    `json:"id"`
 		Name string `json:"name"`
@@ -34,8 +34,8 @@ type HyprMonitor struct {
 }
 
 type HyprDevices struct {
-	Mice     []HyprMouse     `json:"mice"`
-	Keyboard []HyprKeyboard  `json:"keyboards"`
+	Mice     []HyprMouse    `json:"mice"`
+	Keyboard []HyprKeyboard `json:"keyboards"`
 }
 
 type HyprMouse struct {
@@ -44,8 +44,9 @@ type HyprMouse struct {
 
 // HyprActiveWindow is the focused window info from hyprctl activewindow -j.
 type HyprActiveWindow struct {
-	Class string `json:"class"`
-	Title string `json:"title"`
+	Class   string `json:"class"`
+	Title   string `json:"title"`
+	Address string `json:"address"`
 }
 
 type HyprKeyboard struct {

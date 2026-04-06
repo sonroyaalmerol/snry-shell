@@ -137,6 +137,36 @@ func (q *Querier) ToggleSplit() error {
 	return err
 }
 
+// CloseWindow closes the window with the given address.
+func (q *Querier) CloseWindow(address string) error {
+	_, err := q.cmd.Run("dispatch", "closewindow", "address:"+address)
+	return err
+}
+
+// ToggleFullscreenWindow toggles fullscreen for the window with the given address.
+func (q *Querier) ToggleFullscreenWindow(address string) error {
+	_, err := q.cmd.Run("dispatch", "fullscreen", "1", "address:"+address)
+	return err
+}
+
+// ToggleFloatingWindow toggles floating for the window with the given address.
+func (q *Querier) ToggleFloatingWindow(address string) error {
+	_, err := q.cmd.Run("dispatch", "togglefloating", "address:"+address)
+	return err
+}
+
+// ToggleSplitWindow toggles split for the window with the given address.
+func (q *Querier) ToggleSplitWindow(address string) error {
+	_, err := q.cmd.Run("dispatch", "togglesplit", "address:"+address)
+	return err
+}
+
+// MoveWindowToWorkspace moves the window with the given address to the specified workspace.
+func (q *Querier) MoveWindowToWorkspace(address string, id int) error {
+	_, err := q.cmd.Run("dispatch", "movetoworkspace", strconv.Itoa(id), "address:"+address)
+	return err
+}
+
 // ActiveWindow returns the currently focused window's class and title.
 func (q *Querier) ActiveWindow() (HyprActiveWindow, error) {
 	out, err := q.cmd.Run("activewindow", "-j")
@@ -178,4 +208,3 @@ func (q *Querier) GetOption(option string) (string, error) {
 	}
 	return strings.TrimSpace(line), nil
 }
-

@@ -15,21 +15,23 @@ import (
 )
 
 const (
-	panelMargin = 12
-	panelWidth  = 280
+	panelMargin   = 12
+	panelWidth    = 280
 	maxWorkspaces = 10
 )
 
 // WindowMgmt is a popup for touch-friendly window management actions.
 type WindowMgmt struct {
-	win      *gtk.ApplicationWindow
-	bus      *bus.Bus
-	refs     *servicerefs.ServiceRefs
-	trigger  gtk.Widgetter
-	monitor  *gdk.Monitor
-	root     *gtk.Box
-	wsRows   []*gtk.Box
-	activeWS int
+	win         *gtk.ApplicationWindow
+	bus         *bus.Bus
+	refs        *servicerefs.ServiceRefs
+	trigger     gtk.Widgetter
+	monitor     *gdk.Monitor
+	root        *gtk.Box
+	wsRows      []*gtk.Box
+	activeWS    int
+	capturedWin string // Address of the window captured when popup opened
+	isOpen      bool
 }
 
 // New creates and hides the window management popup anchored to the given trigger widget.
@@ -78,13 +80,30 @@ func New(app *gtk.Application, b *bus.Bus, refs *servicerefs.ServiceRefs, trigge
 		}
 	})
 
+	// Listen for active window changes but only update if popup is not open
+	b.Subscribe(bus.TopicActiveWindow, func(e bus.Event) {
+		if w.isOpen {
+			// Don't update - keep showing captured window
+			return
+		}
+	})
+
 	return w
 }
 
 func (w *WindowMgmt) Toggle() {
 	if w.win.Visible() {
 		w.win.SetVisible(false)
+		w.isOpen = false
+		w.capturedWin = ""
 	} else {
+		// Capture the current window before opening
+		if w.refs.Hyprland != nil {
+			if win, err := w.refs.Hyprland.ActiveWindow(); err == nil && win.Address != "" {
+				w.capturedWin = win.Address
+			}
+		}
+		w.isOpen = true
 		if w.monitor != nil {
 			layershell.SetMonitor(w.win, w.monitor)
 		}
@@ -108,30 +127,30 @@ func buildContent(b *bus.Bus, refs *servicerefs.ServiceRefs, w *WindowMgmt) gtk.
 	box := gtk.NewBox(gtk.OrientationVertical, 0)
 	box.AddCSSClass("conn-widget")
 
-	// Action rows.
+	// Action rows - use captured window address.
 	actions := []struct {
 		icon  string
 		label string
 		fn    func()
 	}{
 		{"close", "Close Window", func() {
-			if refs.Hyprland != nil {
-				go refs.Hyprland.CloseActiveWindow()
+			if refs.Hyprland != nil && w.capturedWin != "" {
+				go refs.Hyprland.CloseWindow(w.capturedWin)
 			}
 		}},
 		{"fullscreen", "Toggle Fullscreen", func() {
-			if refs.Hyprland != nil {
-				go refs.Hyprland.ToggleFullscreen()
+			if refs.Hyprland != nil && w.capturedWin != "" {
+				go refs.Hyprland.ToggleFullscreenWindow(w.capturedWin)
 			}
 		}},
 		{"picture_in_picture_alt", "Toggle Floating", func() {
-			if refs.Hyprland != nil {
-				go refs.Hyprland.ToggleFloating()
+			if refs.Hyprland != nil && w.capturedWin != "" {
+				go refs.Hyprland.ToggleFloatingWindow(w.capturedWin)
 			}
 		}},
 		{"view_column", "Change Split", func() {
-			if refs.Hyprland != nil {
-				go refs.Hyprland.ToggleSplit()
+			if refs.Hyprland != nil && w.capturedWin != "" {
+				go refs.Hyprland.ToggleSplitWindow(w.capturedWin)
 			}
 		}},
 	}
@@ -156,14 +175,14 @@ func buildContent(b *bus.Bus, refs *servicerefs.ServiceRefs, w *WindowMgmt) gtk.
 	header.Append(label)
 	box.Append(header)
 
-	// Workspace rows.
+	// Workspace rows - use captured window address.
 	for i := range maxWorkspaces {
 		wsID := i + 1
 		lbl := fmt.Sprintf("Workspace %d", wsID)
 		id := wsID
 		row := actionRow("space_dashboard", lbl, func() {
-			if refs.Hyprland != nil {
-				go refs.Hyprland.MoveToWorkspace(id)
+			if refs.Hyprland != nil && w.capturedWin != "" {
+				go refs.Hyprland.MoveWindowToWorkspace(w.capturedWin, id)
 			}
 		})
 		if wsID == w.activeWS {
