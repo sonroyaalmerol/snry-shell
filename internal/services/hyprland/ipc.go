@@ -80,6 +80,19 @@ func (s *Service) SeedClients(clients []HyprClient) {
 	}
 }
 
+// firstClassOnWorkspace returns the class of the first window found on the
+// given workspace, or "" if empty.
+func (s *Service) firstClassOnWorkspace(wsID int) string {
+	for addr, wID := range s.windows {
+		if wID == wsID {
+			if class, ok := s.windowClasses[addr]; ok {
+				return class
+			}
+		}
+	}
+	return ""
+}
+
 func (s *Service) Run(ctx context.Context) error {
 	for {
 		select {
@@ -135,6 +148,8 @@ func (s *Service) handleEvent(event, data string) {
 			if s.workspaces[wsID] <= 0 {
 				delete(s.workspaces, wsID)
 				delete(s.workspaceIcons, wsID)
+			} else {
+				s.workspaceIcons[wsID] = s.firstClassOnWorkspace(wsID)
 			}
 			s.publishWorkspace(wsID)
 		}
@@ -151,6 +166,8 @@ func (s *Service) handleEvent(event, data string) {
 				if s.workspaces[srcID] <= 0 {
 					delete(s.workspaces, srcID)
 					delete(s.workspaceIcons, srcID)
+				} else {
+					s.workspaceIcons[srcID] = s.firstClassOnWorkspace(srcID)
 				}
 				s.publishWorkspace(srcID)
 			}
