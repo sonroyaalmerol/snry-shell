@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"syscall"
 )
 
 // Launch starts the given app detached from the current process.
@@ -16,6 +17,7 @@ func Launch(app App) error {
 	}
 	cmd := exec.Command(fields[0], fields[1:]...)
 	cmd.Env = os.Environ()
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
 	return cmd.Start()
 }
 
