@@ -50,27 +50,30 @@ func TestSaveAndLoad(t *testing.T) {
 	}
 }
 
-func TestLoadMissingFileReturnsDefaults(t *testing.T) {
+func TestLoadMissingReturnsDefaults(t *testing.T) {
 	dir := t.TempDir()
 	t.Setenv("HOME", dir)
 
 	cfg, err := settings.Load()
 	if err != nil {
-		t.Fatalf("expected no error for missing file, got: %v", err)
+		t.Fatalf("expected no error for empty store, got: %v", err)
 	}
 	if cfg.FontScale != 1.0 {
 		t.Fatalf("expected default FontScale 1.0, got %f", cfg.FontScale)
 	}
+	if cfg.BarPosition != "top" {
+		t.Fatalf("expected default BarPosition 'top', got %q", cfg.BarPosition)
+	}
 }
 
-func TestLoadPartialFileKeepsDefaults(t *testing.T) {
+func TestIndividualFieldPersists(t *testing.T) {
 	dir := t.TempDir()
 	t.Setenv("HOME", dir)
 
-	// Save only one field.
-	partial := settings.DefaultConfig()
-	partial.DoNotDisturb = true
-	if err := settings.Save(partial); err != nil {
+	// Save only one field by saving a config with defaults except one.
+	cfg := settings.DefaultConfig()
+	cfg.DoNotDisturb = true
+	if err := settings.Save(cfg); err != nil {
 		t.Fatal(err)
 	}
 
@@ -78,8 +81,11 @@ func TestLoadPartialFileKeepsDefaults(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// Non-saved fields keep their defaults.
+	if !loaded.DoNotDisturb {
+		t.Fatal("DoNotDisturb should be persisted")
+	}
+	// Other fields should still match defaults.
 	if loaded.FontScale != 1.0 {
-		t.Fatalf("expected default FontScale, got %f", loaded.FontScale)
+		t.Fatalf("FontScale should be default, got %f", loaded.FontScale)
 	}
 }

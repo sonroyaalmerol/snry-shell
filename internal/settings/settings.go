@@ -1,19 +1,23 @@
 package settings
 
 import (
-	"encoding/json"
-	"os"
-	"path/filepath"
+	"github.com/sonroyaalmerol/snry-shell/internal/store"
+)
 
-	"github.com/sonroyaalmerol/snry-shell/internal/fileutil"
+const (
+	keyDarkMode     = "dark_mode"
+	keyFontScale    = "font_scale"
+	keyBarPosition  = "bar_position"
+	keyDoNotDisturb = "do_not_disturb"
+	keyInputMode    = "input_mode"
 )
 
 type Config struct {
-	DarkMode     bool    `json:"dark_mode"`
-	FontScale    float64 `json:"font_scale"`
-	BarPosition  string  `json:"bar_position"`
-	DoNotDisturb bool    `json:"do_not_disturb"`
-	InputMode     string  `json:"input_mode"` // "auto", "tablet", "desktop"
+	DarkMode     bool
+	FontScale    float64
+	BarPosition  string
+	DoNotDisturb bool
+	InputMode    string // "auto", "tablet", "desktop"
 }
 
 func DefaultConfig() Config {
@@ -22,29 +26,27 @@ func DefaultConfig() Config {
 		FontScale:    1.0,
 		BarPosition:  "top",
 		DoNotDisturb: false,
-		InputMode:     "auto",
+		InputMode:    "auto",
 	}
 }
 
 func Load() (Config, error) {
-	data, err := os.ReadFile(configPath())
-	if os.IsNotExist(err) {
-		return DefaultConfig(), nil
-	}
-	if err != nil {
-		return Config{}, err
-	}
-	cfg := DefaultConfig()
-	if err := json.Unmarshal(data, &cfg); err != nil {
-		return Config{}, err
-	}
-	return cfg, nil
+	d := DefaultConfig()
+	return Config{
+		DarkMode:     store.LookupOr(keyDarkMode, d.DarkMode),
+		FontScale:    store.LookupOr(keyFontScale, d.FontScale),
+		BarPosition:  store.LookupOr(keyBarPosition, d.BarPosition),
+		DoNotDisturb: store.LookupOr(keyDoNotDisturb, d.DoNotDisturb),
+		InputMode:    store.LookupOr(keyInputMode, d.InputMode),
+	}, nil
 }
 
 func Save(cfg Config) error {
-	return fileutil.SaveJSON(configPath(), cfg)
-}
-
-func configPath() string {
-	return filepath.Join(fileutil.ConfigDir(), "settings.json")
+	return store.SetMany(map[string]any{
+		keyDarkMode:     cfg.DarkMode,
+		keyFontScale:    cfg.FontScale,
+		keyBarPosition:  cfg.BarPosition,
+		keyDoNotDisturb: cfg.DoNotDisturb,
+		keyInputMode:    cfg.InputMode,
+	})
 }
