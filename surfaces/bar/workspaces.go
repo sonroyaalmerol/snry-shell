@@ -2,8 +2,6 @@ package bar
 
 import (
 	"fmt"
-	"log"
-	"os"
 
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
@@ -40,28 +38,22 @@ func newWorkspacesWidget(b *bus.Bus, querier *hyprland.Querier) gtk.Widgetter {
 		btn.SetTooltipText(fmt.Sprintf("Workspace %d", id))
 
 		btn.ConnectClicked(func() {
-			logger := log.New(os.Stderr, "[workspace] ", log.Lmsgprefix|log.Ltime)
-			logger.Printf("button clicked: workspace %d, querier=%v", id, w.querier != nil)
 			if w.querier != nil {
-				go func() {
-					logger.Printf("calling SwitchWorkspace(%d)", id)
-					err := w.querier.SwitchWorkspace(id)
-					logger.Printf("SwitchWorkspace(%d) returned: %v", id, err)
-				}()
+				go w.querier.SwitchWorkspace(id)
 			}
 		})
-
-		// Right-click opens overview.
-		rightClick := gtk.NewGestureClick()
-		rightClick.SetButton(3)
-		rightClick.ConnectPressed(func(_ int, _ float64, _ float64) {
-			b.Publish(bus.TopicSystemControls, "toggle-overview")
-		})
-		btn.AddController(rightClick)
 
 		w.box.Append(btn)
 		w.pills = append(w.pills, btn)
 	}
+
+	// Right-click on the workspace area opens overview.
+	rightClick := gtk.NewGestureClick()
+	rightClick.SetButton(3)
+	rightClick.ConnectPressed(func(_ int, _ float64, _ float64) {
+		b.Publish(bus.TopicSystemControls, "toggle-overview")
+	})
+	w.box.AddController(rightClick)
 
 	b.Subscribe(bus.TopicWorkspaces, func(e bus.Event) {
 		ws := e.Data.(state.Workspace)
