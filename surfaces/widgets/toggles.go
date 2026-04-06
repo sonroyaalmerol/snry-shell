@@ -11,6 +11,7 @@ import (
 	"github.com/sonroyaalmerol/snry-shell/internal/bus"
 	"github.com/sonroyaalmerol/snry-shell/internal/gtkutil"
 	"github.com/sonroyaalmerol/snry-shell/internal/servicerefs"
+	"github.com/sonroyaalmerol/snry-shell/internal/settings"
 	"github.com/sonroyaalmerol/snry-shell/internal/state"
 )
 
@@ -82,6 +83,22 @@ func newInputModeControl(b *bus.Bus) gtk.Widgetter {
 			}
 			setting = false
 		})
+	})
+
+	// Also listen for settings changes to sync with control panel
+	b.Subscribe(bus.TopicSettingsChanged, func(e bus.Event) {
+		if cfg, ok := e.Data.(settings.Config); ok {
+			glib.IdleAdd(func() {
+				setting = true
+				for _, seg := range segments {
+					if seg.mode == cfg.InputMode {
+						seg.btn.SetActive(true)
+						break
+					}
+				}
+				setting = false
+			})
+		}
 	})
 
 	return box

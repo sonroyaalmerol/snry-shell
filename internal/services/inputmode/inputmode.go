@@ -86,6 +86,23 @@ func (s *Service) Run(ctx context.Context) error {
 		}
 	})
 
+	// Listen for external settings changes (e.g. from control panel)
+	s.bus.Subscribe(bus.TopicSettingsChanged, func(e bus.Event) {
+		if cfg, ok := e.Data.(settings.Config); ok {
+			s.mu.Lock()
+			if s.mode != cfg.InputMode {
+				s.mode = cfg.InputMode
+				if s.mode == "" {
+					s.mode = "auto"
+				}
+				s.mu.Unlock()
+				s.publish()
+			} else {
+				s.mu.Unlock()
+			}
+		}
+	})
+
 	// Detect initial touch state.
 	s.hasTouch = detectTouchDevice()
 
