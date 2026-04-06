@@ -152,7 +152,7 @@ scale.m3-scale slider {
     min-height: 20px;
     border: none;
     box-shadow: none;
-    margin: 0;
+    margin: -10px 0;
 }
 /* Shared icon button base */
 .m3-icon-btn {
