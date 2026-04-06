@@ -997,6 +997,45 @@ scale.m3-scale slider {
     color: @col_primary;
 }
 
+/* ── M3 Switch ─────────────────────────────────────────────────────────────── */
+
+.m3-switch {
+    font-size: 0;
+    min-width: 48px;
+    min-height: 28px;
+    border-radius: var(--radius-pill);
+    transition: background-color var(--duration-short4) var(--ease-standard-decel);
+}
+
+.m3-switch > slider {
+    min-width: 16px;
+    min-height: 16px;
+    border-radius: var(--radius-full);
+    border: none;
+    box-shadow: none;
+    margin: 6px;
+    transition: all var(--duration-medium1) var(--ease-emphasized-decel);
+}
+
+.m3-switch:disabled {
+    opacity: 0.38;
+}
+
+.m3-switch-row {
+    padding: 10px 16px;
+}
+
+.m3-switch-row-label {
+    font-size: var(--typescale-body-lg);
+    color: @col_on_surface;
+    font-weight: 500;
+}
+
+.m3-switch-row-sublabel {
+    font-size: var(--typescale-body-sm);
+    color: @col_on_surface_variant;
+}
+
 /* ── On-screen keyboard ─────────────────────────────────────────────────────── */
 
 .osk {

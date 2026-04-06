@@ -89,6 +89,29 @@ func M3Divider() *gtk.Separator {
 	return s
 }
 
+// M3Switch creates a Material Design 3 styled switch toggle.
+func M3Switch() *gtk.Switch {
+	s := gtk.NewSwitch()
+	s.AddCSSClass("m3-switch")
+	return s
+}
+
+// SwitchRow creates a labeled row with an M3 switch on the trailing side.
+func SwitchRow(label string, sw *gtk.Switch) *gtk.Box {
+	row := gtk.NewBox(gtk.OrientationHorizontal, 0)
+	row.AddCSSClass("m3-switch-row")
+
+	lbl := gtk.NewLabel(label)
+	lbl.AddCSSClass("m3-switch-row-label")
+	lbl.SetHExpand(true)
+	lbl.SetHAlign(gtk.AlignStart)
+	lbl.SetVAlign(gtk.AlignCenter)
+
+	row.Append(lbl)
+	row.Append(sw)
+	return row
+}
+
 // newDialogBase creates the shared layer-shell overlay window, scrim, card, and
 // title label used by all M3 dialog types. Returns (win, card, close).
 func newDialogBase(parent *gtk.ApplicationWindow, title string) (*gtk.ApplicationWindow, *gtk.Box, func()) {

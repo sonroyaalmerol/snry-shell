@@ -17,6 +17,33 @@ func NewBluetoothWidget(b *bus.Bus, refs *servicerefs.ServiceRefs, parent *gtk.A
 	box := gtk.NewBox(gtk.OrientationVertical, 0)
 	box.AddCSSClass("conn-widget")
 
+	// Power toggle row.
+	btSwitch := gtkutil.M3Switch()
+	settingBT := false
+	btSwitch.ConnectStateSet(func(state bool) bool {
+		if settingBT {
+			return false
+		}
+		if refs.Bluetooth != nil {
+			go refs.Bluetooth.SetPowered(state)
+		}
+		return true
+	})
+
+	b.Subscribe(bus.TopicBluetooth, func(e bus.Event) {
+		bs, ok := e.Data.(state.BluetoothState)
+		if !ok {
+			return
+		}
+		glib.IdleAdd(func() {
+			settingBT = true
+			btSwitch.SetActive(bs.Powered)
+			settingBT = false
+		})
+	})
+
+	box.Append(gtkutil.SwitchRow("Bluetooth", btSwitch))
+
 	rescan := func() {
 		if refs.Bluetooth != nil {
 			go func() {

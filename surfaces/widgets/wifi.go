@@ -15,6 +15,33 @@ func NewWiFiWidget(b *bus.Bus, refs *servicerefs.ServiceRefs, parent *gtk.Applic
 	box := gtk.NewBox(gtk.OrientationVertical, 0)
 	box.AddCSSClass("conn-widget")
 
+	// Power toggle row.
+	wifiSwitch := gtkutil.M3Switch()
+	settingWifi := false
+	wifiSwitch.ConnectStateSet(func(state bool) bool {
+		if settingWifi {
+			return false
+		}
+		if refs.Network != nil {
+			go refs.Network.SetWiFi(state)
+		}
+		return true
+	})
+
+	b.Subscribe(bus.TopicNetwork, func(e bus.Event) {
+		ns, ok := e.Data.(state.NetworkState)
+		if !ok {
+			return
+		}
+		glib.IdleAdd(func() {
+			settingWifi = true
+			wifiSwitch.SetActive(ns.WirelessEnabled)
+			settingWifi = false
+		})
+	})
+
+	box.Append(gtkutil.SwitchRow("WiFi", wifiSwitch))
+
 	rescan := func() {
 		if refs.Network != nil {
 			go refs.Network.ScanWiFi()
