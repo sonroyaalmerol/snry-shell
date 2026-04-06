@@ -60,7 +60,8 @@ func Run() int {
 
 		// Build the control panel UI
 		cp := newControlPanel(cfg)
-		window.SetChild(cp.build())
+		widget := cp.build()
+		window.SetChild(widget)
 
 		window.SetVisible(true)
 	})

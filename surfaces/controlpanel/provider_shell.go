@@ -40,9 +40,13 @@ func (s *shellConfigProvider) BuildWidget() gtk.Widgetter {
 	scroll := gtk.NewScrolledWindow()
 	scroll.SetPolicy(gtk.PolicyNever, gtk.PolicyAutomatic)
 	scroll.AddCSSClass("popup-scroll")
+	scroll.SetVExpand(true)
+	scroll.SetHExpand(true)
 
 	box := gtk.NewBox(gtk.OrientationVertical, 0)
 	box.AddCSSClass("settings-stack")
+	box.SetVExpand(true)
+	box.SetHExpand(true)
 
 	// Settings sections
 	box.Append(s.buildAppearanceSection())

@@ -28,6 +28,8 @@ func (cp *controlPanel) build() gtk.Widgetter {
 	// Main horizontal box: sidebar + content - use settings-panel style
 	root := gtk.NewBox(gtk.OrientationHorizontal, 0)
 	root.AddCSSClass("settings-panel")
+	root.SetVExpand(true)
+	root.SetHExpand(true)
 
 	// Build sidebar navigation - use settings-nav style
 	sidebar := cp.buildSidebar()
@@ -124,11 +126,14 @@ func (cp *controlPanel) buildContent() gtk.Widgetter {
 	content := gtk.NewBox(gtk.OrientationVertical, 0)
 	content.AddCSSClass("settings-stack")
 	content.SetHExpand(true)
+	content.SetVExpand(true)
 
 	// Stack for switching between providers
 	cp.stack = gtk.NewStack()
 	cp.stack.SetTransitionType(gtk.StackTransitionTypeSlideLeftRight)
 	cp.stack.SetTransitionDuration(200)
+	cp.stack.SetVExpand(true)
+	cp.stack.SetHExpand(true)
 
 	for i, provider := range cp.providers {
 		widget := provider.BuildWidget()
