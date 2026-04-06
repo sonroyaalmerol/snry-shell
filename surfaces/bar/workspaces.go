@@ -105,6 +105,7 @@ func (w *workspacesWidget) populateInitialIcons() {
 		}
 	}
 	for wsID, class := range firstClass {
+		log.Printf("[bar] populateInitial: ws%d class=%q", wsID, class)
 		w.setIcon(wsID-1, class)
 	}
 }
@@ -136,6 +137,7 @@ func (w *workspacesWidget) update(ws state.Workspace) {
 func (w *workspacesWidget) setIcon(idx int, class string) {
 	img := w.icons[idx]
 	lbl := w.labels[idx]
+	log.Printf("[bar] ws%d setIcon: class=%q", idx+1, class)
 	if class == "" {
 		img.SetVisible(false)
 		img.SetFromIconName("")
@@ -146,10 +148,13 @@ func (w *workspacesWidget) setIcon(idx int, class string) {
 		w.theme = gtk.IconThemeGetForDisplay(gdk.DisplayGetDefault())
 	}
 	if w.theme == nil {
+		log.Printf("[bar] ws%d setIcon: no theme", idx+1)
 		return
 	}
 	lower := strings.ToLower(class)
-	if w.theme.HasIcon(lower) {
+	has := w.theme.HasIcon(lower)
+	log.Printf("[bar] ws%d setIcon: lower=%q hasIcon=%v", idx+1, lower, has)
+	if has {
 		img.SetFromIconName(lower)
 		img.SetPixelSize(16)
 		img.SetVisible(true)
