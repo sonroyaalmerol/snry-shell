@@ -196,7 +196,11 @@ func NewPopupPanel(app *gtk.Application, b *bus.Bus, cfg PopupPanelConfig) (*gtk
 	win.SetChild(clickBg)
 	win.SetVisible(false)
 
-	layershell.SetMargin(win, layershell.EdgeTop, layershell.BarExclusiveZone+8)
+	setTopMargin := func(barH int) {
+		layershell.SetMargin(win, layershell.EdgeTop, barH+8)
+	}
+	setTopMargin(layershell.BarHeight())
+	layershell.OnBarHeightChanged(setTopMargin)
 	AddEscapeToClose(win)
 
 	b.Subscribe(bus.TopicSystemControls, func(e bus.Event) {

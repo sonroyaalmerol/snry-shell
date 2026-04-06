@@ -77,6 +77,9 @@ func New(app *gtk.Application, b *bus.Bus) *OSK {
 	win.ConnectMap(func() {
 		osk.updateExclusiveZone()
 	})
+	win.ConnectRealize(func() {
+		glib.IdleAdd(func() { osk.updateExclusiveZone() })
+	})
 
 	osk.hasTouch = detectTouchDevice()
 

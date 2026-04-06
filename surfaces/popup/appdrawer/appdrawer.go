@@ -91,7 +91,10 @@ func (d *AppDrawer) build() {
 	content.SetHAlign(gtk.AlignFill)
 	content.SetVAlign(gtk.AlignFill)
 	content.SetHExpand(true)
-	content.SetMarginTop(layershell.BarExclusiveZone + 16)
+	content.SetMarginTop(layershell.BarHeight() + 16)
+	layershell.OnBarHeightChanged(func(h int) {
+		content.SetMarginTop(h + 16)
+	})
 	content.SetMarginStart(24)
 	content.SetMarginEnd(24)
 

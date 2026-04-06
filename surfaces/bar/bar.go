@@ -3,6 +3,7 @@ package bar
 
 import (
 	"github.com/diamondburned/gotk4/pkg/gdk/v4"
+	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/sonroyaalmerol/snry-shell/internal/bus"
 	"github.com/sonroyaalmerol/snry-shell/internal/layershell"
@@ -25,17 +26,29 @@ type Bar struct {
 // New creates and shows the bar window on the given monitor.
 func New(app *gtk.Application, b *bus.Bus, refs *servicerefs.ServiceRefs, mon *gdk.Monitor) *Bar {
 	win := layershell.NewWindow(app, layershell.WindowConfig{
-		Name:          "snry-bar",
-		Layer:         layershell.LayerTop,
-		Anchors:       layershell.TopEdgeAnchors(),
-		KeyboardMode:  layershell.KeyboardModeOnDemand,
-		ExclusiveZone: layershell.BarExclusiveZone,
-		Namespace:     "snry-bar",
-		Monitor:       mon,
+		Name:         "snry-bar",
+		Layer:        layershell.LayerTop,
+		Anchors:      layershell.TopEdgeAnchors(),
+		KeyboardMode: layershell.KeyboardModeOnDemand,
+		Namespace:    "snry-bar",
+		Monitor:      mon,
 	})
 
 	bar := &Bar{Win: win, bus: b, monitor: mon}
 	bar.build(refs)
+
+	// Set exclusive zone from actual allocated height after layout so the
+	// compositor reserves exactly the right amount of space regardless of
+	// font scaling or CSS changes.
+	win.ConnectRealize(func() {
+		glib.IdleAdd(func() {
+			if h := win.AllocatedHeight(); h > 0 {
+				layershell.SetExclusiveZone(win, h)
+				layershell.SetBarHeight(h)
+			}
+		})
+	})
+
 	win.SetVisible(true)
 	return bar
 }
