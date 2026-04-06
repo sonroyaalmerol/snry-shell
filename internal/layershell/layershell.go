@@ -186,28 +186,23 @@ func installTouchCursorTracker(win *gtk.ApplicationWindow) {
 		}
 	}
 
-	// Catch touch begin/end at capture phase so touch-active is set before GTK
-	// synthesizes the pointer-enter (hover) event for child widgets.
-	legacy := gtk.NewEventControllerLegacy()
-	legacy.SetPropagationPhase(gtk.PhaseCapture)
-	legacy.ConnectEvent(func(ev gdk.Eventer) bool {
-		if _, ok := ev.(*gdk.TouchEvent); ok {
-			setTouchActive(true)
-		}
-		return false // never consume
-	})
-	win.AddController(legacy)
-
-	// Detect real mouse motion to switch back out of touch mode.
+	// Use a capture-phase motion controller to detect device source.
+	// ConnectEnter fires when the synthesized pointer enters a widget (which is
+	// what triggers :hover), so checking device source there lets us set
+	// touch-active before the hover state is rendered.
 	motion := gtk.NewEventControllerMotion()
 	motion.SetPropagationPhase(gtk.PhaseCapture)
-	motion.ConnectMotion(func(x, y float64) {
+
+	checkDevice := func() {
 		d, ok := motion.CurrentEventDevice().(*gdk.Device)
 		if !ok {
 			return
 		}
 		setTouchActive(d.Source() == gdk.SourceTouchscreen)
-	})
+	}
+
+	motion.ConnectEnter(func(x, y float64) { checkDevice() })
+	motion.ConnectMotion(func(x, y float64) { checkDevice() })
 	win.AddController(motion)
 }
 
