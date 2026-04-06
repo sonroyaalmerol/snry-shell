@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/binary"
 	"fmt"
+	"log"
 	"os"
 	"strings"
 	"unsafe"
@@ -111,9 +112,14 @@ func findTouchDevices() ([]string, error) {
 
 	// Probe each device for MT capability via ioctl.
 	var touchDevices []string
+	permissionErr := false
 	for _, path := range candidates {
 		fd, err := unix.Open(path, unix.O_RDONLY, 0)
 		if err != nil {
+			if !permissionErr {
+				log.Printf("[GESTURES] cannot open %s: %v", path, err)
+				permissionErr = true
+			}
 			continue
 		}
 

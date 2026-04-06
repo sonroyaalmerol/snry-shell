@@ -52,29 +52,40 @@ func New(b *bus.Bus, q *hyprland.Querier, sensitivity float64, longPressDelayMs 
 }
 
 // Run starts reading touch events and recognizing gestures.
+// Retries periodically if no touch device is found (e.g. waiting for udev permissions).
 // Blocks until ctx is cancelled.
 func (s *Service) Run(ctx context.Context) error {
-	devices, err := findTouchDevices()
-	if err != nil {
-		log.Printf("[GESTURES] no touch devices found: %v", err)
-		return nil
-	}
-	if len(devices) == 0 {
-		log.Printf("[GESTURES] no touch devices found")
-		return nil
-	}
-	log.Printf("[GESTURES] found %d touch device(s): %v", len(devices), devices)
+	ticker := time.NewTicker(5 * time.Second)
+	defer ticker.Stop()
 
-	for _, devPath := range devices {
-		dev, err := openTouchDevice(devPath)
+	for {
+		devices, err := findTouchDevices()
 		if err != nil {
-			log.Printf("[GESTURES] open %s: %v", devPath, err)
-			continue
+			log.Printf("[GESTURES] find devices: %v", err)
 		}
-		log.Printf("[GESTURES] opened %s (%s): slots=%d x=[%d,%d] y=[%d,%d]",
-			devPath, dev.Name, dev.MaxSlots, dev.XRange[0], dev.XRange[1], dev.YRange[0], dev.YRange[1])
 
-		go s.readDevice(ctx, dev)
+		if len(devices) > 0 {
+			log.Printf("[GESTURES] found %d touch device(s): %v", len(devices), devices)
+			for _, devPath := range devices {
+				dev, err := openTouchDevice(devPath)
+				if err != nil {
+					log.Printf("[GESTURES] open %s: %v", devPath, err)
+					continue
+				}
+				log.Printf("[GESTURES] opened %s (%s): slots=%d x=[%d,%d] y=[%d,%d]",
+					devPath, dev.Name, dev.MaxSlots, dev.XRange[0], dev.XRange[1], dev.YRange[0], dev.YRange[1])
+				go s.readDevice(ctx, dev)
+			}
+			// Devices opened successfully — stop retrying.
+			break
+		}
+
+		log.Printf("[GESTURES] no touch devices found, retrying in 5s")
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-ticker.C:
+		}
 	}
 
 	<-ctx.Done()
