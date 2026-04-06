@@ -6,14 +6,12 @@ import (
 
 const (
 	keyDarkMode     = "dark_mode"
-	keyFontScale    = "font_scale"
 	keyDoNotDisturb = "do_not_disturb"
 	keyInputMode    = "input_mode"
 )
 
 type Config struct {
 	DarkMode     bool
-	FontScale    float64
 	DoNotDisturb bool
 	InputMode    string // "auto", "tablet", "desktop"
 }
@@ -21,7 +19,6 @@ type Config struct {
 func DefaultConfig() Config {
 	return Config{
 		DarkMode:     true,
-		FontScale:    1.0,
 		DoNotDisturb: false,
 		InputMode:    "auto",
 	}
@@ -31,7 +28,6 @@ func Load() (Config, error) {
 	d := DefaultConfig()
 	return Config{
 		DarkMode:     store.LookupOr(keyDarkMode, d.DarkMode),
-		FontScale:    store.LookupOr(keyFontScale, d.FontScale),
 		DoNotDisturb: store.LookupOr(keyDoNotDisturb, d.DoNotDisturb),
 		InputMode:    store.LookupOr(keyInputMode, d.InputMode),
 	}, nil
@@ -40,7 +36,6 @@ func Load() (Config, error) {
 func Save(cfg Config) error {
 	return store.SetMany(map[string]any{
 		keyDarkMode:     cfg.DarkMode,
-		keyFontScale:    cfg.FontScale,
 		keyDoNotDisturb: cfg.DoNotDisturb,
 		keyInputMode:    cfg.InputMode,
 	})

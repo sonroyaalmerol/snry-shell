@@ -152,13 +152,6 @@ func Run() int {
 				cfg = newCfg
 				// Publish settings changed event so components can react
 				b.Publish(bus.TopicSettingsChanged, cfg)
-				// Apply font scale
-				glib.IdleAdd(func() {
-					display := gdk.DisplayGetDefault()
-					if display != nil {
-						applyFontScale(display, cfg.FontScale)
-					}
-				})
 				log.Printf("[SETTINGS] Reloaded settings from control panel")
 			}
 		}
@@ -218,9 +211,6 @@ func Run() int {
 
 			// Load dynamic theme if it exists
 			loadThemeCSS(display)
-
-			// Apply font scale
-			applyFontScale(display, cfg.FontScale)
 		}
 
 		// Per-monitor surfaces: bar and corners.
@@ -315,14 +305,4 @@ func loadThemeCSS(display *gdk.Display) {
 	// Load with higher priority than base CSS so it overrides fallback colors
 	gtk.StyleContextAddProviderForDisplay(display, provider, gtk.STYLE_PROVIDER_PRIORITY_USER+100)
 	log.Println("[THEME] Loaded dynamic theme from", themePath)
-}
-
-// applyFontScale applies the font scale factor to the display
-func applyFontScale(display *gdk.Display, scale float64) {
-	css := fmt.Sprintf("* { --font-scale: %f; }", scale)
-	provider := gtk.NewCSSProvider()
-	provider.LoadFromString(css)
-	// Use high priority to override the default values
-	gtk.StyleContextAddProviderForDisplay(display, provider, gtk.STYLE_PROVIDER_PRIORITY_USER+200)
-	log.Printf("[FONT] Applied font scale: %.1f", scale)
 }

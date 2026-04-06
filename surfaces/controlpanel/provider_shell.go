@@ -1,7 +1,6 @@
 package controlpanel
 
 import (
-	"fmt"
 	"net"
 
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
@@ -94,16 +93,6 @@ func (s *shellConfigProvider) buildAppearanceSection() gtk.Widgetter {
 		s.Save()
 	})
 	card.Append(darkModeRow)
-
-	// Separator
-	card.Append(gtkutil.M3Divider())
-
-	// Font scale using m3-scale slider
-	fontScaleRow := s.buildSliderRow("Font Scale", "Adjust text size", 0.5, 2.0, 0.1, s.cfg.FontScale, func(value float64) {
-		s.cfg.FontScale = value
-		s.Save()
-	})
-	card.Append(fontScaleRow)
 
 	section.Append(card)
 	return section
@@ -222,49 +211,6 @@ func (s *shellConfigProvider) buildDropdownRow(title, subtitle string, options [
 	})
 
 	row.Append(dropdown)
-
-	return row
-}
-
-func (s *shellConfigProvider) buildSliderRow(title, subtitle string, min, max, step, current float64, callback func(float64)) gtk.Widgetter {
-	row := gtk.NewBox(gtk.OrientationVertical, 12)
-	row.AddCSSClass("m3-switch-row")
-
-	// Header with title and value
-	header := gtk.NewBox(gtk.OrientationHorizontal, 16)
-
-	titleLabel := gtk.NewLabel(title)
-	titleLabel.AddCSSClass("m3-switch-row-label")
-	titleLabel.SetHAlign(gtk.AlignStart)
-	header.Append(titleLabel)
-
-	valueLabel := gtk.NewLabel(fmt.Sprintf("%.1f", current))
-	valueLabel.AddCSSClass("quick-slider-label")
-	valueLabel.SetHAlign(gtk.AlignEnd)
-	valueLabel.SetHExpand(true)
-	header.Append(valueLabel)
-
-	row.Append(header)
-
-	if subtitle != "" {
-		subtitleLabel := gtk.NewLabel(subtitle)
-		subtitleLabel.AddCSSClass("m3-switch-row-sublabel")
-		subtitleLabel.SetHAlign(gtk.AlignStart)
-		row.Append(subtitleLabel)
-	}
-
-	// Use M3 slider from shell
-	slider := gtkutil.M3Slider(min, max, step)
-	slider.SetValue(current)
-	slider.SetHExpand(true)
-
-	slider.ConnectValueChanged(func() {
-		value := slider.Value()
-		valueLabel.SetText(fmt.Sprintf("%.1f", value))
-		callback(value)
-	})
-
-	row.Append(slider)
 
 	return row
 }

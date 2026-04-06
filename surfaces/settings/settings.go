@@ -117,28 +117,6 @@ func (s *Settings) buildAppearancePage() gtk.Widgetter {
 	darkRow.Append(darkSwitch)
 	page.Append(darkRow)
 
-	// Font scale slider.
-	fontRow := gtk.NewBox(gtk.OrientationHorizontal, 8)
-	fontRow.AddCSSClass("settings-row")
-
-	fontLabel := gtk.NewLabel("Font Scale")
-	fontLabel.AddCSSClass("settings-label")
-	fontLabel.SetHAlign(gtk.AlignStart)
-
-	fontScale := gtkutil.M3Slider(0.5, 2.0, 0.1)
-	fontScale.AddCSSClass("settings-scale")
-	fontScale.SetDrawValue(true)
-	fontScale.SetValue(s.cfg.FontScale)
-	fontScale.ConnectChangeValue(func(_ gtk.ScrollType, value float64) bool {
-		s.cfg.FontScale = value
-		s.save()
-		return false
-	})
-
-	fontRow.Append(fontLabel)
-	fontRow.Append(fontScale)
-	page.Append(fontRow)
-
 	return page
 }
 
