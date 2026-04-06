@@ -91,6 +91,7 @@ func findTouchDevices() ([]string, error) {
 	var devices []string
 	var handlers []string
 	var name string
+	verbose := os.Getenv("SNRY_GESTURES_DEBUG") != ""
 
 	scanner := bufio.NewScanner(bytes.NewReader(data))
 	for scanner.Scan() {
@@ -98,7 +99,11 @@ func findTouchDevices() ([]string, error) {
 		if line == "" {
 			// End of device block — check capabilities via sysfs.
 			for _, h := range handlers {
-				if isTouchDevice(h, name) {
+				accepted, reason := checkTouchDevice(h, name)
+				if verbose {
+					log.Printf("[GESTURES] %s (%s): %s", h, name, reason)
+				}
+				if accepted {
 					devices = append(devices, "/dev/input/"+h)
 				}
 			}
@@ -121,30 +126,36 @@ func findTouchDevices() ([]string, error) {
 	return devices, scanner.Err()
 }
 
-// isTouchDevice checks sysfs for multitouch capability and that the device
-// is not a pointer/stylus/touchpad.
-func isTouchDevice(eventName, devName string) bool {
+// checkTouchDevice checks sysfs for multitouch capability and that the device
+// is not a pointer/stylus/touchpad. Returns accepted and a human-readable reason.
+func checkTouchDevice(eventName, devName string) (bool, string) {
 	// Check ABS capabilities via sysfs.
-	absCaps, err := os.ReadFile(fmt.Sprintf("/sys/class/input/%s/device/capabilities/abs", eventName))
+	absPath := fmt.Sprintf("/sys/class/input/%s/device/capabilities/abs", eventName)
+	absCaps, err := os.ReadFile(absPath)
 	if err != nil {
-		return false
+		return false, fmt.Sprintf("cannot read %s: %v", absPath, err)
 	}
+	absStr := strings.TrimSpace(string(absCaps))
+
 	// Check for ABS_MT_POSITION_X (bit 53) in the hex bitmask.
-	hasMT := hasBit(string(absCaps), absMTPositionX)
+	hasMT := hasBit(absStr, absMTPositionX)
 	if !hasMT {
-		return false
+		return false, fmt.Sprintf("no MT (abs caps: %s)", absStr)
 	}
 
 	// Exclude pointer devices (stylus, mouse, touchpad).
-	propCaps, err := os.ReadFile(fmt.Sprintf("/sys/class/input/%s/device/properties", eventName))
-	if err == nil {
-		hasPropPointer := hasBit(string(propCaps), inputPropPointer)
-		if hasPropPointer {
-			return false
-		}
+	propPath := fmt.Sprintf("/sys/class/input/%s/device/properties", eventName)
+	propCaps, err := os.ReadFile(propPath)
+	if err != nil {
+		return true, fmt.Sprintf("accepted (MT yes, no prop file)")
+	}
+	propStr := strings.TrimSpace(string(propCaps))
+	hasPropPointer := hasBit(propStr, inputPropPointer)
+	if hasPropPointer {
+		return false, fmt.Sprintf("rejected: pointer device (prop: %s)", propStr)
 	}
 
-	return true
+	return true, fmt.Sprintf("accepted (MT yes, prop: %s)", propStr)
 }
 
 // hasBit checks if bit n is set in a hex bitmask string like "3 800000000".
