@@ -1,7 +1,7 @@
 // Package touchgestures provides touchscreen gesture recognition by reading
-// raw evdev touch events directly from /dev/input/eventX. It supports
-// multi-finger swipe, pinch, long press, and tap gestures, dispatching
-// actions via the bus and Hyprland IPC.
+// raw evdev touch events directly from /dev/input/eventX. It uses logind's
+// TakeDevice D-Bus method to obtain device access without requiring group
+// membership. Supports multi-finger swipe, pinch, long press, and tap gestures.
 package touchgestures
 
 import (
@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/godbus/dbus/v5"
 	"github.com/sonroyaalmerol/snry-shell/internal/bus"
 	"github.com/sonroyaalmerol/snry-shell/internal/services/hyprland"
 )
@@ -25,14 +26,16 @@ const (
 type Service struct {
 	bus                   *bus.Bus
 	querier               *hyprland.Querier
+	sysConn               *dbus.Conn
 	sensitivity           float64
 	longPressDelayMs      int
 	workspaceSwipeFingers int
 	mu                    sync.Mutex
 }
 
-// New creates the touch gesture service.
-func New(b *bus.Bus, q *hyprland.Querier, sensitivity float64, longPressDelayMs int, workspaceSwipeFingers int) *Service {
+// New creates the touch gesture service. sysConn is used for logind TakeDevice
+// to obtain input device access without requiring input group membership.
+func New(b *bus.Bus, q *hyprland.Querier, sysConn *dbus.Conn, sensitivity float64, longPressDelayMs int, workspaceSwipeFingers int) *Service {
 	if sensitivity <= 0 {
 		sensitivity = defaultSensitivity
 	}
@@ -45,6 +48,7 @@ func New(b *bus.Bus, q *hyprland.Querier, sensitivity float64, longPressDelayMs 
 	return &Service{
 		bus:                   b,
 		querier:               q,
+		sysConn:               sysConn,
 		sensitivity:           sensitivity,
 		longPressDelayMs:      longPressDelayMs,
 		workspaceSwipeFingers: workspaceSwipeFingers,
@@ -52,7 +56,7 @@ func New(b *bus.Bus, q *hyprland.Querier, sensitivity float64, longPressDelayMs 
 }
 
 // Run starts reading touch events and recognizing gestures.
-// Retries periodically if no touch device is found (e.g. waiting for udev permissions).
+// Retries periodically if no touch device is found.
 // Blocks until ctx is cancelled.
 func (s *Service) Run(ctx context.Context) error {
 	ticker := time.NewTicker(5 * time.Second)
@@ -67,7 +71,7 @@ func (s *Service) Run(ctx context.Context) error {
 		if len(devices) > 0 {
 			log.Printf("[GESTURES] found %d touch device(s): %v", len(devices), devices)
 			for _, devPath := range devices {
-				dev, err := openTouchDevice(devPath)
+				dev, err := openTouchDevice(devPath, s.sysConn)
 				if err != nil {
 					log.Printf("[GESTURES] open %s: %v", devPath, err)
 					continue
@@ -76,7 +80,6 @@ func (s *Service) Run(ctx context.Context) error {
 					devPath, dev.Name, dev.MaxSlots, dev.XRange[0], dev.XRange[1], dev.YRange[0], dev.YRange[1])
 				go s.readDevice(ctx, dev)
 			}
-			// Devices opened successfully — stop retrying.
 			break
 		}
 
@@ -138,14 +141,8 @@ func (s *Service) readDevice(ctx context.Context, dev *TouchDevice) {
 				frame := buildFrame(slots)
 				engine.Feed(frame, time.Now().UnixNano())
 			} else if ev.code == synDropped {
-				// Events were dropped — reset state.
 				engine.Reset()
 			}
-
-		case evKey:
-			// BTN_TOUCH can be used for legacy single-touch detection.
-			// We primarily use the MT protocol above.
-			_ = ev.val
 		}
 	}
 }
@@ -158,7 +155,6 @@ func (s *Service) normalize(val int32, range_ [2]int32) float64 {
 		return 0.5
 	}
 	normalized := (float64(val) - min) / (max - min)
-	// Clamp to [0, 1].
 	return math.Max(0, math.Min(1, normalized))
 }
 
@@ -167,7 +163,6 @@ func (s *Service) dispatch(r GestureResult) {
 	log.Printf("[GESTURES] %s dir=%d fingers=%d scale=%.2f",
 		gestureTypeString(r.Type), r.Direction, r.Fingers, r.Scale)
 
-	// Always publish on the bus for any subscriber.
 	s.bus.Publish(bus.TopicGesture, r)
 
 	s.mu.Lock()
@@ -191,18 +186,6 @@ func (s *Service) dispatch(r GestureResult) {
 				s.bus.Publish(bus.TopicSystemControls, "toggle-notifcenter")
 			}
 		}
-
-	case GesturePinch:
-		// Pinch gestures are published on the bus for future use.
-		// Potential actions: toggle overview, change workspace scale, etc.
-
-	case GestureLongPress:
-		// Long press is published on the bus for future use.
-		// Potential actions: context menu, drag-to-move mode, etc.
-
-	case GestureTap:
-		// Single-finger tap is published for future use.
-		// Potential actions: click, select, etc.
 	}
 }
 

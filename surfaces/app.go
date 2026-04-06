@@ -94,7 +94,7 @@ func Run() int {
 
 	// Load config for services that need it.
 	cfg, _ := shellsettings.Load()
-	refs.TouchGestures = touchgestures.New(b, refs.Hyprland, cfg.GestureSensitivity, cfg.GestureLongPressDelay, cfg.GestureWorkspaceFingers)
+	refs.TouchGestures = touchgestures.New(b, refs.Hyprland, sysConn, cfg.GestureSensitivity, cfg.GestureLongPressDelay, cfg.GestureWorkspaceFingers)
 
 	// Start background services.
 	go refs.Audio.Run(ctx)
