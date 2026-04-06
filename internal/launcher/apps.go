@@ -106,6 +106,60 @@ func cleanExec(exec string) string {
 	return strings.Join(cleaned, " ")
 }
 
+// WMClassToIcon builds a map from window class names (StartupWMClass) to
+// icon theme names by scanning all installed .desktop files.
+func WMClassToIcon() map[string]string {
+	dirs := xdgDataDirs()
+	m := make(map[string]string)
+	for _, dir := range dirs {
+		pattern := filepath.Join(dir, "applications", "*.desktop")
+		matches, _ := filepath.Glob(pattern)
+		for _, path := range matches {
+		 wmClass, icon := parseDesktopWMClass(path)
+		 if wmClass != "" && icon != "" {
+			 m[wmClass] = icon
+		 }
+		}
+	}
+	return m
+}
+
+func parseDesktopWMClass(path string) (wmClass, icon string) {
+	f, err := os.Open(path)
+	if err != nil {
+		return "", ""
+	}
+	defer f.Close()
+
+	inDesktopEntry := false
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		line := scanner.Text()
+		if strings.HasPrefix(line, "[") {
+			inDesktopEntry = line == "[Desktop Entry]"
+			continue
+		}
+		if !inDesktopEntry {
+			continue
+		}
+		k, v, ok := strings.Cut(line, "=")
+		if !ok {
+			continue
+		}
+		switch k {
+		case "StartupWMClass":
+			if wmClass == "" {
+				wmClass = v
+			}
+		case "Icon":
+			if icon == "" {
+				icon = v
+			}
+		}
+	}
+	return wmClass, icon
+}
+
 func xdgDataDirs() []string {
 	dirs := []string{filepath.Join(os.Getenv("HOME"), ".local/share")}
 	if d := os.Getenv("XDG_DATA_DIRS"); d != "" {

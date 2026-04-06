@@ -9,6 +9,7 @@ import (
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/sonroyaalmerol/snry-shell/internal/bus"
+	"github.com/sonroyaalmerol/snry-shell/internal/launcher"
 	"github.com/sonroyaalmerol/snry-shell/internal/services/hyprland"
 	"github.com/sonroyaalmerol/snry-shell/internal/state"
 )
@@ -16,18 +17,20 @@ import (
 const maxWorkspacePills = 10
 
 type workspacesWidget struct {
-	box     *gtk.Box
-	pills   []*gtk.Button
-	labels  []*gtk.Label
-	icons   []*gtk.Image
-	querier *hyprland.Querier
-	theme   *gtk.IconTheme
+	box       *gtk.Box
+	pills     []*gtk.Button
+	labels    []*gtk.Label
+	icons     []*gtk.Image
+	querier   *hyprland.Querier
+	theme     *gtk.IconTheme
+	classIcon map[string]string // window class → icon theme name
 }
 
 func newWorkspacesWidget(b *bus.Bus, querier *hyprland.Querier) gtk.Widgetter {
 	w := &workspacesWidget{
-		box:     gtk.NewBox(gtk.OrientationHorizontal, 0),
-		querier: querier,
+		box:       gtk.NewBox(gtk.OrientationHorizontal, 0),
+		querier:   querier,
+		classIcon: launcher.WMClassToIcon(),
 	}
 	w.box.AddCSSClass("workspaces")
 	w.box.SetVAlign(gtk.AlignCenter)
@@ -105,7 +108,6 @@ func (w *workspacesWidget) populateInitialIcons() {
 		}
 	}
 	for wsID, class := range firstClass {
-		log.Printf("[bar] populateInitial: ws%d class=%q", wsID, class)
 		w.setIcon(wsID-1, class)
 	}
 }
@@ -134,34 +136,54 @@ func (w *workspacesWidget) update(ws state.Workspace) {
 	}
 }
 
+// resolveIcon tries multiple strategies to find an icon name for a window class:
+//  1. Desktop file lookup (StartupWMClass → Icon=)
+//  2. Lowercase class name
+//  3. Original class name
+// Returns the first icon name found in the theme, or "".
+func (w *workspacesWidget) resolveIcon(class string) string {
+	if w.theme == nil {
+		return ""
+	}
+	// Try desktop file mapping first.
+	if icon, ok := w.classIcon[class]; ok {
+		if w.theme.HasIcon(icon) || w.theme.HasIcon(strings.ToLower(icon)) {
+			if w.theme.HasIcon(strings.ToLower(icon)) {
+				return strings.ToLower(icon)
+			}
+			return icon
+		}
+	}
+	// Try lowercase class.
+	lower := strings.ToLower(class)
+	if w.theme.HasIcon(lower) {
+		return lower
+	}
+	// Try original class.
+	if w.theme.HasIcon(class) {
+		return class
+	}
+	return ""
+}
+
 func (w *workspacesWidget) setIcon(idx int, class string) {
 	img := w.icons[idx]
 	lbl := w.labels[idx]
-	log.Printf("[bar] ws%d setIcon: class=%q", idx+1, class)
 	if class == "" {
 		img.SetVisible(false)
 		img.SetFromIconName("")
 		lbl.SetVisible(true)
 		return
 	}
-	if w.theme == nil {
-		w.theme = gtk.IconThemeGetForDisplay(gdk.DisplayGetDefault())
-	}
-	if w.theme == nil {
-		log.Printf("[bar] ws%d setIcon: no theme", idx+1)
-		return
-	}
-	lower := strings.ToLower(class)
-	has := w.theme.HasIcon(lower)
-	log.Printf("[bar] ws%d setIcon: lower=%q hasIcon=%v", idx+1, lower, has)
-	if has {
-		img.SetFromIconName(lower)
-		img.SetPixelSize(16)
-		img.SetVisible(true)
-		lbl.SetVisible(false)
-	} else {
+	icon := w.resolveIcon(class)
+	if icon == "" {
 		img.SetVisible(false)
 		img.SetFromIconName("")
 		lbl.SetVisible(true)
+		return
 	}
+	img.SetFromIconName(icon)
+	img.SetPixelSize(16)
+	img.SetVisible(true)
+	lbl.SetVisible(false)
 }
