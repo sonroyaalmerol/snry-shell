@@ -2,6 +2,7 @@ package bar
 
 import (
 	"fmt"
+	"log"
 	"strings"
 
 	"github.com/diamondburned/gotk4/pkg/gdk/v4"
@@ -162,6 +163,7 @@ func (w *workspacesWidget) resolveIcon(class string) string {
 }
 
 func (w *workspacesWidget) setIcon(idx int, class string) {
+	log.Printf("[bar] ws%d setIcon: class=%q", idx+1, class)
 	img := w.icons[idx]
 	lbl := w.labels[idx]
 	if class == "" {
