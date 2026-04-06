@@ -38,7 +38,8 @@ type OSK struct {
 	capsBtn       *gtk.Button           // caps button for visual feedback
 	emojiBtn      *gtk.Button           // toolbar emoji button
 	clipboardBtn  *gtk.Button           // toolbar clipboard button
-	clipboardList *gtk.Box             // clipboard list widget for refresh
+	clipboardList *gtk.Box              // clipboard list widget for refresh
+	emojiGrid     *gtk.FlowBox          // emoji grid for search filtering
 	mu            sync.Mutex
 	debounce      *time.Timer           // coalesces rapid focus events
 }
@@ -145,14 +146,12 @@ func New(app *gtk.Application, b *bus.Bus) *OSK {
 func (o *OSK) switchView(mode string) {
 	o.viewMode = mode
 	o.stack.SetVisibleChildName(mode)
-	switch mode {
-	case "keyboard":
-		o.exclusiveZone = 280
-	default:
-		o.exclusiveZone = 500
-	}
 	o.updateExclusiveZone()
 	o.updateViewButtons()
+	switch mode {
+	case "clipboard":
+		o.refreshClipboard("")
+	}
 }
 
 func (o *OSK) updateViewButtons() {
@@ -242,6 +241,96 @@ func detectTouchDevice() bool {
 	return found
 }
 
+// emojiData holds all emoji organised by category for the picker panel.
+var emojiData = []struct {
+	name  string
+	emojis [][2]string
+}{
+	{"Smileys", [][2]string{
+		{"😀", "grinning"}, {"😃", "smiley"}, {"😄", "smile"}, {"😁", "grin"},
+		{"😆", "laughing"}, {"😅", "sweat smile"}, {"🤣", "rolling on floor"}, {"😂", "joy"},
+		{"🙂", "slightly smiling"}, {"🙃", "upside down"}, {"😉", "wink"}, {"😊", "blush"},
+		{"😇", "innocent"}, {"🥰", "smiling heart"}, {"😍", "heart eyes"}, {"🤩", "star struck"},
+		{"😘", "kissing heart"}, {"😗", "kissing"}, {"😚", "relieved"}, {"😙", "kissing closed"},
+		{"🥲", "smiling tear"}, {"😋", "yum"}, {"😛", "tongue"}, {"😜", "zany"},
+		{"🤪", "zany"}, {"😝", "squint tongue"}, {"🤑", "money mouth"}, {"🤗", "hugging"},
+		{"🤭", "hand over mouth"}, {"🤫", "shushing"}, {"🤔", "thinking"}, {"🫡", "salute"},
+		{"🤐", "zipper mouth"}, {"🤨", "raised eyebrow"}, {"😐", "neutral"}, {"😑", "expressionless"},
+		{"😶", "no mouth"}, {"🫥", "dotted line face"}, {"😏", "smirk"}, {"😒", "unamused"},
+		{"🙄", "rolling eyes"}, {"😬", "grimacing"}, {"🤥", "lying"}, {"😌", "relieved"},
+		{"😔", "pensive"}, {"😪", "sleepy"}, {"🤤", "drooling"}, {"😴", "sleeping"},
+		{"😷", "mask"}, {"🤒", "sick"}, {"🤕", "hurt"}, {"🤢", "nauseated"},
+		{"🤮", "vomiting"}, {"🥵", "hot"}, {"🥶", "cold"}, {"🥴", "woozy"},
+		{"😵", "dizzy"}, {"🤯", "exploding head"}, {"🤠", "cowboy"}, {"🥳", "partying"},
+		{"🥸", "disguised"}, {"😎", "cool"}, {"🤓", "nerd"}, {"🧐", "monocle"},
+		{"😕", "confused"}, {"🫤", "diagonal mouth"}, {"😟", "worried"}, {"🙁", "frowning"},
+		{"😮", "open mouth"}, {"😯", "hushed"}, {"😲", "astonished"}, {"😳", "flushed"},
+		{"🥺", "pleading"}, {"🥹", "holding tears"}, {"😦", "frowning open"}, {"😧", "anguished"},
+		{"😨", "fearful"}, {"😰", "anxious"}, {"😥", "sad relieved"}, {"😢", "crying"},
+		{"😭", "sobbing"}, {"😱", "screaming"}, {"😖", "confounded"}, {"😣", "persevere"},
+		{"😞", "disappointed"}, {"😓", "downcast"}, {"😩", "weary"}, {"😫", "tired"},
+		{"🥱", "yawning"}, {"😤", "angry triumph"}, {"😡", "angry"}, {"😠", "pouting"},
+		{"🤬", "cursing"}, {"😈", "smiling devil"}, {"👿", "angry devil"}, {"💀", "skull"},
+		{"☠️", "skull and crossbones"}, {"💩", "poop"}, {"🤡", "clown"}, {"👹", "ogre"},
+		{"👺", "goblin"}, {"👻", "ghost"}, {"👽", "alien"}, {"👾", "space invader"},
+		{"🤖", "robot"},
+	}},
+	{"Gestures", [][2]string{
+		{"👋", "waving"}, {"🤚", "raised back of hand"}, {"🖐️", "hand splayed"},
+		{"✋", "raised hand"}, {"🖖", "vulcan salute"}, {"🫱", "rightwards hand"},
+		{"🫲", "leftwards hand"}, {"🫳", "palm down"}, {"🫴", "palm up"},
+		{"👌", "ok hand"}, {"🤌", "pinched fingers"}, {"🤏", "pinching hand"},
+		{"✌️", "victory"}, {"🤞", "crossed fingers"}, {"🫰", "hand with index and thumb crossed"},
+		{"🤟", "love you"}, {"🤘", "sign of horns"}, {"🤙", "call me"},
+		{"👈", "pointing left"}, {"👉", "pointing right"}, {"👆", "pointing up"},
+		{"🖕", "middle finger"}, {"👇", "pointing down"}, {"☝️", "index pointing up"},
+		{"🫵", "index pointing away"}, {"👍", "thumbs up"}, {"👎", "thumbs down"},
+		{"✊", "fist"}, {"👊", "punch"}, {"🤛", "left fist"}, {"🤜", "right fist"},
+		{"👏", "clapping"}, {"🙌", "raising hands"}, {"🫶", "heart hands"},
+		{"👐", "open hands"}, {"🤲", "palms up"}, {"🤝", "handshake"},
+		{"🙏", "folded hands"}, {"✍️", "writing hand"}, {"💅", "nail polish"},
+	}},
+	{"Hearts", [][2]string{
+		{"❤️", "red heart"}, {"🧡", "orange heart"}, {"💛", "yellow heart"},
+		{"💚", "green heart"}, {"💙", "blue heart"}, {"💜", "purple heart"},
+		{"🖤", "black heart"}, {"🤍", "white heart"}, {"🤎", "brown heart"},
+		{"💔", "broken heart"}, {"❤️‍🔥", "heart on fire"}, {"❤️‍🩹", "mending heart"},
+		{"💕", "two hearts"}, {"💞", "revolving hearts"}, {"💓", "beating heart"},
+		{"💗", "growing heart"}, {"💖", "sparkling heart"}, {"💘", "cupid"},
+		{"💝", "gift heart"}, {"💟", "heart decoration"},
+	}},
+	{"Objects", [][2]string{
+		{"⭐", "star"}, {"🌟", "glowing star"}, {"✨", "sparkles"}, {"💫", "dizzy star"},
+		{"🔥", "fire"}, {"💯", "hundred"}, {"💥", "boom"}, {"💫", "dizzy"},
+		{"🎉", "party"}, {"🎊", "confetti"}, {"🎈", "balloon"}, {"🎁", "gift"},
+		{"🏆", "trophy"}, {"🥇", "gold medal"}, {"⚡", "lightning"}, {"💎", "gem"},
+		{"🔔", "bell"}, {"📎", "paperclip"}, {"📌", "pushpin"}, {"✅", "check mark"},
+		{"❌", "cross mark"}, {"⭕", "circle"}, {"❗", "exclamation"}, {"❓", "question"},
+		{"⏰", "alarm"}, {"📅", "calendar"}, {"📌", "pin"}, {"💡", "light bulb"},
+	}},
+	{"Nature", [][2]string{
+		{"🌸", "cherry blossom"}, {"🌺", "hibiscus"}, {"🌻", "sunflower"}, {"🌹", "rose"},
+		{"🌷", "tulip"}, {"🌱", "seedling"}, {"🌲", "evergreen tree"}, {"🌳", "deciduous tree"},
+		{"🌴", "palm tree"}, {"🍀", "four leaf clover"}, {"🍁", "maple leaf"},
+		{"🍂", "fallen leaf"}, {"🍃", "leaf fluttering"}, {"🌍", "earth"},
+		{"🌙", "crescent moon"}, {"☀️", "sun"}, {"⭐", "star"}, {"🌈", "rainbow"},
+	}},
+	{"Food", [][2]string{
+		{"🍎", "apple"}, {"🍊", "tangerine"}, {"🍋", "lemon"}, {"🍌", "banana"},
+		{"🍉", "watermelon"}, {"🍇", "grapes"}, {"🍓", "strawberry"}, {"🫐", "blueberries"},
+		{"🍑", "peach"}, {"🍒", "cherries"}, {"🥝", "kiwi"}, {"🍕", "pizza"},
+		{"🍔", "hamburger"}, {"🍟", "fries"}, {"🌮", "taco"}, {"🍣", "sushi"},
+		{"🍦", "ice cream"}, {"🍩", "donut"}, {"🍪", "cookie"}, {"🎂", "birthday cake"},
+		{"☕", "coffee"}, {"🍵", "tea"}, {"🍺", "beer"}, {"🍷", "wine"},
+	}},
+	{"Travel", [][2]string{
+		{"🚗", "car"}, {"🚕", "taxi"}, {"🚌", "bus"}, {"🚎", "trolley"},
+		{"🚂", "locomotive"}, {"✈️", "airplane"}, {"🚀", "rocket"}, {"🛸", "flying saucer"},
+		{"🏠", "house"}, {"🏢", "office"}, {"🏥", "hospital"}, {"🏫", "school"},
+		{"🏨", "hotel"}, {"🚪", "door"}, {"🪟", "window"}, {"💡", "light bulb"},
+	}},
+}
+
 type keyDef struct {
 	label     string
 	normal    string
@@ -267,10 +356,22 @@ func (o *OSK) build() {
 	topRow.SetHExpand(true)
 	topRow.SetHAlign(gtk.AlignFill)
 
-	o.emojiBtn = o.toolbarButton("emoji_emotions", func() { o.switchView("emoji") })
+	o.emojiBtn = o.toolbarButton("emoji_emotions", func() {
+		if o.viewMode == "emoji" {
+			o.switchView("keyboard")
+		} else {
+			o.switchView("emoji")
+		}
+	})
 	topRow.Append(o.emojiBtn)
 
-	o.clipboardBtn = o.toolbarButton("content_paste", func() { o.switchView("clipboard") })
+	o.clipboardBtn = o.toolbarButton("content_paste", func() {
+		if o.viewMode == "clipboard" {
+			o.switchView("keyboard")
+		} else {
+			o.switchView("clipboard")
+		}
+	})
 	topRow.Append(o.clipboardBtn)
 
 	spacer := gtk.NewBox(gtk.OrientationHorizontal, 0)
@@ -409,138 +510,70 @@ func (o *OSK) buildEmojiPanel() gtk.Widgetter {
 	box.AddCSSClass("osk-panel")
 
 	search := gtk.NewSearchEntry()
+	search.AddCSSClass("osk-panel-search")
 	search.SetPlaceholderText("Search emoji...")
 	search.SetHExpand(true)
-	search.SetMarginTop(8)
-	search.SetMarginStart(12)
-	search.SetMarginEnd(12)
-	box.Append(search)
+	search.ConnectSearchChanged(func() {
+		o.populateEmojiGrid(strings.ToLower(search.Text()))
+	})
 
 	scroll := gtk.NewScrolledWindow()
 	scroll.SetVExpand(true)
 	scroll.SetPolicy(gtk.PolicyNever, gtk.PolicyAutomatic)
-	scroll.SetMarginBottom(8)
+	scroll.AddCSSClass("osk-panel-scroll")
 
-	grid := gtk.NewFlowBox()
-	grid.AddCSSClass("emoji-grid")
-	scroll.SetChild(grid)
+	o.emojiGrid = gtk.NewFlowBox()
+	o.emojiGrid.AddCSSClass("emoji-grid")
+	scroll.SetChild(o.emojiGrid)
+	box.Append(search)
 	box.Append(scroll)
 
-	// Populate grid with emoji categories.
-	categories := [...]struct{ cat string; emojis [][2]string }{
-		{"Smileys", [][2]string{
-			{"😀", "grinning"}, {"😃", "smiley"}, {"😄", "smile"}, {"😁", "grin"},
-			{"😆", "laughing"}, {"😅", "sweat smile"}, {"🤣", "rolling on floor"}, {"😂", "joy"},
-			{"🙂", "slightly smiling"}, {"🙃", "upside down"}, {"😉", "wink"}, {"😊", "blush"},
-			{"😇", "innocent"}, {"🥰", "smiling heart"}, {"😍", "heart eyes"}, {"🤩", "star struck"},
-			{"😘", "kissing heart"}, {"😗", "kissing"}, {"😚", "relieved"}, {"😙", "kissing closed"},
-			{"🥲", "smiling tear"}, {"😋", "yum"}, {"😛", "tongue"}, {"😜", "zany"},
-			{"🤪", "zany"}, {"😝", "squint tongue"}, {"🤑", "money mouth"}, {"🤗", "hugging"},
-			{"🤭", "hand over mouth"}, {"🤫", "shushing"}, {"🤔", "thinking"}, {"🫡", "salute"},
-			{"🤐", "zipper mouth"}, {"🤨", "raised eyebrow"}, {"😐", "neutral"}, {"😑", "expressionless"},
-			{"😶", "no mouth"}, {"🫥", "dotted line face"}, {"😏", "smirk"}, {"😒", "unamused"},
-			{"🙄", "rolling eyes"}, {"😬", "grimacing"}, {"🤥", "lying"}, {"😌", "relieved"},
-			{"😔", "pensive"}, {"😪", "sleepy"}, {"🤤", "drooling"}, {"😴", "sleeping"},
-			{"😷", "mask"}, {"🤒", "sick"}, {"🤕", "hurt"}, {"🤢", "nauseated"},
-			{"🤮", "vomiting"}, {"🥵", "hot"}, {"🥶", "cold"}, {"🥴", "woozy"},
-			{"😵", "dizzy"}, {"🤯", "exploding head"}, {"🤠", "cowboy"}, {"🥳", "partying"},
-			{"🥸", "disguised"}, {"😎", "cool"}, {"🤓", "nerd"}, {"🧐", "monocle"},
-			{"😕", "confused"}, {"🫤", "diagonal mouth"}, {"😟", "worried"}, {"🙁", "frowning"},
-			{"😮", "open mouth"}, {"😯", "hushed"}, {"😲", "astonished"}, {"😳", "flushed"},
-			{"🥺", "pleading"}, {"🥹", "holding tears"}, {"😦", "frowning open"}, {"😧", "anguished"},
-			{"😨", "fearful"}, {"😰", "anxious"}, {"😥", "sad relieved"}, {"😢", "crying"},
-			{"😭", "sobbing"}, {"😱", "screaming"}, {"😖", "confounded"}, {"😣", "persevere"},
-			{"😞", "disappointed"}, {"😓", "downcast"}, {"😩", "weary"}, {"😫", "tired"},
-			{"🥱", "yawning"}, {"😤", "angry triumph"}, {"😡", "angry"}, {"😠", "pouting"},
-			{"🤬", "cursing"}, {"😈", "smiling devil"}, {"👿", "angry devil"}, {"💀", "skull"},
-			{"☠️", "skull and crossbones"}, {"💩", "poop"}, {"🤡", "clown"}, {"👹", "ogre"},
-			{"👺", "goblin"}, {"👻", "ghost"}, {"👽", "alien"}, {"👾", "space invader"},
-			{"🤖", "robot"},
-		}},
-		{"Gestures", [][2]string{
-			{"👋", "waving"}, {"🤚", "raised back of hand"}, {"🖐️", "hand splayed"},
-			{"✋", "raised hand"}, {"🖖", "vulcan salute"}, {"🫱", "rightwards hand"},
-			{"🫲", "leftwards hand"}, {"🫳", "palm down"}, {"🫴", "palm up"},
-			{"👌", "ok hand"}, {"🤌", "pinched fingers"}, {"🤏", "pinching hand"},
-			{"✌️", "victory"}, {"🤞", "crossed fingers"}, {"🫰", "hand with index and thumb crossed"},
-			{"🤟", "love you"}, {"🤘", "sign of horns"}, {"🤙", "call me"},
-			{"👈", "pointing left"}, {"👉", "pointing right"}, {"👆", "pointing up"},
-			{"🖕", "middle finger"}, {"👇", "pointing down"}, {"☝️", "index pointing up"},
-			{"🫵", "index pointing away"}, {"👍", "thumbs up"}, {"👎", "thumbs down"},
-			{"✊", "fist"}, {"👊", "punch"}, {"🤛", "left fist"}, {"🤜", "right fist"},
-			{"👏", "clapping"}, {"🙌", "raising hands"}, {"🫶", "heart hands"},
-			{"👐", "open hands"}, {"🤲", "palms up"}, {"🤝", "handshake"},
-			{"🙏", "folded hands"}, {"✍️", "writing hand"}, {"💅", "nail polish"},
-		}},
-		{"Hearts", [][2]string{
-			{"❤️", "red heart"}, {"🧡", "orange heart"}, {"💛", "yellow heart"},
-			{"💚", "green heart"}, {"💙", "blue heart"}, {"💜", "purple heart"},
-			{"🖤", "black heart"}, {"🤍", "white heart"}, {"🤎", "brown heart"},
-			{"💔", "broken heart"}, {"❤️‍🔥", "heart on fire"}, {"❤️‍🩹", "mending heart"},
-			{"💕", "two hearts"}, {"💞", "revolving hearts"}, {"💓", "beating heart"},
-			{"💗", "growing heart"}, {"💖", "sparkling heart"}, {"💘", "cupid"},
-			{"💝", "gift heart"}, {"💟", "heart decoration"},
-		}},
-		{"Objects", [][2]string{
-			{"⭐", "star"}, {"🌟", "glowing star"}, {"✨", "sparkles"}, {"💫", "dizzy star"},
-			{"🔥", "fire"}, {"💯", "hundred"}, {"💥", "boom"}, {"💫", "dizzy"},
-			{"🎉", "party"}, {"🎊", "confetti"}, {"🎈", "balloon"}, {"🎁", "gift"},
-			{"🏆", "trophy"}, {"🥇", "gold medal"}, {"⚡", "lightning"}, {"💎", "gem"},
-			{"🔔", "bell"}, {"📎", "paperclip"}, {"📌", "pushpin"}, {"✅", "check mark"},
-			{"❌", "cross mark"}, {"⭕", "circle"}, {"❗", "exclamation"}, {"❓", "question"},
-			{"⏰", "alarm"}, {"📅", "calendar"}, {"📌", "pin"}, {"💡", "light bulb"},
-		}},
-		{"Nature", [][2]string{
-			{"🌸", "cherry blossom"}, {"🌺", "hibiscus"}, {"🌻", "sunflower"}, {"🌹", "rose"},
-			{"🌷", "tulip"}, {"🌱", "seedling"}, {"🌲", "evergreen tree"}, {"🌳", "deciduous tree"},
-			{"🌴", "palm tree"}, {"🍀", "four leaf clover"}, {"🍁", "maple leaf"},
-			{"🍂", "fallen leaf"}, {"🍃", "leaf fluttering"}, {"🌍", "earth"},
-			{"🌙", "crescent moon"}, {"☀️", "sun"}, {"⭐", "star"}, {"🌈", "rainbow"},
-		}},
-		{"Food", [][2]string{
-			{"🍎", "apple"}, {"🍊", "tangerine"}, {"🍋", "lemon"}, {"🍌", "banana"},
-			{"🍉", "watermelon"}, {"🍇", "grapes"}, {"🍓", "strawberry"}, {"🫐", "blueberries"},
-			{"🍑", "peach"}, {"🍒", "cherries"}, {"🥝", "kiwi"}, {"🍕", "pizza"},
-			{"🍔", "hamburger"}, {"🍟", "fries"}, {"🌮", "taco"}, {"🍣", "sushi"},
-			{"🍦", "ice cream"}, {"🍩", "donut"}, {"🍪", "cookie"}, {"🎂", "birthday cake"},
-			{"☕", "coffee"}, {"🍵", "tea"}, {"🍺", "beer"}, {"🍷", "wine"},
-		}},
-		{"Travel", [][2]string{
-			{"🚗", "car"}, {"🚕", "taxi"}, {"🚌", "bus"}, {"🚎", "trolley"},
-			{"🚂", "locomotive"}, {"✈️", "airplane"}, {"🚀", "rocket"}, {"🛸", "flying saucer"},
-			{"🏠", "house"}, {"🏢", "office"}, {"🏥", "hospital"}, {"🏫", "school"},
-			{"🏨", "hotel"}, {"🚪", "door"}, {"🪟", "window"}, {"💡", "light bulb"},
-		}},
-	}
+	o.populateEmojiGrid("")
+	return box
+}
 
-	for _, cat := range categories {
-		header := gtk.NewLabel(cat.cat)
-		header.AddCSSClass("emoji-category-header")
-		grid.Append(header)
+func (o *OSK) populateEmojiGrid(query string) {
+	gtkutil.ClearChildren(&o.emojiGrid.Widget, o.emojiGrid.Remove)
 
+	for _, cat := range emojiData {
+		var matched [][2]string
 		for _, e := range cat.emojis {
-			btn := gtk.NewButton()
-			btn.SetCursorFromName("pointer")
-			btn.AddCSSClass("emoji-btn")
-			lbl := gtk.NewLabel(e[0])
-			lbl.AddCSSClass("emoji-char")
-			btn.SetChild(lbl)
-			btn.SetTooltipText(e[1])
-			em := e[0]
-			btn.ConnectClicked(func() {
-				go func() {
-					if err := exec.Command("wl-copy", em).Run(); err != nil {
-						log.Printf("emoji copy: %v", err)
-						glib.IdleAdd(func() { gtkutil.ErrorDialog(o.win, "Copy failed", "Could not copy to clipboard.") })
-					}
-				}()
-				o.switchView("keyboard")
-			})
-			grid.Append(btn)
+			if query == "" || strings.Contains(strings.ToLower(e[1]), query) {
+				matched = append(matched, e)
+			}
+		}
+		if len(matched) == 0 {
+			continue
+		}
+		header := gtk.NewLabel(cat.name)
+		header.AddCSSClass("emoji-category-header")
+		o.emojiGrid.Append(header)
+
+		for _, e := range matched {
+			o.addEmojiBtn(e[0], e[1])
 		}
 	}
+}
 
-	return box
+func (o *OSK) addEmojiBtn(char, name string) {
+	btn := gtk.NewButton()
+	btn.SetCursorFromName("pointer")
+	btn.AddCSSClass("emoji-btn")
+	lbl := gtk.NewLabel(char)
+	lbl.AddCSSClass("emoji-char")
+	btn.SetChild(lbl)
+	btn.SetTooltipText(name)
+	em := char
+	btn.ConnectClicked(func() {
+		go func() {
+			if err := exec.Command("wl-copy", em).Run(); err != nil {
+				log.Printf("emoji copy: %v", err)
+				glib.IdleAdd(func() { gtkutil.ErrorDialog(o.win, "Copy failed", "Could not copy to clipboard.") })
+			}
+		}()
+		o.switchView("keyboard")
+	})
+	o.emojiGrid.Append(btn)
 }
 
 func (o *OSK) buildClipboardPanel() gtk.Widgetter {
@@ -552,6 +585,7 @@ func (o *OSK) buildClipboardPanel() gtk.Widgetter {
 	searchBar.AddCSSClass("osk-clipboard-search")
 
 	search := gtk.NewSearchEntry()
+	search.AddCSSClass("osk-panel-search")
 	search.SetPlaceholderText("Search clipboard...")
 	search.SetHExpand(true)
 	search.ConnectSearchChanged(func() {
@@ -578,6 +612,7 @@ func (o *OSK) buildClipboardPanel() gtk.Widgetter {
 	scroll := gtk.NewScrolledWindow()
 	scroll.SetVExpand(true)
 	scroll.SetPolicy(gtk.PolicyNever, gtk.PolicyAutomatic)
+	scroll.AddCSSClass("osk-panel-scroll")
 
 	o.clipboardList = gtk.NewBox(gtk.OrientationVertical, 4)
 	o.clipboardList.AddCSSClass("osk-clipboard-list")

@@ -1102,7 +1102,38 @@ scale.m3-scale slider {
 
 /* OSK panel views (emoji, clipboard) */
 .osk-panel {
-    padding: 4px 8px;
+    padding: 2px 8px;
+}
+
+.osk-panel-search {
+    background-color: @col_surface_container_high;
+    border-radius: var(--radius-pill);
+    color: @col_on_surface;
+    font-size: var(--typescale-body-md);
+    caret-color: @col_primary;
+    border: none;
+    padding: 8px 14px;
+    margin: 4px 8px;
+}
+
+.osk-panel-search:focus-within {
+    box-shadow: 0 0 0 2px @col_primary;
+}
+
+.osk-panel-scroll > scrollbar {
+    background-color: transparent;
+    opacity: 0;
+}
+
+.osk-panel-scroll > scrollbar slider {
+    background-color: alpha(@col_on_surface, 0.2);
+    border-radius: var(--radius-pill);
+    min-width: 4px;
+}
+
+.osk-panel-scroll > scrollbar.hovering,
+.osk-panel-scroll > scrollbar.sliding {
+    opacity: 1;
 }
 
 /* OSK toolbar icon buttons (emoji, clipboard, close) */
@@ -1113,11 +1144,13 @@ scale.m3-scale slider {
     min-width: 36px;
     min-height: 36px;
     padding: 4px;
+    color: @col_on_surface_variant;
     transition: background-color var(--duration-short3) var(--ease-standard-decel);
 }
 
 .osk-toolbar-btn:hover {
     background-color: alpha(@col_on_surface, var(--state-hover));
+    color: @col_on_surface;
 }
 
 /* ── Region selector ────────────────────────────────────────────────────────── */
