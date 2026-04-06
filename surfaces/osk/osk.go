@@ -75,7 +75,7 @@ func New(app *gtk.Application, b *bus.Bus) *OSK {
 
 	// Keep exclusive zone in sync with actual window height.
 	win.ConnectMap(func() {
-		osk.updateExclusiveZone()
+		glib.IdleAdd(func() { osk.updateExclusiveZone() })
 	})
 	win.ConnectRealize(func() {
 		glib.IdleAdd(func() { osk.updateExclusiveZone() })
@@ -233,9 +233,14 @@ func (o *OSK) updateExclusiveZone() {
 		layershell.SetExclusiveZone(o.win, -1)
 		return
 	}
+	// Prefer allocated height (post-layout); fall back to natural height
+	// (pre-layout). Never use a hardcoded value.
 	h := o.win.AllocatedHeight()
 	if h <= 0 {
-		h = 280
+		_, h, _, _ = gtk.BaseWidget(o.win).Measure(gtk.OrientationVertical, -1)
+	}
+	if h <= 0 {
+		return
 	}
 	layershell.SetExclusiveZone(o.win, h)
 }
