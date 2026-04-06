@@ -45,6 +45,6 @@ func (f *ForcedConfigs) Apply(cfgs []ForcedConfig) error {
 func (f *ForcedConfigs) Restore() {
 	for option, original := range f.saved {
 		log.Printf("forced config: restoring %s to %q", option, original)
-		_ = f.querier.SetKeyword(option, original)
+		if err := f.querier.SetKeyword(option, original); err != nil { log.Printf("forced config: restore %s failed: %v", option, err) }
 	}
 }

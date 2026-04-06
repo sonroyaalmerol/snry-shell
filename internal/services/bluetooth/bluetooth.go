@@ -38,12 +38,14 @@ func (s *Service) Run(ctx context.Context) error {
 
 	signals := make(chan *dbus.Signal, 8)
 	s.conn.Signal(signals)
-	_ = s.conn.AddMatchSignal(
+	if err := s.conn.AddMatchSignal(
 		dbus.WithMatchInterface("org.freedesktop.DBus.Properties"),
 		dbus.WithMatchMember("PropertiesChanged"),
 		dbus.WithMatchObjectPath(bluezAdapter),
-	)
+	); err != nil {
+		log.Printf("[BT] AddMatchSignal: %v", err)
 
+	}
 	for {
 		select {
 		case <-ctx.Done():
@@ -216,7 +218,7 @@ func (s *Service) PairDevice(addr string) error {
 	if err := obj.Call("org.bluez.Device1.Pair", 0).Err; err != nil {
 		return err
 	}
-	_ = s.SetTrusted(addr, true)
+	if err := s.SetTrusted(addr, true); err != nil { log.Printf("[BT] SetTrusted after pair: %v", err) }
 	return nil
 }
 

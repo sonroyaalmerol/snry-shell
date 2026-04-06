@@ -2,6 +2,7 @@ package bar
 
 import (
 	"fmt"
+	"log"
 	"sync/atomic"
 
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
@@ -190,7 +191,7 @@ func newKeyboardIndicator(b *bus.Bus, querier *hyprland.Querier) gtk.Widgetter {
 		clickGesture := gtk.NewGestureClick()
 		clickGesture.SetButton(1)
 		clickGesture.ConnectReleased(func(_ int, _ float64, _ float64) {
-			_ = querier.SwitchXkbLayout()
+			if err := querier.SwitchXkbLayout(); err != nil { log.Printf("kbd layout switch: %v", err) }
 		})
 		box.AddController(clickGesture)
 	}

@@ -4,6 +4,7 @@ package sni
 
 import (
 	"context"
+	"log"
 	"path"
 	"sync"
 
@@ -53,14 +54,18 @@ func (s *Service) Run(ctx context.Context) error {
 	// Listen for item registered/unregistered.
 	ch := make(chan *dbus.Signal, 16)
 	s.conn.Signal(ch)
-	_ = s.conn.AddMatchSignal(
+	if err := s.conn.AddMatchSignal(
 		dbus.WithMatchInterface(watcherIface),
 		dbus.WithMatchMember("StatusNotifierItemRegistered"),
-	)
-	_ = s.conn.AddMatchSignal(
+	); err != nil {
+		log.Printf("[SNI] AddMatchSignal: %v", err)
+	}
+	if err := s.conn.AddMatchSignal(
 		dbus.WithMatchInterface(watcherIface),
 		dbus.WithMatchMember("StatusNotifierItemUnregistered"),
-	)
+	); err != nil {
+		log.Printf("[SNI] AddMatchSignal: %v", err)
+	}
 
 	// Fetch initial items.
 	s.fetchRegisteredItems()

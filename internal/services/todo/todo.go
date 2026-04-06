@@ -3,6 +3,7 @@ package todo
 import (
 	"context"
 	"encoding/json"
+	"log"
 	"os"
 	"path/filepath"
 	"sync"
@@ -64,7 +65,7 @@ func (s *Service) Add(text string) {
 	defer s.mu.Unlock()
 	id := int(s.nextID.Add(1))
 	s.items = append(s.items, state.TodoItem{ID: id, Text: text})
-	_ = s.save()
+	if err := s.save(); err != nil { log.Printf("todo save: %v", err) }
 	s.publish()
 }
 
@@ -77,7 +78,7 @@ func (s *Service) Toggle(id int) {
 			break
 		}
 	}
-	_ = s.save()
+	if err := s.save(); err != nil { log.Printf("todo save: %v", err) }
 	s.publish()
 }
 
@@ -90,7 +91,7 @@ func (s *Service) Remove(id int) {
 			break
 		}
 	}
-	_ = s.save()
+	if err := s.save(); err != nil { log.Printf("todo save: %v", err) }
 	s.publish()
 }
 
@@ -98,6 +99,6 @@ func (s *Service) Clear() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.items = nil
-	_ = s.save()
+	if err := s.save(); err != nil { log.Printf("todo save: %v", err) }
 	s.publish()
 }

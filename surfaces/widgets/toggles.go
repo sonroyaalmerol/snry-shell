@@ -1,6 +1,7 @@
 package widgets
 
 import (
+	"log"
 	"os/exec"
 
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
@@ -84,13 +85,13 @@ func NewQuickToggles(b *bus.Bus, refs *servicerefs.ServiceRefs) gtk.Widgetter {
 			if active {
 				val = "0.3"
 			}
-			go func() { _ = exec.Command("hyprctl", "keyword", "decoration:dim_strength", val).Run() }()
+			go func() { if err := exec.Command("hyprctl", "keyword", "decoration:dim_strength", val).Run(); err != nil { log.Printf("toggle anti-flash: %v", err) } }()
 		}},
 		{icon: "mic", label: "Mic Mute", requires: "wpctl", toggle: func(_ bool) {
-			go func() { _ = exec.Command("wpctl", "set-mute", "@DEFAULT_SOURCE@", "toggle").Run() }()
+			go func() { if err := exec.Command("wpctl", "set-mute", "@DEFAULT_SOURCE@", "toggle").Run(); err != nil { log.Printf("toggle mic-mute: %v", err) } }()
 		}},
 		{icon: "equalizer", label: "EasyEffects", requires: "easyeffects", toggle: func(_ bool) {
-			go func() { _ = exec.Command("easyeffects", "-t").Run() }()
+			go func() { if err := exec.Command("easyeffects", "-t").Run(); err != nil { log.Printf("toggle easyeffects: %v", err) } }()
 		}},
 		{icon: "notifications_off", label: "DND", topic: bus.TopicDND, toggle: func(active bool) {
 			b.Publish(bus.TopicDND, active)
@@ -100,23 +101,23 @@ func NewQuickToggles(b *bus.Bus, refs *servicerefs.ServiceRefs) gtk.Widgetter {
 			if active {
 				action = "open"
 			}
-			go func() { _ = exec.Command("hyprctl", "dispatch", "inhibit-activity", action).Run() }()
+			go func() { if err := exec.Command("hyprctl", "dispatch", "inhibit-activity", action).Run(); err != nil { log.Printf("toggle idle-off: %v", err) } }()
 		}},
 		{icon: "sports_esports", label: "GameMode", requires: "gamemoderectl", toggle: func(_ bool) {
-			go func() { _ = exec.Command("gamemoderectl", "-t").Run() }()
+			go func() { if err := exec.Command("gamemoderectl", "-t").Run(); err != nil { log.Printf("toggle gamemode: %v", err) } }()
 		}},
 		{icon: "speed", label: "Performance", requires: "powerprofilesctl", toggle: func(active bool) {
 			profile := "balanced"
 			if active {
 				profile = "performance"
 			}
-			go func() { _ = exec.Command("powerprofilesctl", "set", profile).Run() }()
+			go func() { if err := exec.Command("powerprofilesctl", "set", profile).Run(); err != nil { log.Printf("toggle performance: %v", err) } }()
 		}},
 		{icon: "screenshot", label: "Screenshot", button: true, toggle: func(_ bool) {
 			b.Publish(bus.TopicSystemControls, "toggle-region-selector")
 		}},
 		{icon: "colorize", label: "Color Pick", requires: "hyprpicker", button: true, toggle: func(_ bool) {
-			go func() { _ = exec.Command("hyprpicker").Run() }()
+			go func() { if err := exec.Command("hyprpicker").Run(); err != nil { log.Printf("color picker: %v", err) } }()
 		}},
 		{icon: "keyboard", label: "On-Screen Keyboard", button: true, toggle: func(_ bool) {
 			b.Publish(bus.TopicSystemControls, "toggle-osk")

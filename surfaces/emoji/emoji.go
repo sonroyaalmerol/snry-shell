@@ -2,6 +2,7 @@
 package emoji
 
 import (
+	"log"
 	"os/exec"
 
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
@@ -89,7 +90,7 @@ func emojiButton(parent *gtk.FlowBox, emoji, name string) {
 	btn.SetChild(lbl)
 	btn.SetTooltipText(name)
 	btn.ConnectClicked(func() {
-		go func() { _ = exec.Command("wl-copy", emoji).Run() }()
+		go func() { if err := exec.Command("wl-copy", emoji).Run(); err != nil { log.Printf("emoji copy: %v", err) } }()
 	})
 	parent.Append(btn)
 }

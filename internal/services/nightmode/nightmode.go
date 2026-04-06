@@ -1,6 +1,7 @@
 package nightmode
 
 import (
+	"log"
 	"os/exec"
 	"sync"
 
@@ -55,9 +56,13 @@ func (s *Service) Toggle() {
 	defer s.mu.Unlock()
 	s.enabled = !s.enabled
 	if s.enabled {
-		_ = s.runner.Start("hyprsunset", "-t", s.temp)
+		if err := s.runner.Start("hyprsunset", "-t", s.temp); err != nil {
+			log.Printf("nightmode start: %v", err)
+		}
 	} else {
-		_ = s.killer.Kill("hyprsunset")
+		if err := s.killer.Kill("hyprsunset"); err != nil {
+			log.Printf("nightmode stop: %v", err)
+		}
 	}
 	s.bus.Publish(bus.TopicNightMode, s.enabled)
 }

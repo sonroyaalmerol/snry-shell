@@ -1,6 +1,8 @@
 package overview
 
 import (
+	"log"
+
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/sonroyaalmerol/snry-shell/internal/bus"
 	"github.com/sonroyaalmerol/snry-shell/internal/gtkutil"
@@ -96,7 +98,7 @@ func newWindowCard(querier *hyprland.Querier, client hyprland.HyprClient) gtk.Wi
 	addr := client.Address
 	btn.ConnectClicked(func() {
 		if querier != nil {
-			_ = querier.FocusWindow(addr)
+			if err := querier.FocusWindow(addr); err != nil { log.Printf("focus window: %v", err) }
 		}
 	})
 

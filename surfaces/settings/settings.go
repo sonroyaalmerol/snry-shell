@@ -2,6 +2,8 @@
 package settings
 
 import (
+	"log"
+
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/sonroyaalmerol/snry-shell/internal/bus"
 	"github.com/sonroyaalmerol/snry-shell/internal/layershell"
@@ -182,5 +184,5 @@ func (s *Settings) buildBarPage() gtk.Widgetter {
 }
 
 func (s *Settings) save() {
-	_ = appsettings.Save(s.cfg)
+	if err := appsettings.Save(s.cfg); err != nil { log.Printf("settings save: %v", err) }
 }

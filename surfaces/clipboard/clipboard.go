@@ -2,6 +2,7 @@
 package clipboard
 
 import (
+	"log"
 	"os/exec"
 	"strings"
 
@@ -52,7 +53,7 @@ func New(app *gtk.Application, b *bus.Bus) *Panel {
 	clearBtn := gtkutil.M3IconButton("delete_sweep", "clipboard-clear-btn")
 	clearBtn.SetTooltipText("Clear all")
 	clearBtn.ConnectClicked(func() {
-		go func() { _ = exec.Command("cliphist", "wipe").Run() }()
+		go func() { if err := exec.Command("cliphist", "wipe").Run(); err != nil { log.Printf("clipboard clear: %v", err) } }()
 		p.refresh("")
 	})
 
@@ -123,7 +124,7 @@ func (p *Panel) refresh(filter string) {
 				text := line
 				row.ConnectClicked(func() {
 					go func() {
-						_ = exec.Command("wl-copy", text).Run()
+						if err := exec.Command("wl-copy", text).Run(); err != nil { log.Printf("clipboard copy: %v", err) }
 					}()
 					p.win.SetVisible(false)
 				})
