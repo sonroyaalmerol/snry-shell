@@ -542,7 +542,7 @@ scale.m3-scale slider {
     min-width: 80px;
 }
 
-.appdrawer-tile:hover,
+/* Hover effects disabled to prevent stuck states on touch - use active instead */
 .appdrawer-tile:active {
     background-color: alpha(@col_primary_container, 0.35);
 }
@@ -1022,10 +1022,6 @@ scale.quick-slider {
     padding: 12px 16px;
     border-radius: var(--radius-md);
     transition: background-color var(--duration-short3) var(--ease-standard-decel);
-}
-
-.conn-row:hover {
-    background-color: alpha(@col_on_surface, var(--state-hover));
 }
 
 .conn-row-connected {
