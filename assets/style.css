@@ -2018,119 +2018,48 @@ popover.menu list row:selected {
     }
 }
 
-/* ── Material Design Press/Ripple Effects ───────────────────────────────────── */
+/* ── Material Press Effects ─────────────────────────────────────────────────── */
 
-/* Base press effect for all interactive elements */
-.appdrawer-tile,
-.quick-toggle,
-.conn-row,
-.m3-switch-row,
-.settings-nav-item,
-.cal-day,
-.media-btn,
-.osk-key,
-.osk-lang-btn,
-.bar-group-clickable {
-    position: relative;
-    overflow: hidden;
+/* Simple press state using background-color (works in GTK4) */
+.appdrawer-tile:active {
+    background-color: alpha(@col_primary_container, 0.5);
 }
 
-/* Ripple pseudo-element */
-.appdrawer-tile::after,
-.quick-toggle::after,
-.conn-row::after,
-.m3-switch-row::after,
-.settings-nav-item::after,
-.cal-day::after,
-.media-btn::after,
-.osk-key::after,
-.osk-lang-btn::after,
-.bar-group-clickable::after {
-    content: "";
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 0;
-    height: 0;
-    background-color: alpha(@col_on_surface, 0.12);
-    border-radius: 50%;
-    transform: translate(-50%, -50%);
-    transition: width 0.3s var(--ease-standard-decel), 
-                height 0.3s var(--ease-standard-decel),
-                opacity 0.3s var(--ease-standard-decel);
-    pointer-events: none;
-    opacity: 0;
-}
-
-/* Active/pressed state - expand ripple */
-.appdrawer-tile:active::after,
-.quick-toggle:active::after,
-.conn-row:active::after,
-.m3-switch-row:active::after,
-.settings-nav-item:active::after,
-.cal-day:active::after,
-.media-btn:active::after,
-.osk-key:active::after,
-.osk-lang-btn:active::after,
-.bar-group-clickable:active::after {
-    width: 200%;
-    height: 200%;
-    opacity: 1;
-}
-
-/* Quick toggle specific - use primary color ripple */
-.quick-toggle:active::after {
-    background-color: alpha(@col_on_primary, 0.15);
-}
-
-.quick-toggle:checked:active::after {
-    background-color: alpha(@col_on_primary, 0.2);
-}
-
-/* Connected row ripple */
-.conn-row-connected:active::after {
-    background-color: alpha(@col_primary, 0.15);
-}
-
-/* Settings nav item ripple */
-.settings-nav-item:active::after {
-    background-color: alpha(@col_on_primary_container, 0.15);
-}
-
-/* Media button ripple */
-.media-btn:active::after {
-    background-color: alpha(@col_primary, 0.12);
-}
-
-/* OSK key ripple */
-.osk-key:active::after {
+.quick-toggle:active {
     background-color: alpha(@col_on_surface, 0.15);
 }
 
-.osk-key:active::after,
-.osk-key.special:active::after {
-    background-color: alpha(@col_on_primary, 0.2);
+.quick-toggle:checked:active {
+    background-color: alpha(@col_primary, 0.8);
 }
 
-/* Scale down effect on press (Material elevation response) */
-.appdrawer-tile:active,
-.quick-toggle:active,
-.conn-row:active,
-.m3-switch-row:active,
-.settings-nav-item:active,
-.cal-day:active,
+.conn-row:active {
+    background-color: alpha(@col_on_surface, 0.1);
+}
+
+.conn-row-connected:active {
+    background-color: alpha(@col_primary_container, 0.5);
+}
+
+.settings-nav-item:active {
+    background-color: alpha(@col_on_primary_container, 0.2);
+}
+
+.cal-day:active {
+    background-color: alpha(@col_on_surface, 0.15);
+}
+
 .media-btn:active {
-    transform: scale(0.98);
-    transition: transform 0.1s var(--ease-standard-decel);
+    background-color: alpha(@col_primary, 0.2);
 }
 
-/* Ensure smooth release */
-.appdrawer-tile,
-.quick-toggle,
-.conn-row,
-.m3-switch-row,
-.settings-nav-item,
-.cal-day,
-.media-btn {
-    transition: transform 0.2s var(--ease-standard-decel);
+.osk-key:active {
+    background-color: @col_primary;
+    color: @col_on_primary;
 }
+
+.osk-key.special:active {
+    background-color: @col_primary;
+    color: @col_on_primary;
+}
+
