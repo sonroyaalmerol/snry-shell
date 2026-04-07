@@ -2,8 +2,10 @@
 package theme
 
 import (
+	"bufio"
 	"context"
 	"fmt"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
@@ -183,30 +185,34 @@ func getSWWWWallpaper() string {
 var nitrogenBgRegex = regexp.MustCompile(`file=(.+)`)
 
 func getNitrogenWallpaper() string {
-	out, err := exec.Command("nitrogen", "--save").Output()
-	if err != nil {
-		// Try reading nitrogen config
-		home, _ := exec.Command("sh", "-c", "echo $HOME").Output()
-		cfgPath := strings.TrimSpace(string(home)) + "/.config/nitrogen/bg-saved.cfg"
-		if data, err := exec.Command("cat", cfgPath).Output(); err == nil {
-			matches := nitrogenBgRegex.FindStringSubmatch(string(data))
-			if len(matches) >= 2 {
-				return strings.TrimSpace(matches[1])
-			}
+	if _, err := exec.Command("nitrogen", "--save").Output(); err != nil {
+		// nitrogen not running — fall back to reading its config file directly.
+		cfgPath := filepath.Join(os.Getenv("HOME"), ".config", "nitrogen", "bg-saved.cfg")
+		data, err := os.ReadFile(cfgPath)
+		if err != nil {
+			return ""
 		}
-		return ""
+		if m := nitrogenBgRegex.FindSubmatch(data); len(m) >= 2 {
+			return strings.TrimSpace(string(m[1]))
+		}
 	}
-	_ = out
 	return ""
 }
 
+var fehImgRe = regexp.MustCompile(`\S+\.(jpg|jpeg|png|gif|bmp|webp)`)
+
 func getFehWallpaper() string {
-	// feh stores the wallpaper in ~/.fehbg
-	out, err := exec.Command("sh", "-c", "cat ~/.fehbg 2>/dev/null | grep -oE '[^[:space:]]+\\.(jpg|jpeg|png|gif|bmp|webp)' | head -1").Output()
+	// feh stores its last command in ~/.fehbg, e.g.:
+	//   feh --no-fehbg --bg-fill /path/to/image.jpg
+	data, err := os.ReadFile(filepath.Join(os.Getenv("HOME"), ".fehbg"))
 	if err != nil {
 		return ""
 	}
-
-	path := strings.TrimSpace(string(out))
-	return path
+	sc := bufio.NewScanner(strings.NewReader(string(data)))
+	for sc.Scan() {
+		if m := fehImgRe.FindString(sc.Text()); m != "" {
+			return m
+		}
+	}
+	return ""
 }
