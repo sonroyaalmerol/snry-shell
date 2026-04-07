@@ -2,6 +2,7 @@ package gtkutil
 
 import (
 	"fmt"
+	"math"
 
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
@@ -334,20 +335,41 @@ func ErrorDialog(parent *gtk.ApplicationWindow, title, message string) {
 	dismissBtn.ConnectClicked(close)
 }
 
+// dragThreshold is the maximum distance (in pixels) allowed between press and release
+// to consider it a click rather than a drag/scroll
+const dragThreshold = 15.0
+
 // ClaimedClick adds a left-click gesture that claims the sequence on press,
 // preventing the default button activation. If onRelease is non-nil it is
 // called on release. Returns the gesture for additional handler attachment.
+// This version includes drag detection - if the cursor moves more than
+// dragThreshold pixels between press and release, the click is not triggered.
 func ClaimedClick(w *gtk.Widget, onRelease func()) *gtk.GestureClick {
 	click := gtk.NewGestureClick()
 	click.SetButton(1)
-	click.ConnectPressed(func(_ int, _ float64, _ float64) {
+
+	var startX, startY float64
+
+	click.ConnectPressed(func(_ int, x, y float64) {
 		click.SetState(gtk.EventSequenceClaimed)
+		startX = x
+		startY = y
 	})
+
 	if onRelease != nil {
-		click.ConnectReleased(func(_ int, _ float64, _ float64) {
-			onRelease()
+		click.ConnectReleased(func(_ int, x, y float64) {
+			// Calculate distance moved
+			dx := x - startX
+			dy := y - startY
+			distance := math.Sqrt(dx*dx + dy*dy)
+
+			// Only trigger click if movement is below threshold
+			if distance < dragThreshold {
+				onRelease()
+			}
 		})
 	}
+
 	w.AddController(click)
 	return click
 }
