@@ -16,6 +16,7 @@ import (
 	"github.com/diamondburned/gotk4/pkg/gdk/v4"
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
+	"github.com/msteinert/pam/v2"
 	"github.com/sonroyaalmerol/snry-shell/internal/bus"
 	"github.com/sonroyaalmerol/snry-shell/internal/gtkutil"
 	"github.com/sonroyaalmerol/snry-shell/internal/layershell"
@@ -426,24 +427,25 @@ func (ls *LockScreen) resetAuth() {
 
 // ── PAM authentication ────────────────────────────────────────────────────────
 
-// authenticate checks the given password against the system password database.
-// It tries multiple methods: unix_chkpwd (PAM), then su fallback.
+// authenticate checks the given password using PAM (Pluggable Authentication Modules).
+// This is the same authentication mechanism used by login, sudo, etc.
 // On success, it also unlocks the default keyring with the same password.
 func authenticate(password string) error {
 	username := currentUser()
-	log.Printf("[LOCKSCREEN] attempting authentication for user %q", username)
+	log.Printf("[LOCKSCREEN] attempting PAM authentication for user %q", username)
 
-	// Try unix_chkpwd first (standard PAM helper)
-	if err := authenticateWithUnixChkpwd(username, password); err == nil {
-		log.Printf("[LOCKSCREEN] unix_chkpwd authentication succeeded for %q", username)
+	// Use direct PAM authentication (no external dependencies)
+	if err := authenticateWithPAM(username, password); err == nil {
+		log.Printf("[LOCKSCREEN] PAM authentication succeeded for %q", username)
 		// Unlock keyring with the same password
 		go unlockKeyring(password)
 		return nil
 	} else {
-		log.Printf("[LOCKSCREEN] unix_chkpwd failed: %v", err)
+		log.Printf("[LOCKSCREEN] PAM authentication failed: %v", err)
 	}
 
-	// Fallback to su method
+	// Fallback to su method if PAM fails
+	log.Printf("[LOCKSCREEN] falling back to su authentication")
 	if err := authenticateWithSu(username, password); err == nil {
 		log.Printf("[LOCKSCREEN] su authentication succeeded for %q", username)
 		// Unlock keyring with the same password
@@ -457,29 +459,49 @@ func authenticate(password string) error {
 	return fmt.Errorf("authentication failed")
 }
 
-// authenticateWithUnixChkpwd uses the standard PAM unix_chkpwd helper.
-// This is the same mechanism used by login, sudo, etc.
-func authenticateWithUnixChkpwd(username, password string) error {
-	// unix_chkpwd is usually in /sbin or /usr/sbin
-	paths := []string{"/usr/sbin/unix_chkpwd", "/sbin/unix_chkpwd"}
-
-	for _, path := range paths {
-		if _, err := os.Stat(path); err != nil {
-			continue
+// authenticateWithPAM uses direct PAM authentication via the PAM library.
+// This requires no external binaries and uses the system's PAM configuration.
+func authenticateWithPAM(username, password string) error {
+	// Create PAM transaction for the "login" service using StartFunc
+	// This uses the same PAM stack as the system login
+	trans, err := pam.StartFunc("login", username, func(s pam.Style, msg string) (string, error) {
+		switch s {
+		case pam.PromptEchoOff:
+			// Password prompt - return the password
+			return password, nil
+		case pam.PromptEchoOn:
+			// Username prompt (shouldn't happen since we provided it)
+			return username, nil
+		case pam.ErrorMsg:
+			// Error message from PAM
+			log.Printf("[LOCKSCREEN] PAM error: %s", msg)
+			return "", nil
+		case pam.TextInfo:
+			// Informational message
+			log.Printf("[LOCKSCREEN] PAM info: %s", msg)
+			return "", nil
+		default:
+			return "", fmt.Errorf("unsupported PAM message style: %v", s)
 		}
+	})
+	if err != nil {
+		return fmt.Errorf("PAM start failed: %w", err)
+	}
+	defer trans.End()
 
-		// unix_chkpwd reads "password\n" from stdin and expects the username as argument
-		cmd := exec.Command(path, username, "invoke")
-		cmd.Stdin = strings.NewReader(password + "\n")
-		cmd.Stdout = nil
-		cmd.Stderr = nil
-
-		if err := cmd.Run(); err == nil {
-			return nil
-		}
+	// Authenticate the user
+	err = trans.Authenticate(0)
+	if err != nil {
+		return fmt.Errorf("PAM authentication failed: %w", err)
 	}
 
-	return fmt.Errorf("unix_chkpwd not available or failed")
+	// Check account validity
+	err = trans.AcctMgmt(0)
+	if err != nil {
+		return fmt.Errorf("PAM account check failed: %w", err)
+	}
+
+	return nil
 }
 
 // authenticateWithSu uses su as a fallback authentication method.
