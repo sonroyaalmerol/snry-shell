@@ -1,8 +1,10 @@
 package controlpanel
 
 import (
+	"fmt"
 	"log"
 	"net"
+	"strconv"
 
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/sonroyaalmerol/snry-shell/internal/controlsocket"
@@ -140,7 +142,113 @@ func (s *shellConfigProvider) buildBehaviorSection() gtk.Widgetter {
 	card.Append(inputModeRow)
 
 	section.Append(card)
+
+	// ── Idle / Lock section ────────────────────────────────────────────────
+	idleSection := s.buildIdleSection()
+	section.Append(idleSection)
+
 	return section
+}
+
+func (s *shellConfigProvider) buildIdleSection() gtk.Widgetter {
+	section := gtk.NewBox(gtk.OrientationVertical, 12)
+	section.AddCSSClass("settings-page")
+	section.SetMarginTop(24)
+
+	title := gtk.NewLabel("Idle & Lock")
+	title.AddCSSClass("settings-label")
+	title.SetHAlign(gtk.AlignStart)
+	section.Append(title)
+
+	card := gtk.NewBox(gtk.OrientationVertical, 0)
+	card.AddCSSClass("system-controls")
+
+	// Idle lock timeout (minutes; 0 = disabled).
+	lockTimeoutRow := s.buildSpinRow(
+		"Lock timeout", "Minutes of inactivity before locking (0 = disabled)",
+		0, 120, s.cfg.IdleLockTimeout/60,
+		func(v int) {
+			s.cfg.IdleLockTimeout = v * 60
+			if err := s.Save(); err != nil {
+				log.Printf("[CONTROLPANEL] save idle lock timeout: %v", err)
+			}
+		},
+	)
+	card.Append(lockTimeoutRow)
+	card.Append(gtkutil.M3Divider())
+
+	// Suspend timeout (minutes after lock; 0 = disabled).
+	suspendTimeoutRow := s.buildSpinRow(
+		"Suspend after lock", "Extra minutes after locking before suspend (0 = disabled)",
+		0, 120, s.cfg.IdleSuspendTimeout/60,
+		func(v int) {
+			s.cfg.IdleSuspendTimeout = v * 60
+			if err := s.Save(); err != nil {
+				log.Printf("[CONTROLPANEL] save idle suspend timeout: %v", err)
+			}
+		},
+	)
+	card.Append(suspendTimeoutRow)
+
+	section.Append(card)
+	return section
+}
+
+// buildSpinRow creates a row with a label, subtitle, and a spin-button for
+// an integer value in [min, max].
+func (s *shellConfigProvider) buildSpinRow(title, subtitle string, min, max, current int, callback func(int)) gtk.Widgetter {
+	row := gtk.NewBox(gtk.OrientationHorizontal, 16)
+	row.AddCSSClass("m3-switch-row")
+
+	textBox := gtk.NewBox(gtk.OrientationVertical, 4)
+	textBox.SetHExpand(true)
+
+	titleLabel := gtk.NewLabel(title)
+	titleLabel.AddCSSClass("m3-switch-row-label")
+	titleLabel.SetHAlign(gtk.AlignStart)
+	textBox.Append(titleLabel)
+
+	if subtitle != "" {
+		sub := gtk.NewLabel(subtitle)
+		sub.AddCSSClass("m3-switch-row-sublabel")
+		sub.SetHAlign(gtk.AlignStart)
+		textBox.Append(sub)
+	}
+	row.Append(textBox)
+
+	// Simple editable entry acting as a spin box.
+	entry := gtk.NewEntry()
+	entry.AddCSSClass("settings-spin-entry")
+	entry.SetText(fmt.Sprintf("%d", current))
+	entry.SetMaxWidthChars(4)
+	entry.SetHAlign(gtk.AlignEnd)
+
+	entry.ConnectActivate(func() {
+		v, err := strconv.Atoi(entry.Text())
+		if err != nil || v < min || v > max {
+			entry.SetText(fmt.Sprintf("%d", current))
+			return
+		}
+		current = v
+		callback(v)
+	})
+	// Also save on focus-out.
+	focusCtrl := gtk.NewEventControllerFocus()
+	focusCtrl.ConnectLeave(func() {
+		v, err := strconv.Atoi(entry.Text())
+		if err != nil || v < min || v > max {
+			entry.SetText(fmt.Sprintf("%d", current))
+			return
+		}
+		if v != current {
+			current = v
+			callback(v)
+		}
+	})
+	entry.AddController(focusCtrl)
+
+	row.Append(entry)
+	return row
 }
 
 func (s *shellConfigProvider) buildSwitchRow(title, subtitle string, active bool, callback func(bool)) gtk.Widgetter {
