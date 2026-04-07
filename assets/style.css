@@ -54,6 +54,7 @@
     --radius-md:    12px;
     --radius-lg:    17px;
     --radius-xl:    23px;
+    --radius-xxl:   32px;
     --radius-full:  28px;
     --radius-pill:  9999px;
 
@@ -379,7 +380,7 @@ scale.m3-scale slider {
 
 .search-results {
     background-color: @col_surface_container;
-    border-radius: var(--radius-lg);
+    border-radius: var(--radius-xl);
     padding: 4px 0;
     margin-top: 8px;
 }
@@ -412,7 +413,7 @@ scale.m3-scale slider {
 
 .window-preview-card {
     background-color: @col_surface_container;
-    border-radius: var(--radius-lg);
+    border-radius: var(--radius-xl);
     padding: 8px;
     margin: 6px;
     transition: background-color var(--duration-short3) var(--ease-emphasized-decel);
@@ -438,7 +439,7 @@ scale.m3-scale slider {
 
 .window-preview-thumb {
     background-color: @col_surface_container_low;
-    border-radius: var(--radius-md);
+    border-radius: var(--radius-lg);
     border: 1px solid alpha(@col_outline_variant, 0.3);
 }
 
@@ -644,7 +645,7 @@ scale.osd-slider {
 
 .cheatsheet-card {
     background-color: @col_surface_container;
-    border-radius: var(--radius-lg);
+    border-radius: var(--radius-xl);
     border: 1px solid alpha(@col_outline_variant, 0.5);
     padding: 24px 32px;
     min-width: 480px;
@@ -675,7 +676,7 @@ scale.osd-slider {
 
 .notif-toast {
     background-color: alpha(@col_surface_container_high, 0.95);
-    border-radius: var(--radius-lg);
+    border-radius: var(--radius-xl);
     padding: 12px 16px;
     margin-bottom: 6px;
     min-width: 320px;
@@ -802,7 +803,7 @@ scale.osd-slider {
 
 .calendar-group {
     background-color: @col_surface_container;
-    border-radius: var(--radius-md);
+    border-radius: var(--radius-xl);
     padding: 12px;
     margin: 4px 0;
 }
@@ -863,7 +864,7 @@ scale.osd-slider {
 
 .system-controls {
     background-color: @col_surface_container;
-    border-radius: var(--radius-md);
+    border-radius: var(--radius-xl);
     padding: 12px;
     margin: 4px 0;
 }
@@ -1603,7 +1604,7 @@ popover.menu list row:selected {
 
 .notes-overlay {
     background-color: alpha(@col_surface_container, 0.92);
-    border-radius: var(--radius-md);
+    border-radius: var(--radius-xl);
     border: 1px solid alpha(@col_outline_variant, 0.3);
     padding: 12px;
 }
@@ -1688,7 +1689,7 @@ popover.menu list row:selected {
 
 .polkit-dialog {
     background-color: @col_surface_container;
-    border-radius: var(--radius-full);
+    border-radius: var(--radius-xl);
     border: 1px solid alpha(@col_outline_variant, 0.3);
     padding: 24px;
     box-shadow: var(--elevation-4);
@@ -1765,7 +1766,7 @@ popover.menu list row:selected {
 
 .m3-dialog {
     background-color: @col_surface_container_high;
-    border-radius: var(--radius-full);
+    border-radius: var(--radius-xl);
     border: 1px solid alpha(@col_outline_variant, 0.3);
     padding: 24px;
     box-shadow: var(--elevation-4);
