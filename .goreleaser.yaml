@@ -50,9 +50,11 @@ nfpms:
       - hyprland
     recommends:
       - swww
-      - matugen
-      - wtype
       - wireplumber
+      - cliphist
+      - wl-clipboard
+      - wf-recorder
+      - hyprpicker
 
   - id: rpm
     package_name: snry-shell
