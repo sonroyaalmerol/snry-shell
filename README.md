@@ -14,22 +14,20 @@ snry-shell provides a complete desktop shell UI layer:
 - **Status bar** — workspaces, window title, notification unread badge, system tray (SNI), resource monitor, keyboard layout, volume/brightness/network/battery indicators, clock
 - **Application overview** — window previews grouped by workspace, fuzzy app launcher
 - **Notifications** — freedesktop notification daemon (DBus), toast popups, sidebar notification list
-- **Control panel** — media controls, calendar popup, quick toggles (13 total), pomodoro timer, todo list, volume mixer, WiFi picker, Bluetooth picker
-- **Quick toggles** — WiFi, Bluetooth, Night Light, Anti-Flash, Mic Mute, EasyEffects, DND, Idle Off, GameMode, Performance, Screenshot, Color Pick, On-Screen Keyboard
-- **Lock screen** — password entry, clock display
+- **Calendar & Quick Settings** — calendar popup combined with quick toggles (13 total), volume & brightness sliders
+- **Quick toggles** — WiFi, Bluetooth, Night Light, Anti-Flash, Mic Mute, EasyEffects, DND, Idle Off, GameMode, Performance, Screenshot, Color Pick, Input Mode
+- **Lock screen** — password entry, clock display, PAM integration. Fully supports **On-Screen Keyboard** for touch devices.
 - **Session menu** — lock, suspend, reboot, shutdown, logout
-- **Settings panel** — dark mode toggle (overlay, `--toggle-settings`)
+- **Settings panel** — quick settings overlay (launched with `--toggle-settings`)
 - **Standalone control panel** — full-window settings UI launched with `--control-panel` or `-c`
-- **Wallpaper picker** — grid browser with automatic Material Design 3 theming (built-in, no external tools required)
-- **Clipboard history** — searchable panel with cliphist integration
-- **Emoji picker** — categorized emoji grid with wl-copy
+- **Dynamic Material Design 3 theming** — automatic color scheme extraction from wallpaper (no external tools required)
 - **Notes overlay** — persistent text notes (auto-saved to disk)
 - **Screen recorder** — wf-recorder integration with live timer
 - **Floating image viewer** — click-to-dismiss image display
 - **Polkit agent** — GUI authentication dialog (replaces text-based agent)
-- **On-screen keyboard** — QWERTY layout with key injection via `/dev/uinput`, auto-show via `zwp_input_method_v2`
+- **On-screen keyboard** — QWERTY layout with key injection via `/dev/uinput`, auto-show via `zwp_input_method_v2`. Includes built-in **Emoji picker** and **Clipboard history**.
 - **Window management popup** — grouped window list with per-workspace navigation
-- **Extras** — screen corner hotspots, crosshair overlay, region screenshot selector, cheatsheet, OSD (volume/brightness)
+- **Idle Service** — High-performance inactivity monitoring using the native `ext-idle-notify-v1` protocol. Supports automatic screen locking, DPMS display-off, and system suspension.
 
 ## Architecture
 
@@ -41,7 +39,7 @@ surfaces/
   overview/                     App launcher + window grid
   popup/
     appdrawer/                  App drawer popup
-    calendar/                   Calendar popup
+    calendar/                   Calendar + Quick Settings popup
     notifcenter/               Notification center sidebar
     wifi/                       WiFi picker popup
     bluetooth/                  Bluetooth picker popup
@@ -49,17 +47,15 @@ surfaces/
   controlpanel/                 Standalone settings UI (--control-panel / -c flag)
   lockscreen/                   Lock screen
   session/                      Power menu
-  settings/                     Settings overlay (dark mode toggle)
+  settings/                     Settings overlay
   mediaoverlay/                 Full-screen media controls
-  clipboard/                    Clipboard history panel
-  emoji/                        Emoji picker overlay
   notes/                        Notes overlay
   recorder/                     Screen recorder controls
   imageviewer/                  Floating image viewer
   polkit/                       PolicyKit authentication agent
   osd/                          Volume/brightness on-screen display
   notifpopup/                   Notification toast popups
-  osk/                          On-screen keyboard
+  osk/                          On-screen keyboard (includes Emoji & Clipboard panels)
   regionselector/               Region screenshot tool
   corners/                      Screen corner hotspots
   crosshair/                    Crosshair overlay
@@ -75,22 +71,21 @@ internal/
     audio/                      Volume control (wpctl; event-driven via pactl subscribe)
     brightness/                 Brightness control (pure Go DDC/CI over I2C)
     resources/                  CPU/RAM monitoring (/proc, change detection skips <1% deltas)
-    audiomixer/                 Per-app volume (pactl; event-driven via pactl subscribe)
     network/                    WiFi scanning + connectivity (NetworkManager DBus)
     bluetooth/                  Device discovery + pairing (Bluez DBus)
-    mpris/                      Media player control (MPRIS2 DBus, PropertiesChanged + Seeked signals)
+    mpris/                      Media player control (MPRIS2 DBus)
     upower/                     Battery status (UPower DBus)
     notifications/              Notification server (freedesktop DBus)
-    clipboard/                  Clipboard history (cliphist; event-driven via wl-paste --watch)
+    clipboard/                  Clipboard watcher (cliphist integration)
     nightmode/                  Night light (hyprsunset)
     darkmode/                   Dark mode detection (xdg-desktop-portal / gsettings fallback)
     inputmode/                  Input mode switching (auto/tablet/desktop)
-    pomodoro/                   Pomodoro timer (internal)
-    todo/                       Task list (JSON persistence)
+    idle/                       Idle/Timeout management (ext-idle-notify-v1 + D-Bus ScreenSaver)
     sni/                        System tray host (StatusNotifierItem DBus)
     runner/                     Command abstraction (Runner, StreamReader, Commander, PollLoop)
   ddc/                          Pure Go DDC/CI monitor control (I2C ioctls, bus caching)
   inputmethod/                  zwp_input_method_v2 watcher for OSK auto-show
+  waylandutil/                  Shared Wayland helpers (fixed Bind encoding, roundtrips)
   controlsocket/                Unix socket for --toggle-* commands
   dbusutil/                     D-Bus helper utilities
   fileutil/                     File I/O helpers
@@ -110,12 +105,9 @@ assets/
 ### Design Patterns
 
 - **Event bus** — All services publish state changes to a central `bus.Bus`; surfaces subscribe to topics they care about. Late subscribers receive the last published event (replay). No direct service-to-surface coupling.
-- **Event-driven architecture** — Services use event streams (pactl subscribe, wl-paste --watch, MPRIS D-Bus signals, Hyprland socket events, zwp_input_method_v2) instead of polling where possible. Remaining polling services (brightness via I2C, resources via /proc, darkmode, theme) use change deduplication to skip redundant publishes.
-- **Dependency injection** — Every service that touches the OS (subprocesses, sockets, DBus, I2C ioctls) is abstracted behind an interface, enabling unit tests with fakes.
-- **Layer shell** — Each surface is a separate gtk-layer-shell window with its own layer, anchors, exclusive zone, and keyboard mode.
-- **Service refs** — A single `ServiceRefs` struct bundles all service pointers and is passed to surface constructors that need them.
-- **Persistent store** — Settings and state are persisted in a typed JSON key-value store (`~/.config/snry-shell/store.json`) rather than separate config files.
-- **Forced configs** — The shell temporarily injects Hyprland config values (e.g. `decoration:rounding`) via `hyprctl keyword` and restores originals on exit.
+- **Event-driven architecture** — Services use event streams (pactl subscribe, wl-paste --watch, MPRIS D-Bus signals, Hyprland socket events, `ext-idle-notify-v1`) instead of polling where possible.
+- **Wayland Protocol Interop** — Built-in support for standard Wayland staging protocols (`ext-idle-notify-v1`, `zwp_input_method_v2`) using a custom `fixedBind` workaround to ensure high stability across different compositor versions.
+- **Inhibition Support** — The Idle service natively respects compositor-level inhibitors (e.g., Firefox video playback) and provides an `org.freedesktop.ScreenSaver` D-Bus interface for legacy application compatibility.
 
 ## Installation
 
@@ -136,121 +128,10 @@ Download the latest release from [GitHub Releases](https://github.com/sonroyaalm
 yay -S snry-shell-bin
 ```
 
-#### Debian / Ubuntu
-
-```
-sudo dpkg -i snry-shell_<version>_linux_amd64.deb
-```
-
-#### Fedora
-
-```
-sudo rpm -i snry-shell_<version>_linux_x86_64.rpm
-```
-
-### From source
-
-See [Building](#building) below.
-
-## Prerequisites
-
-- **Go** 1.26+
-- **Hyprland** compositor
-- **gtk4-layer-shell** development headers
-- **System tools**: pkgconf, wpctl (wireplumber), grim, wl-copy, cliphist, hyprpicker, wf-recorder
-- **I2C access**: User must be in the `i2c` group for direct monitor brightness control
-- **Optional**: swww / hyprpaper / nitrogen / feh (for wallpaper detection), checkpw (lock screen PAM), polkit-agent-helper-1 (polkit authentication)
-- **Fonts**: Google Sans Flex, Material Symbols Rounded, JetBrains Mono NF
-
-### Arch Linux
-
-```sh
-# Build dependencies
-sudo pacman -S --needed gtk4 gtk4-layer-shell pkgconf go
-
-# Runtime dependencies (official repos)
-sudo pacman -S --needed wireplumber grim wl-clipboard wf-recorder polkit
-
-# Runtime dependencies (AUR)
-yay -S swww cliphist hyprpicker
-
-# Fonts (AUR)
-yay -S ttf-google-sans ttf-material-symbols-variable-git
-```
-
-### Fedora / RHEL
-
-```sh
-# Enable COPR for gtk4-layer-shell
-sudo dnf copr enable solopash/hyprland
-
-# Build dependencies
-sudo dnf install gtk4-devel gtk4-layer-shell-devel pkgconf go gcc
-
-# Runtime dependencies (official repos)
-sudo dnf install wireplumber grim wl-clipboard wf-recorder
-
-# Runtime dependencies (COPR or build from source)
-# swww hyprpicker cliphist
-
-# polkit
-sudo dnf install polkit
-```
-
-### Debian / Ubuntu
-
-```sh
-# Build dependencies
-sudo apt install libgtk-4-dev libgtk4-layer-shell-dev pkg-config golang gcc
-
-# Runtime dependencies (official repos)
-sudo apt install wireplumber grim wl-clipboard cliphist \
-    hyprpicker wf-recorder checkpw polkitd
-
-# Runtime dependencies (build from source)
-cargo install swww
-
-# Fonts (install manually from Google Fonts / Nerd Fonts)
-```
-
-### openSUSE (Tumbleweed)
-
-```sh
-# Build dependencies
-sudo zypper install gtk4-devel gtk4-layer-shell-devel pkg-config go gcc
-
-# Runtime dependencies (official repos)
-sudo zypper install swww wireplumber grim wl-clipboard cliphist \
-    hyprpicker wf-recorder polkit
-
-# Fonts (install manually from Google Fonts / Nerd Fonts)
-```
-
-### Alpine Linux
-
-```sh
-# Build dependencies
-sudo apk add gtk4.0-dev gtk4-layer-shell-dev pkgconf go gcc musl-dev
-
-# Runtime dependencies (official repos)
-sudo apk add swww wireplumber grim wl-clipboard wf-recorder polkit
-
-# Runtime dependencies (build from source)
-cargo install cliphist hyprpicker
-
-# Fonts (install manually from Google Fonts / Nerd Fonts)
-```
-
 ## Building
 
 ```
 make build
-```
-
-Or directly:
-
-```
-go build -o snry-shell ./cmd/snry-shell/
 ```
 
 To install to `$GOPATH/bin`:
@@ -271,39 +152,15 @@ exec-once = snry-shell
 
 The binary accepts `--toggle-*` flags that send commands to the running instance via a Unix socket:
 
-```
-bind = SUPER, space,  exec, snry-shell --toggle-overview
-bind = SUPER, escape, exec, snry-shell --toggle-controls
-bind = SUPER, Q,      exec, snry-shell --toggle-session
-bind = SUPER, P,      exec, snry-shell --toggle-settings
-bind = SUPER, S,      exec, snry-shell --toggle-region-selector
-bind = SUPER, K,      exec, snry-shell --toggle-osk
-bind = SUPER, M,      exec, snry-shell --toggle-media-overlay
-bind = SUPER, V,      exec, snry-shell --toggle-clipboard
-bind = SUPER, E,      exec, snry-shell --toggle-emoji
-bind = SUPER, N,      exec, snry-shell --toggle-notes
-```
-
-### Standalone control panel
-
-Launch a full-window settings UI without starting the shell:
-
-```
-snry-shell --control-panel
-# or
-snry-shell -c
-```
-
-### Control socket
-
-snry-shell listens on `/tmp/snry-shell.sock`. Any `toggle-*` command sent to the socket is dispatched via the event bus. Surfaces that handle a command toggle their visibility:
-
 | Command | Surface |
 |---------|---------|
 | `toggle-overview` | Application overview |
-| `toggle-controls` | Control panel |
+| `toggle-appdrawer` | Application drawer |
+| `toggle-calendar` | Calendar & Quick Settings |
 | `toggle-notif-center` | Notification center |
-| `toggle-calendar` | Calendar popup |
+| `toggle-wifi` | WiFi picker |
+| `toggle-bluetooth` | Bluetooth picker |
+| `toggle-windowmgmt` | Window management (touch-friendly) |
 | `toggle-session` | Power menu |
 | `toggle-crosshair` | Crosshair overlay |
 | `toggle-cheatsheet` | Keyboard shortcuts |
@@ -311,11 +168,12 @@ snry-shell listens on `/tmp/snry-shell.sock`. Any `toggle-*` command sent to the
 | `toggle-settings` | Settings panel |
 | `toggle-region-selector` | Region screenshot selector |
 | `toggle-osk` | On-screen keyboard |
-| `toggle-clipboard` | Clipboard history |
-| `toggle-emoji` | Emoji picker |
+| `toggle-clipboard` | Clipboard history (OSK panel) |
+| `toggle-emoji` | Emoji picker (OSK panel) |
 | `toggle-notes` | Notes overlay |
 | `toggle-recorder` | Screen recorder |
 | `toggle-reload-theme` | Force theme regeneration |
+| `toggle-lock` | Lock the screen |
 
 ## Configuration
 
@@ -326,34 +184,16 @@ Settings are persisted in the key-value store at `~/.config/snry-shell/store.jso
 | `dark_mode` | `true` | Enable dark color scheme |
 | `do_not_disturb` | `false` | Suppress notification toasts |
 | `input_mode` | `"auto"` | Input mode: `"auto"`, `"tablet"`, or `"desktop"` |
+| `idle_lock_timeout` | `300` | Seconds of inactivity before locking (0 = disabled) |
+| `idle_displayoff_timeout` | `30` | Additional seconds after lock before display turns off (0 = disabled) |
+| `idle_suspend_timeout` | `0` | Additional seconds after lock before suspend (0 = disabled) |
+| `lock_max_attempts` | `3` | Max password attempts before lockout |
+| `lockout_duration` | `30` | Seconds to lock out after max attempts |
+| `lock_show_clock` | `true` | Show clock on lockscreen |
+| `lock_show_user` | `true` | Show username on lockscreen |
 | `theme.wallpaper` | `""` | Last detected wallpaper path (auto-updated) |
 
 Settings can be changed from the built-in settings panel (`--toggle-settings`) or the standalone control panel (`--control-panel`).
-
-## Theming
-
-snry-shell uses **Material Design 3** color tokens with built-in dynamic color extraction from your wallpaper. No external tools are required.
-
-### How it works
-
-The shell automatically detects your wallpaper from common tools (hyprpaper, swww, nitrogen, feh), extracts dominant colors via grid sampling and HSL-space manipulation, and generates a Material Design 3 color scheme. Dynamic color variables are written to `~/.cache/snry-shell/theme.css` and hot-reloaded whenever the wallpaper changes (polled every 5 seconds).
-
-### Manual theme refresh
-
-Force theme regeneration from current wallpaper:
-```
-snry-shell --toggle-reload-theme
-```
-
-### Color tokens
-
-The base stylesheet uses `@define-color` variables that the theme generator overrides:
-
-- `@col_primary`, `@col_on_primary`, `@col_primary_container`, ...
-- `@col_surface`, `@col_on_surface`, `@col_surface_container`, ...
-- `@col_background`, `@col_on_background`, `@col_outline`, ...
-
-Custom CSS overrides can be added to `~/.config/snry-shell/custom.css` (create if needed).
 
 ## Testing
 
@@ -361,7 +201,7 @@ Custom CSS overrides can be added to `~/.config/snry-shell/custom.css` (create i
 make test
 ```
 
-Test suites cover the internal packages (bus, calendar, ddc, launcher, services, settings, theme, uinput, controlsocket, osk). DDC tests include an optional hardware integration test (`DDC_INTEGRATION=1`). Surface UI packages require a GTK display and are not unit-tested.
+Test suites cover the internal packages (bus, calendar, ddc, launcher, services, settings, theme, uinput, controlsocket, osk).
 
 ## License
 

@@ -20,7 +20,6 @@ import (
 	"github.com/sonroyaalmerol/snry-shell/internal/networkmanager"
 	"github.com/sonroyaalmerol/snry-shell/internal/servicerefs"
 	"github.com/sonroyaalmerol/snry-shell/internal/services/audio"
-	"github.com/sonroyaalmerol/snry-shell/internal/services/audiomixer"
 	"github.com/sonroyaalmerol/snry-shell/internal/services/bluetooth"
 	"github.com/sonroyaalmerol/snry-shell/internal/services/brightness"
 	serviceclipboard "github.com/sonroyaalmerol/snry-shell/internal/services/clipboard"
@@ -32,10 +31,8 @@ import (
 	"github.com/sonroyaalmerol/snry-shell/internal/services/network"
 	"github.com/sonroyaalmerol/snry-shell/internal/services/nightmode"
 	"github.com/sonroyaalmerol/snry-shell/internal/services/notifications"
-	"github.com/sonroyaalmerol/snry-shell/internal/services/pomodoro"
 	"github.com/sonroyaalmerol/snry-shell/internal/services/resources"
 	"github.com/sonroyaalmerol/snry-shell/internal/services/sni"
-	"github.com/sonroyaalmerol/snry-shell/internal/services/todo"
 	"github.com/sonroyaalmerol/snry-shell/internal/services/upower"
 	shellsettings "github.com/sonroyaalmerol/snry-shell/internal/settings"
 	"github.com/sonroyaalmerol/snry-shell/internal/state"
@@ -104,13 +101,11 @@ func Run() int {
 		Network:    network.New(sysConn, b),
 		NightMode:  nightmode.New(nightmode.NewRunner(), nightmode.NewKiller(), b),
 		Resources:  resources.New(resources.NewFileReader(), b),
-		AudioMixer: audiomixer.NewWithDefaults(b),
 		Hyprland:   hyprland.NewQuerierWithDefaults(),
-		Pomodoro:   pomodoro.New(b),
-		Todo:       todo.New(b),
 		SNI:        sni.New(sesConn, b),
 		InputMode:  inputmode.New(b, sysConn, cfg, true),
 		DarkMode:   darkmode.New(b, cfg),
+		SystemHandler: idle.NewSystemHandler(b, sysConn, cfg.LidCloseAction, cfg.PowerButtonAction),
 	}
 
 	// Initialize shared network manager singleton for unified network state
@@ -127,11 +122,12 @@ func Run() int {
 	go refs.Bluetooth.Run(ctx)
 	go refs.Network.Run(ctx)
 	go refs.Resources.Run(ctx)
-	go refs.AudioMixer.Run(ctx)
-	go refs.Pomodoro.Run(ctx)
 	go refs.InputMode.Run(ctx)
 	go refs.SNI.Run(ctx)
 	go refs.DarkMode.Run(ctx)
+	if sysConn != nil {
+		go refs.SystemHandler.Run(ctx)
+	}
 
 	// Notification daemon.
 	if sesConn != nil {
@@ -152,8 +148,9 @@ func Run() int {
 
 	// Idle service — replaces hypridle.
 	idleCfg := idle.Config{
-		LockTimeout:    idleDuration(cfg.IdleLockTimeout),
-		SuspendTimeout: idleDuration(cfg.IdleSuspendTimeout),
+		LockTimeout:       idleDuration(cfg.IdleLockTimeout),
+		DisplayOffTimeout: idleDuration(cfg.IdleDisplayOffTimeout),
+		SuspendTimeout:    idleDuration(cfg.IdleSuspendTimeout),
 	}
 	idleSvc := idle.New(b, sysConn, idleCfg)
 	go idleSvc.Run(ctx)
@@ -162,9 +159,11 @@ func Run() int {
 	b.Subscribe(bus.TopicSettingsChanged, func(e bus.Event) {
 		if newCfg, ok := e.Data.(shellsettings.Config); ok {
 			idleSvc.UpdateConfig(idle.Config{
-				LockTimeout:    idleDuration(newCfg.IdleLockTimeout),
-				SuspendTimeout: idleDuration(newCfg.IdleSuspendTimeout),
+				LockTimeout:       idleDuration(newCfg.IdleLockTimeout),
+				DisplayOffTimeout: idleDuration(newCfg.IdleDisplayOffTimeout),
+				SuspendTimeout:    idleDuration(newCfg.IdleSuspendTimeout),
 			})
+			refs.SystemHandler.UpdateConfig(newCfg.LidCloseAction, newCfg.PowerButtonAction)
 		}
 	})
 
@@ -327,7 +326,7 @@ func Run() int {
 		if sysConn != nil {
 			agent := polkit.New(sysConn)
 			if err := agent.Register(); err != nil {
-				fmt.Fprintf(os.Stderr, "polkit agent: %v\n", err)
+				fmt.Fprintf(os.Stderr, "polkit agent: %v\\n", err)
 			}
 		}
 	})

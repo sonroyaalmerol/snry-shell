@@ -125,6 +125,17 @@ func (s *shellConfigProvider) buildIdleSection() gtk.Widgetter {
 		},
 	)
 
+	displayOffTimeoutRow := gtkutil.SpinRow(
+		"Turn display off after lock", "Extra minutes after locking before display turns off (0 = disabled)",
+		0, 120, s.cfg.IdleDisplayOffTimeout/60,
+		func(v int) {
+			s.cfg.IdleDisplayOffTimeout = v * 60
+			if err := s.Save(); err != nil {
+				log.Printf("[CONTROLPANEL] save idle display off timeout: %v", err)
+			}
+		},
+	)
+
 	suspendTimeoutRow := gtkutil.SpinRow(
 		"Suspend after lock", "Extra minutes after locking before suspend (0 = disabled)",
 		0, 120, s.cfg.IdleSuspendTimeout/60,
@@ -136,9 +147,31 @@ func (s *shellConfigProvider) buildIdleSection() gtk.Widgetter {
 		},
 	)
 
-	idleSection := gtkutil.SettingsSection("Idle & Lock", lockTimeoutRow, suspendTimeoutRow)
+	idleSection := gtkutil.SettingsSection("Idle & Lock", lockTimeoutRow, displayOffTimeoutRow, suspendTimeoutRow)
 	idleSection.SetMarginTop(24)
 	outer.Append(idleSection)
+
+	lidActionRow := gtkutil.DropdownRow("Lid close action", "Action to take when laptop lid is closed",
+		[]string{"ignore", "lock", "suspend"}, s.cfg.LidCloseAction,
+		func(value string) {
+			s.cfg.LidCloseAction = value
+			if err := s.Save(); err != nil {
+				log.Printf("[CONTROLPANEL] save lid action: %v", err)
+			}
+		})
+
+	powerActionRow := gtkutil.DropdownRow("Power button action", "Action to take when power button is pressed",
+		[]string{"ignore", "lock", "shutdown", "session-menu"}, s.cfg.PowerButtonAction,
+		func(value string) {
+			s.cfg.PowerButtonAction = value
+			if err := s.Save(); err != nil {
+				log.Printf("[CONTROLPANEL] save power action: %v", err)
+			}
+		})
+
+	systemSection := gtkutil.SettingsSection("System Buttons", lidActionRow, powerActionRow)
+	systemSection.SetMarginTop(24)
+	outer.Append(systemSection)
 
 	maxAttemptsRow := gtkutil.SpinRow(
 		"Max password attempts", "Attempts before temporary lockout",
