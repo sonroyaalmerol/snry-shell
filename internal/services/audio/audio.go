@@ -110,3 +110,32 @@ func (s *Service) SetVolume(v float64) error {
 	return err
 }
 
+// AdjustVolume changes the default sink volume by delta (e.g. +0.05 / -0.05),
+// clamping to [0, 1.5] (150% matches wpctl's usual cap).
+func (s *Service) AdjustVolume(delta float64) error {
+	current, err := s.query()
+	if err != nil {
+		return err
+	}
+	next := current.Volume + delta
+	if next < 0 {
+		next = 0
+	}
+	if next > 1.5 {
+		next = 1.5
+	}
+	return s.SetVolume(next)
+}
+
+// ToggleMute toggles mute on the default audio sink.
+func (s *Service) ToggleMute() error {
+	_, err := s.runner.Output("wpctl", "set-mute", "@DEFAULT_SINK@", "toggle")
+	return err
+}
+
+// ToggleMicMute toggles mute on the default audio source (microphone).
+func (s *Service) ToggleMicMute() error {
+	_, err := s.runner.Output("wpctl", "set-mute", "@DEFAULT_SOURCE@", "toggle")
+	return err
+}
+

@@ -2,7 +2,12 @@ package brightness
 
 import (
 	"context"
+	"fmt"
 	"log"
+	"os"
+	"path/filepath"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/sonroyaalmerol/snry-shell/internal/bus"
@@ -11,10 +16,12 @@ import (
 	"github.com/sonroyaalmerol/snry-shell/internal/state"
 )
 
+const backlightRoot = "/sys/class/backlight"
+
 type Service struct {
-	bus        *bus.Bus
-	last       state.BrightnessState
-	lastErr    string // suppresses repeated identical errors
+	bus     *bus.Bus
+	last    state.BrightnessState
+	lastErr string
 }
 
 func New(b *bus.Bus) *Service {
@@ -30,41 +37,158 @@ func (s *Service) Run(ctx context.Context) error {
 }
 
 func (s *Service) poll() {
-	v, err := ddc.GetVCP(0x10)
-	if err != nil {
-		errStr := err.Error()
+	// Prefer DDC for external monitors.
+	if v, err := ddc.GetVCP(0x10); err == nil {
+		s.lastErr = ""
+		bs := state.BrightnessState{Current: int(v.Current), Max: int(v.Max)}
+		if bs.Current != s.last.Current || bs.Max != s.last.Max {
+			s.last = bs
+			s.bus.Publish(bus.TopicBrightness, bs)
+		}
+		return
+	}
+
+	// Fall back to the first /sys/class/backlight device.
+	dev := backlightDevice()
+	if dev == "" {
+		errStr := "no DDC or backlight device found"
 		if errStr != s.lastErr {
-			log.Printf("[brightness] ddc get: %v", err)
+			log.Printf("[brightness] %s", errStr)
 			s.lastErr = errStr
 		}
 		return
 	}
-	// Reset error suppression on success so new errors get logged once.
-	s.lastErr = ""
-	bs := state.BrightnessState{Current: int(v.Current), Max: int(v.Max)}
-	if bs.Current == s.last.Current && bs.Max == s.last.Max {
+	cur, max, err := backlightGet(dev)
+	if err != nil {
+		errStr := err.Error()
+		if errStr != s.lastErr {
+			log.Printf("[brightness] backlight: %v", err)
+			s.lastErr = errStr
+		}
 		return
 	}
-	s.last = bs
-	s.bus.Publish(bus.TopicBrightness, bs)
+	s.lastErr = ""
+	bs := state.BrightnessState{Current: cur, Max: max}
+	if bs.Current != s.last.Current || bs.Max != s.last.Max {
+		s.last = bs
+		s.bus.Publish(bus.TopicBrightness, bs)
+	}
 }
 
-// SetBrightness sets the monitor brightness. v is 0.0-1.0.
+// SetBrightness sets brightness as a fraction 0.0–1.0 using DDC or backlight.
 func (s *Service) SetBrightness(v float64) error {
-	if s.last.Max == 0 {
-		// Read current max first if unknown.
-		val, err := ddc.GetVCP(0x10)
-		if err != nil {
-			return err
+	if v < 0 {
+		v = 0
+	}
+	if v > 1 {
+		v = 1
+	}
+
+	// Try DDC first.
+	if val, err := ddc.GetVCP(0x10); err == nil {
+		raw := int(v * float64(val.Max))
+		if raw > int(val.Max) {
+			raw = int(val.Max)
 		}
-		s.last.Max = int(val.Max)
+		return ddc.SetVCP(0x10, uint16(raw))
 	}
-	raw := int(v * float64(s.last.Max))
-	if raw < 0 {
-		raw = 0
+
+	// Fall back to backlight sysfs.
+	dev := backlightDevice()
+	if dev == "" {
+		return fmt.Errorf("no DDC or backlight device available")
 	}
-	if raw > s.last.Max {
-		raw = s.last.Max
+	_, max, err := backlightGet(dev)
+	if err != nil {
+		return err
 	}
-	return ddc.SetVCP(0x10, uint16(raw))
+	return backlightSet(dev, int(v*float64(max)))
+}
+
+// AdjustBrightness changes brightness by delta (e.g. +0.05 / -0.05), clamped to [0, 1].
+func (s *Service) AdjustBrightness(delta float64) error {
+	var current, max int
+
+	if val, err := ddc.GetVCP(0x10); err == nil {
+		current = int(val.Current)
+		max = int(val.Max)
+		if max == 0 {
+			return fmt.Errorf("DDC max brightness is 0")
+		}
+		next := float64(current)/float64(max) + delta
+		if next < 0 {
+			next = 0
+		}
+		if next > 1 {
+			next = 1
+		}
+		return ddc.SetVCP(0x10, uint16(next*float64(max)))
+	}
+
+	dev := backlightDevice()
+	if dev == "" {
+		return fmt.Errorf("no DDC or backlight device available")
+	}
+	current, max, err := backlightGet(dev)
+	if err != nil {
+		return err
+	}
+	if max == 0 {
+		return fmt.Errorf("backlight max is 0")
+	}
+	next := float64(current)/float64(max) + delta
+	if next < 0 {
+		next = 0
+	}
+	if next > 1 {
+		next = 1
+	}
+	return backlightSet(dev, int(next*float64(max)))
+}
+
+// ── backlight sysfs helpers ───────────────────────────────────────────────────
+
+// backlightDevice returns the first backlight device name found in sysfs.
+func backlightDevice() string {
+	entries, err := os.ReadDir(backlightRoot)
+	if err != nil {
+		return ""
+	}
+	// Prefer "intel_backlight" or "amdgpu_bl*" over generic "acpi_video*".
+	var fallback string
+	for _, e := range entries {
+		name := e.Name()
+		if strings.HasPrefix(name, "intel_") || strings.HasPrefix(name, "amdgpu_") ||
+			strings.HasPrefix(name, "nvidia_") {
+			return name
+		}
+		if fallback == "" {
+			fallback = name
+		}
+	}
+	return fallback
+}
+
+func backlightGet(device string) (current, max int, err error) {
+	read := func(file string) (int, error) {
+		data, err := os.ReadFile(filepath.Join(backlightRoot, device, file))
+		if err != nil {
+			return 0, err
+		}
+		return strconv.Atoi(strings.TrimSpace(string(data)))
+	}
+	cur, err := read("brightness")
+	if err != nil {
+		return 0, 0, fmt.Errorf("read brightness: %w", err)
+	}
+	mx, err := read("max_brightness")
+	if err != nil {
+		return 0, 0, fmt.Errorf("read max_brightness: %w", err)
+	}
+	return cur, mx, nil
+}
+
+func backlightSet(device string, value int) error {
+	path := filepath.Join(backlightRoot, device, "brightness")
+	return os.WriteFile(path, []byte(strconv.Itoa(value)), 0644)
 }
