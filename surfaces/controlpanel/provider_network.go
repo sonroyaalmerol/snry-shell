@@ -572,12 +572,13 @@ func (n *nmConfigProvider) buildConnectionRow(conn state.NMConnection) gtk.Widge
 	actionsRow.SetMarginStart(36)
 	actionsRow.SetMarginTop(8)
 
-	// Autoconnect toggle with label
+	// Autoconnect toggle with label - Material 3 style
 	autoBox := gtk.NewBox(gtk.OrientationHorizontal, 8)
 	autoLabel := gtk.NewLabel("Auto-connect")
 	autoLabel.AddCSSClass("settings-small-label")
 
 	autoconnectSwitch := gtk.NewSwitch()
+	autoconnectSwitch.AddCSSClass("m3-switch")
 	autoconnectSwitch.SetActive(conn.Autoconnect)
 	autoconnectSwitch.Connect("notify::active", func() {
 		state := autoconnectSwitch.Active()

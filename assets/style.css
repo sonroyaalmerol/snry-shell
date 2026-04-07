@@ -2062,17 +2062,35 @@ popover.menu list row:selected {
 
 /* Material 3 Switch Row */
 .m3-switch-row {
-    background-color: alpha(@col_surface_container, 0.5);
-    border-radius: var(--radius-md);
-    padding: 16px;
+    background-color: @col_surface_container;
+    border-radius: var(--radius-lg);
+    padding: 16px 20px;
+    border: 1px solid alpha(@col_outline, 0.2);
 }
 
 .m3-switch {
-    background-color: @col_surface_container;
+    background-color: alpha(@col_surface_variant, 0.8);
+    border-radius: var(--radius-pill);
+    min-width: 52px;
+    min-height: 32px;
+}
+
+.m3-switch > slider {
+    background-color: @col_surface;
+    border-radius: var(--radius-pill);
+    min-width: 24px;
+    min-height: 24px;
+    margin: 4px;
+    box-shadow: 0 2px 4px alpha(@col_shadow, 0.2);
 }
 
 .m3-switch:checked {
     background-color: @col_primary;
+}
+
+.m3-switch:checked > slider {
+    background-color: @col_on_primary;
+    margin-left: 24px;
 }
 
 .settings-nav {
