@@ -55,7 +55,7 @@ func New(app *gtk.Application, b *bus.Bus, refs *servicerefs.ServiceRefs, trigge
 	cal.scroll.AddCSSClass("popup-scroll")
 	cal.scroll.SetMaxContentHeight(surfaceutil.PopupMaxHeight(cal.monitor, layershell.BarHeight()))
 	cal.scroll.SetPropagateNaturalHeight(true)
-	setupScrollHoverSuppression(cal.scroll)
+	gtkutil.SetupScrollHoverSuppression(cal.scroll)
 
 	content := gtk.NewBox(gtk.OrientationVertical, 8)
 	content.Append(widgets.NewQuickToggles(b, refs))
@@ -103,20 +103,3 @@ func (cal *Calendar) Toggle() {
 	}
 }
 
-// setupScrollHoverSuppression adds a CSS class during scrolling to suppress hover effects
-func setupScrollHoverSuppression(scroll *gtk.ScrolledWindow) {
-	var scrollTimeout glib.SourceHandle
-	vadj := scroll.VAdjustment()
-
-	vadj.ConnectValueChanged(func() {
-		scroll.AddCSSClass("scrolling")
-		if scrollTimeout != 0 {
-			glib.SourceRemove(scrollTimeout)
-		}
-		scrollTimeout = glib.TimeoutAdd(150, func() bool {
-			scroll.RemoveCSSClass("scrolling")
-			scrollTimeout = 0
-			return false
-		})
-	})
-}

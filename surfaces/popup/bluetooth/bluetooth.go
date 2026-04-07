@@ -5,6 +5,7 @@ import (
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/sonroyaalmerol/snry-shell/internal/bus"
+	"github.com/sonroyaalmerol/snry-shell/internal/gtkutil"
 	"github.com/sonroyaalmerol/snry-shell/internal/layershell"
 	"github.com/sonroyaalmerol/snry-shell/internal/servicerefs"
 	"github.com/sonroyaalmerol/snry-shell/internal/surfaceutil"
@@ -55,7 +56,7 @@ func New(app *gtk.Application, b *bus.Bus, refs *servicerefs.ServiceRefs, trigge
 	bt.scroll.AddCSSClass("popup-scroll")
 	bt.scroll.SetMaxContentHeight(surfaceutil.PopupMaxHeight(bt.monitor, layershell.BarHeight()))
 	bt.scroll.SetPropagateNaturalHeight(true)
-	setupScrollHoverSuppression(bt.scroll)
+	gtkutil.SetupScrollHoverSuppression(bt.scroll)
 
 	bt.scroll.SetChild(widgets.NewBluetoothWidget(bt.bus, refs, bt.win))
 	panel.Append(bt.scroll)
@@ -98,20 +99,3 @@ func (bt *Bluetooth) Toggle() {
 	}
 }
 
-// setupScrollHoverSuppression adds a CSS class during scrolling to suppress hover effects
-func setupScrollHoverSuppression(scroll *gtk.ScrolledWindow) {
-	var scrollTimeout glib.SourceHandle
-	vadj := scroll.VAdjustment()
-
-	vadj.ConnectValueChanged(func() {
-		scroll.AddCSSClass("scrolling")
-		if scrollTimeout != 0 {
-			glib.SourceRemove(scrollTimeout)
-		}
-		scrollTimeout = glib.TimeoutAdd(150, func() bool {
-			scroll.RemoveCSSClass("scrolling")
-			scrollTimeout = 0
-			return false
-		})
-	})
-}

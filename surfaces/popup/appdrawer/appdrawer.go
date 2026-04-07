@@ -133,8 +133,7 @@ func (d *AppDrawer) build() {
 	d.scroll.SetPolicy(gtk.PolicyNever, gtk.PolicyAutomatic)
 	d.scroll.AddCSSClass("appdrawer-scroll")
 
-	// Track scrolling to disable hover effects
-	setupScrollHoverSuppression(d.scroll)
+	gtkutil.SetupScrollHoverSuppression(d.scroll)
 
 	d.flowBox = gtk.NewFlowBox()
 	d.flowBox.AddCSSClass("appdrawer-grid")
@@ -287,25 +286,3 @@ func newAppTile(app launcher.App, win *gtk.ApplicationWindow, onLaunch func()) *
 	return box
 }
 
-// setupScrollHoverSuppression adds a CSS class during scrolling to suppress hover effects
-func setupScrollHoverSuppression(scroll *gtk.ScrolledWindow) {
-	var scrollTimeout glib.SourceHandle
-	vadj := scroll.VAdjustment()
-
-	vadj.ConnectValueChanged(func() {
-		// Add scrolling class
-		scroll.AddCSSClass("scrolling")
-
-		// Clear any existing timeout
-		if scrollTimeout != 0 {
-			glib.SourceRemove(scrollTimeout)
-		}
-
-		// Remove the class after scroll stops (150ms delay)
-		scrollTimeout = glib.TimeoutAdd(150, func() bool {
-			scroll.RemoveCSSClass("scrolling")
-			scrollTimeout = 0
-			return false
-		})
-	})
-}
