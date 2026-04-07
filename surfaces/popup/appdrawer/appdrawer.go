@@ -107,6 +107,19 @@ func (d *AppDrawer) build() {
 	})
 	content.AddController(stopClick)
 
+	// Header with title
+	header := gtk.NewBox(gtk.OrientationHorizontal, 0)
+	header.AddCSSClass("appdrawer-header")
+	header.SetHAlign(gtk.AlignFill)
+	header.SetMarginBottom(16)
+
+	title := gtk.NewLabel("Apps")
+	title.AddCSSClass("appdrawer-title")
+	title.SetHAlign(gtk.AlignStart)
+	title.SetHExpand(true)
+
+	header.Append(title)
+
 	// Search bar.
 	d.search = gtk.NewSearchEntry()
 	d.search.AddCSSClass("appdrawer-search-entry")
@@ -147,6 +160,7 @@ func (d *AppDrawer) build() {
 	})
 
 	d.scroll.SetChild(d.flowBox)
+	content.Append(header)
 	content.Append(d.search)
 	content.Append(d.scroll)
 

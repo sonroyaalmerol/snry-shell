@@ -19,16 +19,16 @@ func TestBuildMonthGridApril2026(t *testing.T) {
 		}
 	}
 
-	// April 1 2026 is a Wednesday → offset = 2, so row[0][0] = Mon Mar 30
+	// April 1 2026 is a Wednesday → offset = 3, so row[0][0] = Sun Mar 29
 	first := grid[0][0]
-	if first.Weekday() != time.Monday {
-		t.Fatalf("first cell must be Monday, got %s", first.Weekday())
+	if first.Weekday() != time.Sunday {
+		t.Fatalf("first cell must be Sunday, got %s", first.Weekday())
 	}
 
-	// April 1 should be in row 0, col 2 (Wed)
-	april1 := grid[0][2]
+	// April 1 should be in row 0, col 3 (Wed)
+	april1 := grid[0][3]
 	if april1.Month() != time.April || april1.Day() != 1 {
-		t.Fatalf("expected April 1 at [0][2], got %s", april1)
+		t.Fatalf("expected April 1 at [0][3], got %s", april1)
 	}
 
 	// Last cell of the grid should be in May
@@ -41,10 +41,10 @@ func TestBuildMonthGridApril2026(t *testing.T) {
 func TestBuildMonthGridJanuary2026(t *testing.T) {
 	grid := calendar.BuildMonthGrid(2026, time.January)
 
-	// Jan 1 2026 is a Thursday → offset = 3, so row[0][0] = Mon Dec 29 2025
+	// Jan 1 2026 is a Thursday → offset = 4, so row[0][0] = Sun Dec 28 2025
 	first := grid[0][0]
-	if first.Weekday() != time.Monday {
-		t.Fatalf("first cell must be Monday, got %s", first.Weekday())
+	if first.Weekday() != time.Sunday {
+		t.Fatalf("first cell must be Sunday, got %s", first.Weekday())
 	}
 	if first.Month() != time.December || first.Year() != 2025 {
 		t.Fatalf("expected Dec 2025, got %s", first)
@@ -84,10 +84,10 @@ func TestDayHeaders(t *testing.T) {
 	if len(headers) != 7 {
 		t.Fatalf("expected 7 headers, got %d", len(headers))
 	}
-	if headers[0] != "Mo" {
-		t.Fatalf("first header must be Mo, got %q", headers[0])
+	if headers[0] != "Su" {
+		t.Fatalf("first header must be Su, got %q", headers[0])
 	}
-	if headers[6] != "Su" {
-		t.Fatalf("last header must be Su, got %q", headers[6])
+	if headers[6] != "Sa" {
+		t.Fatalf("last header must be Sa, got %q", headers[6])
 	}
 }

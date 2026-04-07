@@ -38,16 +38,22 @@ func New(app *gtk.Application, b *bus.Bus, refs *servicerefs.ServiceRefs, trigge
 
 	cal := &Calendar{win: win, bus: b, trigger: trigger, root: root}
 
-	panel := gtk.NewBox(gtk.OrientationVertical, 8)
+	panel := gtk.NewBox(gtk.OrientationVertical, 0)
 	panel.AddCSSClass("popup-panel")
 	panel.SetMarginStart(panelMargin)
 	panel.SetMarginEnd(panelMargin)
 	panel.SetSizeRequest(panelWidth, -1)
 
+	// Header
+	header := gtk.NewLabel("Calendar")
+	header.AddCSSClass("popup-header")
+	header.SetHAlign(gtk.AlignStart)
+	panel.Append(header)
+
 	cal.scroll = gtk.NewScrolledWindow()
 	cal.scroll.SetPolicy(gtk.PolicyNever, gtk.PolicyAutomatic)
 	cal.scroll.AddCSSClass("popup-scroll")
-	cal.scroll.SetMaxContentHeight(800)
+	cal.scroll.SetMaxContentHeight(surfaceutil.PopupMaxHeight(cal.monitor, layershell.BarHeight()))
 	cal.scroll.SetPropagateNaturalHeight(true)
 	setupScrollHoverSuppression(cal.scroll)
 
@@ -88,8 +94,9 @@ func (cal *Calendar) Toggle() {
 			layershell.SetMonitor(cal.win, cal.monitor)
 		}
 		surfaceutil.PositionUnderTrigger(cal.root, cal.trigger, panelWidth, panelMargin, cal.monitor)
-		// Scroll to top when opening
+		// Update max height based on current monitor and scroll to top when opening
 		if cal.scroll != nil {
+			cal.scroll.SetMaxContentHeight(surfaceutil.PopupMaxHeight(cal.monitor, layershell.BarHeight()))
 			cal.scroll.SetVAdjustment(gtk.NewAdjustment(0, 0, 0, 0, 0, 0))
 		}
 		cal.win.SetVisible(true)

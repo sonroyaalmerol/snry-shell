@@ -448,6 +448,100 @@ scale.m3-scale slider {
     color: @col_on_surface_variant;
 }
 
+/* ── Window Management Popup ───────────────────────────────────────────── */
+
+.windowmgmt-widget {
+    background-color: @col_surface_container;
+    border-radius: var(--radius-lg);
+    padding: 12px;
+    margin: 4px 0;
+}
+
+.windowmgmt-section-header {
+    font-size: var(--typescale-body-sm);
+    font-weight: 600;
+    color: @col_on_surface;
+    padding: 8px 4px;
+    letter-spacing: 0.015em;
+}
+
+/* Action buttons grid - 2x2 layout */
+.windowmgmt-actions-grid {
+    padding: 4px;
+}
+
+.windowmgmt-action-btn {
+    background-color: alpha(@col_on_surface, var(--state-hover));
+    border: none;
+    border-radius: var(--radius-md);
+    padding: 12px 8px;
+    min-height: 64px;
+    transition: background-color var(--duration-short3) var(--ease-standard-decel);
+}
+
+.windowmgmt-action-btn:hover {
+    background-color: alpha(@col_on_surface, var(--state-focus));
+}
+
+.windowmgmt-action-btn:active {
+    background-color: alpha(@col_on_surface, var(--state-press));
+}
+
+.windowmgmt-action-icon {
+    font-family: "Material Symbols Rounded";
+    font-size: 24px;
+    color: @col_on_surface;
+}
+
+.windowmgmt-action-label {
+    font-size: var(--typescale-label-md);
+    font-weight: 500;
+    color: @col_on_surface_variant;
+}
+
+/* Workspace buttons grid - 2 columns */
+.windowmgmt-ws-grid {
+    padding: 4px;
+}
+
+.windowmgmt-ws-btn {
+    background-color: alpha(@col_on_surface, var(--state-hover));
+    border-radius: var(--radius-md);
+    padding: 10px;
+    min-height: 36px;
+    transition: background-color var(--duration-short3) var(--ease-standard-decel);
+}
+
+.windowmgmt-ws-btn:hover {
+    background-color: alpha(@col_on_surface, var(--state-focus));
+}
+
+.windowmgmt-ws-btn:active {
+    background-color: alpha(@col_on_surface, var(--state-press));
+}
+
+.windowmgmt-ws-btn.windowmgmt-ws-active {
+    background-color: @col_primary;
+}
+
+.windowmgmt-ws-btn.windowmgmt-ws-active:hover {
+    background-color: alpha(@col_primary, 0.9);
+}
+
+.windowmgmt-ws-btn.windowmgmt-ws-active:active {
+    background-color: alpha(@col_primary, 0.8);
+}
+
+.windowmgmt-ws-label {
+    font-size: var(--typescale-body-md);
+    font-weight: 600;
+    color: @col_on_surface;
+}
+
+.windowmgmt-ws-btn.windowmgmt-ws-active .windowmgmt-ws-label {
+    color: @col_on_primary;
+}
+
 /* ── Popup dialogs ──────────────────────────────────────────────────────────── */
 
 .popup-overlay {
@@ -457,8 +551,17 @@ scale.m3-scale slider {
 .popup-panel {
     background-color: @col_surface;
     border-radius: var(--radius-xl);
-    padding: 20px;
+    padding: 16px 20px 20px 20px;
     border: 1px solid alpha(@col_outline, 0.15);
+    box-shadow: var(--elevation-2);
+}
+
+.popup-header {
+    font-size: var(--typescale-headline-sm);
+    font-weight: 600;
+    color: @col_on_surface;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
 }
 
 .popup-scroll {
@@ -508,16 +611,15 @@ scale.m3-scale slider {
     box-shadow: var(--elevation-3);
 }
 
-/* App Drawer Header */
+/* App Drawer Header - Material 3 style */
 .appdrawer-header {
-    margin-bottom: 20px;
+    margin-bottom: 8px;
 }
 
 .appdrawer-title {
-    font-size: var(--typescale-headline-md);
+    font-size: var(--typescale-headline-lg);
     font-weight: 600;
     color: @col_on_surface;
-    margin-bottom: 16px;
 }
 
 /* Material 3 Search Bar */
@@ -574,8 +676,11 @@ scale.m3-scale slider {
     border-radius: var(--radius-lg);
     background-color: transparent;
     min-width: 88px;
-    transition: background-color var(--duration-short3) var(--ease-standard-decel),
-                transform var(--duration-short3) var(--ease-standard-decel);
+    transition: background-color var(--duration-short3) var(--ease-standard-decel);
+}
+
+.appdrawer-tile:hover {
+    background-color: alpha(@col_on_surface, var(--state-hover));
 }
 
 .appdrawer-tile-icon {
@@ -591,17 +696,15 @@ scale.m3-scale slider {
     text-align: center;
 }
 
-/* Active/pressed state - Material 3 ripple effect */
+/* Active/pressed state - Material 3 state layer */
 .appdrawer-tile:active {
-    background-color: alpha(@col_primary_container, 0.4);
-    transform: scale(0.96);
+    background-color: alpha(@col_on_surface, var(--state-press));
 }
 
-/* Suppress hover effects during scrolling to prevent stuck hover states */
+/* Suppress hover and active effects during scrolling to prevent stuck states */
 .appdrawer-scroll.scrolling .appdrawer-tile:hover,
 .appdrawer-scroll.scrolling .appdrawer-tile:active {
     background-color: transparent;
-    transform: none;
 }
 
 /* Empty state */
@@ -776,10 +879,10 @@ scale.osd-slider {
 }
 
 .notif-group-header {
-    font-size: 13px;
+    font-size: var(--typescale-body-md);
     font-weight: 600;
     color: @col_on_surface;
-    padding: 4px 8px 8px 8px;
+    padding: 4px 0 8px 0;
 }
 
 /* ── Media controls ────────────────────────────────────────────────── */
@@ -875,13 +978,13 @@ scale.osd-slider {
 
 .calendar-group {
     background-color: @col_surface_container;
-    border-radius: var(--radius-xl);
-    padding: 12px;
+    border-radius: var(--radius-lg);
+    padding: 16px;
     margin: 4px 0;
 }
 
 .cal-month-label {
-    font-size: 13px;
+    font-size: var(--typescale-title-md);
     font-weight: 600;
     color: @col_on_surface;
 }
@@ -891,10 +994,10 @@ scale.osd-slider {
     border: none;
     border-radius: var(--radius-pill);
     color: @col_on_surface_variant;
-    min-width: 28px;
-    min-height: 28px;
+    min-width: 32px;
+    min-height: 32px;
     font-family: "Material Symbols Rounded";
-    font-size: 18px;
+    font-size: 20px;
     transition: background-color var(--duration-short3) var(--ease-standard-decel);
 }
 
@@ -902,13 +1005,18 @@ scale.osd-slider {
     background-color: alpha(@col_on_surface, var(--state-hover));
 }
 
+.cal-nav-btn:active {
+    background-color: alpha(@col_on_surface, var(--state-press));
+}
+
 .cal-dow-row {
-    margin-top: 8px;
+    margin-top: 12px;
     padding: 0 4px;
 }
 
 .cal-dow-label {
-    font-size: 11px;
+    font-size: var(--typescale-label-sm);
+    font-weight: 500;
     color: @col_on_surface_variant;
 }
 
@@ -917,15 +1025,26 @@ scale.osd-slider {
 }
 
 .cal-day {
-    font-size: 12px;
+    font-size: var(--typescale-body-sm);
+    font-weight: 500;
     color: @col_on_surface;
     border-radius: var(--radius-pill);
-    padding: 4px;
+    padding: 8px 4px;
+    margin: 2px;
+    transition: background-color var(--duration-short3) var(--ease-standard-decel);
+}
+
+.cal-day:hover {
+    background-color: alpha(@col_on_surface, var(--state-hover));
 }
 
 .cal-day.today {
     background-color: @col_primary;
     color: @col_on_primary;
+}
+
+.cal-day.today:hover {
+    background-color: alpha(@col_primary, 0.9);
 }
 
 .cal-day.other-month {
@@ -946,7 +1065,7 @@ scale.osd-slider {
 /* ── Quick toggles ────────────────────────────────────────────────── */
 
 .quick-toggles {
-    padding: 4px 0;
+    padding: 0;
 }
 
 .quick-power-btn {
@@ -1041,15 +1160,16 @@ scale.quick-slider {
 
 .conn-widget {
     background-color: @col_surface_container;
-    border-radius: var(--radius-xl);
-    padding: 0;
+    border-radius: var(--radius-lg);
+    padding: 8px;
     margin: 4px 0;
 }
 
 .conn-section-header {
-    padding: 10px 16px;
+    padding: 12px 16px;
+    margin: 8px 0 4px 0;
+    border-radius: var(--radius-md);
     transition: background-color var(--duration-short3) var(--ease-standard-decel);
-    border-top: 1px solid alpha(@col_outline_variant, 0.3);
 }
 
 .conn-section-header:hover {
@@ -1057,15 +1177,16 @@ scale.quick-slider {
 }
 
 .conn-section-title {
-    font-size: 12px;
-    font-weight: 500;
-    color: @col_primary;
-    letter-spacing: 0.02em;
+    font-size: var(--typescale-body-sm);
+    font-weight: 600;
+    color: @col_on_surface;
+    letter-spacing: 0.015em;
 }
 
 .conn-section-count {
-    font-size: 12px;
+    font-size: var(--typescale-body-sm);
     color: @col_on_surface_variant;
+    margin-left: 8px;
 }
 
 .conn-section-arrow {
@@ -1075,11 +1196,12 @@ scale.quick-slider {
 }
 
 .conn-list {
-    padding: 0;
+    padding: 4px;
 }
 
 .conn-row {
-    padding: 12px 16px;
+    padding: 14px 16px;
+    margin: 2px 0;
     border-radius: var(--radius-md);
     transition: background-color var(--duration-short3) var(--ease-standard-decel);
 }
@@ -2013,76 +2135,18 @@ popover.menu list row:selected {
 
 /* ── Touch device hover suppression ──────────────────────────────────────────── */
 
-/* On touch devices, disable hover effects to prevent stuck states after scrolling */
-@media (pointer: coarse) {
-    /* App drawer tiles */
-    .appdrawer-tile:hover,
-    .appdrawer-tile:active {
-        background-color: transparent;
-    }
-    
-    /* Connection rows (WiFi, Bluetooth, Window management) */
-    .conn-row:hover,
-    .conn-row-connected:hover {
-        background-color: transparent;
-    }
-    
-    /* Quick toggles */
-    .quick-toggle:hover,
-    .quick-toggle:active {
-        background-color: alpha(@col_on_surface, var(--state-hover));
-    }
-    
-    /* Quick toggle segmented buttons */
-    .quick-toggle-segment:hover {
-        background: transparent;
-    }
-    
-    /* Settings nav items */
-    .settings-nav-item:hover {
-        background-color: transparent;
-    }
-    
-    /* Bar groups */
-    .bar-group-clickable:hover {
-        background-color: transparent;
-    }
-    
-    /* Window preview cards */
-    .window-preview-card:hover {
-        background-color: transparent;
-        box-shadow: none;
-    }
-    
-    /* Search result rows */
-    .search-result-row:hover,
-    .search-result-row:focus {
-        background-color: transparent;
-    }
-    
-    /* Section headers */
-    .conn-section-header:hover {
-        background-color: transparent;
-    }
-    
-    /* Calendar day */
-    .cal-day:hover {
-        background-color: transparent;
-    }
-    
-    /* Show active/pressed states only when actually pressed, not on hover */
-    .appdrawer-tile:active,
-    .quick-toggle:active,
-    .conn-row:active {
-        opacity: 0.7;
-    }
-}
+/* NOTE: @media (pointer: coarse) is NOT supported by GTK's CSS parser.
+ * Touch-friendly behavior is handled programmatically via:
+ * - ClaimedClick with drag threshold (15px) to prevent accidental clicks during scroll
+ * - .scrolling CSS class added during scroll to suppress hover effects
+ * See internal/gtkutil/gtkutil.go for implementation.
+ */
 
 /* ── Material Press Effects ─────────────────────────────────────────────────── */
 
 /* Simple press state using background-color (works in GTK4) */
 .appdrawer-tile:active {
-    background-color: alpha(@col_primary_container, 0.5);
+    background-color: alpha(@col_on_surface, var(--state-press));
 }
 
 .quick-toggle:active {

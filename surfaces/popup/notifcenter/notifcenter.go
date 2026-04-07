@@ -39,16 +39,22 @@ func New(app *gtk.Application, b *bus.Bus, refs *servicerefs.ServiceRefs, trigge
 
 	nc := &NotifCenter{win: win, bus: b, refs: refs, trigger: trigger, root: root}
 
-	panel := gtk.NewBox(gtk.OrientationVertical, 8)
+	panel := gtk.NewBox(gtk.OrientationVertical, 0)
 	panel.AddCSSClass("popup-panel")
 	panel.SetMarginStart(panelMargin)
 	panel.SetMarginEnd(panelMargin)
 	panel.SetSizeRequest(panelWidth, -1)
 
+	// Header
+	header := gtk.NewLabel("Notifications")
+	header.AddCSSClass("popup-header")
+	header.SetHAlign(gtk.AlignStart)
+	panel.Append(header)
+
 	nc.scroll = gtk.NewScrolledWindow()
 	nc.scroll.SetPolicy(gtk.PolicyNever, gtk.PolicyAutomatic)
 	nc.scroll.AddCSSClass("popup-scroll")
-	nc.scroll.SetMaxContentHeight(800)
+	nc.scroll.SetMaxContentHeight(surfaceutil.PopupMaxHeight(nc.monitor, layershell.BarHeight()))
 	nc.scroll.SetPropagateNaturalHeight(true)
 	setupScrollHoverSuppression(nc.scroll)
 
@@ -89,8 +95,9 @@ func (nc *NotifCenter) Toggle() {
 			layershell.SetMonitor(nc.win, nc.monitor)
 		}
 		surfaceutil.PositionUnderTrigger(nc.root, nc.trigger, panelWidth, panelMargin, nc.monitor)
-		// Scroll to top when opening
+		// Update max height based on current monitor and scroll to top when opening
 		if nc.scroll != nil {
+			nc.scroll.SetMaxContentHeight(surfaceutil.PopupMaxHeight(nc.monitor, layershell.BarHeight()))
 			nc.scroll.SetVAdjustment(gtk.NewAdjustment(0, 0, 0, 0, 0, 0))
 		}
 		nc.win.SetVisible(true)

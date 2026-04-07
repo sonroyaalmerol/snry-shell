@@ -38,16 +38,22 @@ func New(app *gtk.Application, b *bus.Bus, refs *servicerefs.ServiceRefs, trigge
 
 	bt := &Bluetooth{win: win, bus: b, refs: refs, trigger: trigger, root: root}
 
-	panel := gtk.NewBox(gtk.OrientationVertical, 8)
+	panel := gtk.NewBox(gtk.OrientationVertical, 0)
 	panel.AddCSSClass("popup-panel")
 	panel.SetMarginStart(panelMargin)
 	panel.SetMarginEnd(panelMargin)
 	panel.SetSizeRequest(panelWidth, -1)
 
+	// Header
+	header := gtk.NewLabel("Bluetooth")
+	header.AddCSSClass("popup-header")
+	header.SetHAlign(gtk.AlignStart)
+	panel.Append(header)
+
 	bt.scroll = gtk.NewScrolledWindow()
 	bt.scroll.SetPolicy(gtk.PolicyNever, gtk.PolicyAutomatic)
 	bt.scroll.AddCSSClass("popup-scroll")
-	bt.scroll.SetMaxContentHeight(500)
+	bt.scroll.SetMaxContentHeight(surfaceutil.PopupMaxHeight(bt.monitor, layershell.BarHeight()))
 	bt.scroll.SetPropagateNaturalHeight(true)
 	setupScrollHoverSuppression(bt.scroll)
 
@@ -83,8 +89,9 @@ func (bt *Bluetooth) Toggle() {
 			layershell.SetMonitor(bt.win, bt.monitor)
 		}
 		surfaceutil.PositionUnderTrigger(bt.root, bt.trigger, panelWidth, panelMargin, bt.monitor)
-		// Scroll to top when opening
+		// Update max height based on current monitor and scroll to top when opening
 		if bt.scroll != nil {
+			bt.scroll.SetMaxContentHeight(surfaceutil.PopupMaxHeight(bt.monitor, layershell.BarHeight()))
 			bt.scroll.SetVAdjustment(gtk.NewAdjustment(0, 0, 0, 0, 0, 0))
 		}
 		bt.win.SetVisible(true)

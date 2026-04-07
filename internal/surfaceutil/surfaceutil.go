@@ -135,6 +135,48 @@ func MonitorWidth() int {
 	return geom.Width()
 }
 
+// MonitorHeight returns the height of the given monitor, or primary monitor if nil.
+func MonitorHeight(mon *gdk.Monitor) int {
+	if mon != nil {
+		geom := mon.Geometry()
+		return geom.Height()
+	}
+	display := gdk.DisplayGetDefault()
+	if display == nil {
+		return 1080 // fallback
+	}
+	monitors := display.Monitors()
+	if monitors.NItems() == 0 {
+		return 1080 // fallback
+	}
+	item := monitors.Item(0)
+	if item == nil {
+		return 1080 // fallback
+	}
+	mon = &gdk.Monitor{Object: item}
+	geom := mon.Geometry()
+	return geom.Height()
+}
+
+// PopupMaxHeight calculates the maximum content height for a popup
+// based on the monitor height. It reserves space for the bar (top),
+// margins, and some padding. Returns height in pixels.
+func PopupMaxHeight(mon *gdk.Monitor, barHeight int) int {
+	screenH := MonitorHeight(mon)
+	// Reserve bar height + margin at top, and some bottom margin
+	available := screenH - barHeight - 48
+	// Use 70% of available space for the popup content
+	maxH := int(float64(available) * 0.70)
+	// Clamp to reasonable min/max values
+	if maxH < 300 {
+		return 300
+	}
+	if maxH > 800 {
+		return 800
+	}
+	return maxH
+}
+
 // PopupTrigger carries the widget and monitor for a popup trigger click.
 // Published to TopicPopupTrigger before TopicSystemControls so popups
 // can update their trigger reference before toggling.
@@ -146,10 +188,10 @@ type PopupTrigger struct {
 
 // PopupPanelConfig configures a standard popup panel surface.
 type PopupPanelConfig struct {
-	Name      string      // window name (e.g. "snry-controls")
-	Namespace string      // layer-shell namespace
-	CloseOn   []string    // sibling actions that dismiss this panel
-	Align     gtk.Align   // horizontal alignment of the panel (AlignStart or AlignEnd)
+	Name      string    // window name (e.g. "snry-controls")
+	Namespace string    // layer-shell namespace
+	CloseOn   []string  // sibling actions that dismiss this panel
+	Align     gtk.Align // horizontal alignment of the panel (AlignStart or AlignEnd)
 }
 
 // NewPopupPanel creates a fullscreen overlay window with click-to-close scrim,

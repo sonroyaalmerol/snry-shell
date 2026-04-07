@@ -3,12 +3,12 @@ package calendar
 import "time"
 
 // BuildMonthGrid returns a 6-row × 7-col grid of dates for the given year and month.
-// The week starts on Monday (ISO 8601). Days from the previous or next month
+// The week starts on Sunday. Days from the previous or next month
 // are included to fill the grid.
 func BuildMonthGrid(year int, month time.Month) [][]time.Time {
 	first := time.Date(year, month, 1, 0, 0, 0, 0, time.Local)
-	// Weekday offset: Monday = 0 … Sunday = 6
-	offset := int(first.Weekday()+6) % 7
+	// Weekday offset: Sunday = 0 … Saturday = 6
+	offset := int(first.Weekday())
 	start := first.AddDate(0, 0, -offset)
 
 	grid := make([][]time.Time, 6)
@@ -35,7 +35,7 @@ func IsCurrentMonth(t time.Time, year int, month time.Month) bool {
 	return t.Year() == year && t.Month() == month
 }
 
-// DayHeaders returns the abbreviated day names starting from Monday.
+// DayHeaders returns the abbreviated day names starting from Sunday.
 func DayHeaders() []string {
-	return []string{"Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"}
+	return []string{"Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"}
 }

@@ -1,7 +1,7 @@
 package windowmgmt
 
 import (
-	"fmt"
+	"strconv"
 
 	"github.com/diamondburned/gotk4/pkg/gdk/v4"
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
@@ -51,7 +51,20 @@ func New(app *gtk.Application, b *bus.Bus, refs *servicerefs.ServiceRefs, trigge
 	panel.SetMarginEnd(panelMargin)
 	panel.SetSizeRequest(panelWidth, -1)
 
-	panel.Append(buildContent(b, refs, w))
+	// Header
+	header := gtk.NewLabel("Window")
+	header.AddCSSClass("popup-header")
+	header.SetHAlign(gtk.AlignStart)
+	panel.Append(header)
+
+	scroll := gtk.NewScrolledWindow()
+	scroll.SetPolicy(gtk.PolicyNever, gtk.PolicyAutomatic)
+	scroll.AddCSSClass("popup-scroll")
+	scroll.SetMaxContentHeight(surfaceutil.PopupMaxHeight(w.monitor, layershell.BarHeight()))
+	scroll.SetPropagateNaturalHeight(true)
+
+	scroll.SetChild(buildContent(b, refs, w))
+	panel.Append(scroll)
 
 	root.Append(panel)
 
@@ -116,16 +129,22 @@ func (w *WindowMgmt) highlightActiveWorkspace() {
 	for i, row := range w.wsRows {
 		wsID := i + 1
 		if wsID == w.activeWS {
-			row.AddCSSClass("conn-row-connected")
+			row.AddCSSClass("windowmgmt-ws-active")
 		} else {
-			row.RemoveCSSClass("conn-row-connected")
+			row.RemoveCSSClass("windowmgmt-ws-active")
 		}
 	}
 }
 
 func buildContent(b *bus.Bus, refs *servicerefs.ServiceRefs, w *WindowMgmt) gtk.Widgetter {
 	box := gtk.NewBox(gtk.OrientationVertical, 0)
-	box.AddCSSClass("conn-widget")
+	box.AddCSSClass("windowmgmt-widget")
+
+	// Actions section header
+	actionsHeader := gtk.NewLabel("Actions")
+	actionsHeader.AddCSSClass("windowmgmt-section-header")
+	actionsHeader.SetHAlign(gtk.AlignStart)
+	box.Append(actionsHeader)
 
 	// Action rows - use captured window address.
 	actions := []struct {
@@ -133,83 +152,115 @@ func buildContent(b *bus.Bus, refs *servicerefs.ServiceRefs, w *WindowMgmt) gtk.
 		label string
 		fn    func()
 	}{
-		{"close", "Close Window", func() {
+		{"close", "Close", func() {
 			if refs.Hyprland != nil && w.capturedWin != "" {
 				go refs.Hyprland.CloseWindow(w.capturedWin)
 			}
 		}},
-		{"fullscreen", "Toggle Fullscreen", func() {
+		{"fullscreen", "Fullscreen", func() {
 			if refs.Hyprland != nil && w.capturedWin != "" {
 				go refs.Hyprland.ToggleFullscreenWindow(w.capturedWin)
 			}
 		}},
-		{"picture_in_picture_alt", "Toggle Floating", func() {
+		{"picture_in_picture_alt", "Float", func() {
 			if refs.Hyprland != nil && w.capturedWin != "" {
 				go refs.Hyprland.ToggleFloatingWindow(w.capturedWin)
 			}
 		}},
-		{"view_column", "Change Split", func() {
+		{"view_column", "Split", func() {
 			if refs.Hyprland != nil && w.capturedWin != "" {
 				go refs.Hyprland.ToggleSplitWindow(w.capturedWin)
 			}
 		}},
 	}
 
-	for _, a := range actions {
-		row := actionRow(a.icon, a.label, a.fn)
-		box.Append(row)
+	actionsGrid := gtk.NewGrid()
+	actionsGrid.AddCSSClass("windowmgmt-actions-grid")
+	actionsGrid.SetColumnSpacing(8)
+	actionsGrid.SetRowSpacing(8)
+	actionsGrid.SetColumnHomogeneous(true)
+
+	for i, a := range actions {
+		btn := actionButton(a.icon, a.label, a.fn)
+		actionsGrid.Attach(btn, i%2, i/2, 1, 1)
 	}
+	box.Append(actionsGrid)
 
 	// Divider.
 	box.Append(gtkutil.M3Divider())
 
-	// Move to workspace header.
-	header := gtk.NewBox(gtk.OrientationHorizontal, 8)
-	header.AddCSSClass("conn-section-header")
-	header.SetMarginStart(16)
-	header.SetMarginEnd(16)
+	// Workspaces section header
+	wsHeader := gtk.NewLabel("Move to Workspace")
+	wsHeader.AddCSSClass("windowmgmt-section-header")
+	wsHeader.SetHAlign(gtk.AlignStart)
+	box.Append(wsHeader)
 
-	label := gtk.NewLabel("Move to workspace")
-	label.AddCSSClass("conn-section-title")
-	label.SetHExpand(true)
-	header.Append(label)
-	box.Append(header)
+	// Workspace grid - 2 columns for compact layout
+	wsGrid := gtk.NewGrid()
+	wsGrid.AddCSSClass("windowmgmt-ws-grid")
+	wsGrid.SetColumnSpacing(6)
+	wsGrid.SetRowSpacing(6)
+	wsGrid.SetColumnHomogeneous(true)
 
-	// Workspace rows - use captured window address.
+	// Workspace buttons - use captured window address.
 	for i := range maxWorkspaces {
 		wsID := i + 1
-		lbl := fmt.Sprintf("Workspace %d", wsID)
 		id := wsID
-		row := actionRow("space_dashboard", lbl, func() {
+		btn := workspaceButton(wsID, func() {
 			if refs.Hyprland != nil && w.capturedWin != "" {
 				go refs.Hyprland.MoveWindowToWorkspace(w.capturedWin, id)
 			}
 		})
 		if wsID == w.activeWS {
-			row.AddCSSClass("conn-row-connected")
+			btn.AddCSSClass("windowmgmt-ws-active")
 		}
-		w.wsRows = append(w.wsRows, row)
-		box.Append(row)
+		w.wsRows = append(w.wsRows, btn)
+		wsGrid.Attach(btn, i%2, i/2, 1, 1)
 	}
+	box.Append(wsGrid)
 
 	return box
 }
 
-func actionRow(icon, label string, onActivate func()) *gtk.Box {
-	row := gtk.NewBox(gtk.OrientationHorizontal, 12)
-	row.AddCSSClass("conn-row")
-	row.SetCursorFromName("pointer")
+func actionButton(icon, label string, onActivate func()) *gtk.Button {
+	btn := gtk.NewButton()
+	btn.AddCSSClass("windowmgmt-action-btn")
+	btn.SetCursorFromName("pointer")
+	btn.SetHExpand(true)
+
+	box := gtk.NewBox(gtk.OrientationVertical, 4)
+	box.SetHAlign(gtk.AlignCenter)
+	box.SetVAlign(gtk.AlignCenter)
 
 	iconLabel := gtkutil.MaterialIcon(icon)
-	iconLabel.AddCSSClass("conn-row-icon")
+	iconLabel.AddCSSClass("windowmgmt-action-icon")
 
 	textLabel := gtk.NewLabel(label)
-	textLabel.AddCSSClass("conn-row-label")
+	textLabel.AddCSSClass("windowmgmt-action-label")
 
-	row.Append(iconLabel)
-	row.Append(textLabel)
+	box.Append(iconLabel)
+	box.Append(textLabel)
+	btn.SetChild(box)
 
-	gtkutil.ClaimedClick(&row.Widget, onActivate)
+	btn.ConnectClicked(onActivate)
 
-	return row
+	return btn
+}
+
+func workspaceButton(wsID int, onActivate func()) *gtk.Box {
+	box := gtk.NewBox(gtk.OrientationHorizontal, 0)
+	box.AddCSSClass("windowmgmt-ws-btn")
+	box.SetCursorFromName("pointer")
+	box.SetHExpand(true)
+
+	label := gtk.NewLabel(strconv.Itoa(wsID))
+	label.AddCSSClass("windowmgmt-ws-label")
+	label.SetHExpand(true)
+	label.SetHAlign(gtk.AlignCenter)
+
+	box.Append(label)
+
+	gtkutil.ClaimedClick(&box.Widget, onActivate)
+
+	return box
 }

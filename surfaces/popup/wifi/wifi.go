@@ -38,16 +38,22 @@ func New(app *gtk.Application, b *bus.Bus, refs *servicerefs.ServiceRefs, trigge
 
 	w := &WiFi{win: win, bus: b, refs: refs, trigger: trigger, root: root}
 
-	panel := gtk.NewBox(gtk.OrientationVertical, 8)
+	panel := gtk.NewBox(gtk.OrientationVertical, 0)
 	panel.AddCSSClass("popup-panel")
 	panel.SetMarginStart(panelMargin)
 	panel.SetMarginEnd(panelMargin)
 	panel.SetSizeRequest(panelWidth, -1)
 
+	// Header
+	header := gtk.NewLabel("WiFi")
+	header.AddCSSClass("popup-header")
+	header.SetHAlign(gtk.AlignStart)
+	panel.Append(header)
+
 	w.scroll = gtk.NewScrolledWindow()
 	w.scroll.SetPolicy(gtk.PolicyNever, gtk.PolicyAutomatic)
 	w.scroll.AddCSSClass("popup-scroll")
-	w.scroll.SetMaxContentHeight(500)
+	w.scroll.SetMaxContentHeight(surfaceutil.PopupMaxHeight(w.monitor, layershell.BarHeight()))
 	w.scroll.SetPropagateNaturalHeight(true)
 	setupScrollHoverSuppression(w.scroll)
 
@@ -86,8 +92,9 @@ func (w *WiFi) Toggle() {
 		if w.refs.Network != nil {
 			go w.refs.Network.ScanWiFi()
 		}
-		// Scroll to top when opening
+		// Update max height based on current monitor and scroll to top when opening
 		if w.scroll != nil {
+			w.scroll.SetMaxContentHeight(surfaceutil.PopupMaxHeight(w.monitor, layershell.BarHeight()))
 			w.scroll.SetVAdjustment(gtk.NewAdjustment(0, 0, 0, 0, 0, 0))
 		}
 		w.win.SetVisible(true)
