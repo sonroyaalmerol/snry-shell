@@ -487,6 +487,12 @@ scale.m3-scale slider {
     opacity: 1;
 }
 
+/* Suppress hover effects during scrolling to prevent stuck hover states on touch devices */
+.popup-scroll.scrolling .conn-row:hover,
+.popup-scroll.scrolling .conn-row-connected:hover {
+    background-color: transparent;
+}
+
 /* ── App Drawer ── */
 
 .appdrawer-scrim {
@@ -539,6 +545,12 @@ scale.m3-scale slider {
 .appdrawer-tile:hover,
 .appdrawer-tile:active {
     background-color: alpha(@col_primary_container, 0.35);
+}
+
+/* Suppress hover effects during scrolling to prevent stuck hover states */
+.appdrawer-scroll.scrolling .appdrawer-tile:hover,
+.appdrawer-scroll.scrolling .appdrawer-tile:active {
+    background-color: transparent;
 }
 
 .appdrawer-tile-label {

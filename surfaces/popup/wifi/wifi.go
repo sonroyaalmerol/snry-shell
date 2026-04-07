@@ -49,6 +49,7 @@ func New(app *gtk.Application, b *bus.Bus, refs *servicerefs.ServiceRefs, trigge
 	w.scroll.AddCSSClass("popup-scroll")
 	w.scroll.SetMaxContentHeight(500)
 	w.scroll.SetPropagateNaturalHeight(true)
+	setupScrollHoverSuppression(w.scroll)
 
 	w.scroll.SetChild(widgets.NewWiFiWidget(w.bus, refs, w.win))
 	panel.Append(w.scroll)
@@ -91,4 +92,22 @@ func (w *WiFi) Toggle() {
 		}
 		w.win.SetVisible(true)
 	}
+}
+
+// setupScrollHoverSuppression adds a CSS class during scrolling to suppress hover effects
+func setupScrollHoverSuppression(scroll *gtk.ScrolledWindow) {
+	var scrollTimeout glib.SourceHandle
+	vadj := scroll.VAdjustment()
+
+	vadj.ConnectValueChanged(func() {
+		scroll.AddCSSClass("scrolling")
+		if scrollTimeout != 0 {
+			glib.SourceRemove(scrollTimeout)
+		}
+		scrollTimeout = glib.TimeoutAdd(150, func() bool {
+			scroll.RemoveCSSClass("scrolling")
+			scrollTimeout = 0
+			return false
+		})
+	})
 }

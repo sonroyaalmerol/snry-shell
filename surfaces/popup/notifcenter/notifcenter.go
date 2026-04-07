@@ -50,6 +50,7 @@ func New(app *gtk.Application, b *bus.Bus, refs *servicerefs.ServiceRefs, trigge
 	nc.scroll.AddCSSClass("popup-scroll")
 	nc.scroll.SetMaxContentHeight(800)
 	nc.scroll.SetPropagateNaturalHeight(true)
+	setupScrollHoverSuppression(nc.scroll)
 
 	content := gtk.NewBox(gtk.OrientationVertical, 8)
 	content.Append(widgets.NewNotificationList(nc.bus))
@@ -94,4 +95,22 @@ func (nc *NotifCenter) Toggle() {
 		}
 		nc.win.SetVisible(true)
 	}
+}
+
+// setupScrollHoverSuppression adds a CSS class during scrolling to suppress hover effects
+func setupScrollHoverSuppression(scroll *gtk.ScrolledWindow) {
+	var scrollTimeout glib.SourceHandle
+	vadj := scroll.VAdjustment()
+
+	vadj.ConnectValueChanged(func() {
+		scroll.AddCSSClass("scrolling")
+		if scrollTimeout != 0 {
+			glib.SourceRemove(scrollTimeout)
+		}
+		scrollTimeout = glib.TimeoutAdd(150, func() bool {
+			scroll.RemoveCSSClass("scrolling")
+			scrollTimeout = 0
+			return false
+		})
+	})
 }

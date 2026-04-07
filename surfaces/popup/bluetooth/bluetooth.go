@@ -49,6 +49,7 @@ func New(app *gtk.Application, b *bus.Bus, refs *servicerefs.ServiceRefs, trigge
 	bt.scroll.AddCSSClass("popup-scroll")
 	bt.scroll.SetMaxContentHeight(500)
 	bt.scroll.SetPropagateNaturalHeight(true)
+	setupScrollHoverSuppression(bt.scroll)
 
 	bt.scroll.SetChild(widgets.NewBluetoothWidget(bt.bus, refs, bt.win))
 	panel.Append(bt.scroll)
@@ -88,4 +89,22 @@ func (bt *Bluetooth) Toggle() {
 		}
 		bt.win.SetVisible(true)
 	}
+}
+
+// setupScrollHoverSuppression adds a CSS class during scrolling to suppress hover effects
+func setupScrollHoverSuppression(scroll *gtk.ScrolledWindow) {
+	var scrollTimeout glib.SourceHandle
+	vadj := scroll.VAdjustment()
+
+	vadj.ConnectValueChanged(func() {
+		scroll.AddCSSClass("scrolling")
+		if scrollTimeout != 0 {
+			glib.SourceRemove(scrollTimeout)
+		}
+		scrollTimeout = glib.TimeoutAdd(150, func() bool {
+			scroll.RemoveCSSClass("scrolling")
+			scrollTimeout = 0
+			return false
+		})
+	})
 }
