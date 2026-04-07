@@ -139,6 +139,10 @@ func New(app *gtk.Application, b *bus.Bus) *OSK {
 
 	// Auto-show/hide based on zwp_input_method_v2 activate/deactivate events.
 	b.Subscribe(bus.TopicTextInputFocus, func(e bus.Event) {
+		// Don't auto-show/hide when screen is locked to prevent focus wars
+		if osk.screenLocked {
+			return
+		}
 		isText, ok := e.Data.(bool)
 		if !ok {
 			return
@@ -178,20 +182,19 @@ func New(app *gtk.Application, b *bus.Bus) *OSK {
 		})
 	})
 
-	// Handle screen lock/unlock - keep OSK on LayerOverlay
-	// Lockscreen now uses KeyboardModeOnDemand instead of Exclusive,
-	// so OSK can receive input normally
+	// Handle screen lock/unlock
 	b.Subscribe(bus.TopicScreenLock, func(e bus.Event) {
 		if ls, ok := e.Data.(state.LockScreenState); ok {
 			glib.IdleAdd(func() {
 				osk.screenLocked = ls.Locked
 				if ls.Locked {
-					// Keep on LayerOverlay, just ensure it's visible
-					osk.win.SetVisible(true)
-					osk.win.Present()
-					log.Printf("[OSK] screen locked, keeping OSK on LayerOverlay")
+					// Hide OSK when screen locks - user must manually open it
+					// This prevents focus wars with password field
+					osk.hide()
+					log.Printf("[OSK] screen locked, hidden (use bar button to show)")
 				} else {
-					log.Printf("[OSK] screen unlocked")
+					// Screen unlocked - restore normal behavior
+					log.Printf("[OSK] screen unlocked, auto-show restored")
 				}
 			})
 		}
