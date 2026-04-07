@@ -190,9 +190,14 @@ func New(app *gtk.Application, b *bus.Bus) *OSK {
 					layershell.SetLayer(osk.win, layershell.LayerOverlay)
 					// Drop exclusive zone so OSK overlays on top of lockscreen
 					layershell.SetExclusiveZone(osk.win, -1)
-					// Raise the window to make sure it's on top
+					// Hide and re-show to force it to the top of the stacking order
+					wasVisible := osk.win.Visible()
+					if wasVisible {
+						osk.win.SetVisible(false)
+					}
+					osk.win.SetVisible(true)
 					osk.win.Present()
-					log.Printf("[OSK] configured for lockscreen: LayerOverlay, exclusive=-1")
+					log.Printf("[OSK] configured for lockscreen: LayerOverlay, exclusive=-1, raised")
 				} else {
 					// Restore exclusive zone when unlocked
 					osk.updateExclusiveZone()
