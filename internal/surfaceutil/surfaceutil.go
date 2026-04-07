@@ -11,10 +11,17 @@ import (
 	"github.com/sonroyaalmerol/snry-shell/internal/layershell"
 )
 
+// AddEscapeToClose dismisses win when Escape is pressed.
 func AddEscapeToClose(win *gtk.ApplicationWindow) {
+	AddEscapeToCloseWithCallback(win, func() {})
+}
+
+// AddEscapeToCloseWithCallback calls onClose then dismisses win when Escape is pressed.
+func AddEscapeToCloseWithCallback(win *gtk.ApplicationWindow, onClose func()) {
 	keyCtrl := gtk.NewEventControllerKey()
-	keyCtrl.ConnectKeyPressed(func(keyval, keycode uint, _ gdk.ModifierType) bool {
-		if keyval == 0xff1b {
+	keyCtrl.ConnectKeyPressed(func(keyval, _ uint, _ gdk.ModifierType) bool {
+		if keyval == 0xff1b { // GDK_KEY_Escape
+			onClose()
 			win.SetVisible(false)
 			return true
 		}
@@ -23,17 +30,19 @@ func AddEscapeToClose(win *gtk.ApplicationWindow) {
 	win.AddController(keyCtrl)
 }
 
-func AddEscapeToCloseWithCallback(win *gtk.ApplicationWindow, onClose func()) {
-	keyCtrl := gtk.NewEventControllerKey()
-	keyCtrl.ConnectKeyPressed(func(keyval, keycode uint, _ gdk.ModifierType) bool {
-		if keyval == 0xff1b {
-			onClose()
-			win.SetVisible(false)
-			return true
-		}
-		return false
+// NewFullscreenOverlay creates a layer-shell window that covers the entire screen
+// in the overlay layer with ExclusiveZone=-1. Use KeyboardModeExclusive for
+// surfaces that must capture all input (session menu, settings); KeyboardModeOnDemand
+// for surfaces that share the keyboard with other windows.
+func NewFullscreenOverlay(app *gtk.Application, name string, kbMode layershell.KeyboardMode) *gtk.ApplicationWindow {
+	return layershell.NewWindow(app, layershell.WindowConfig{
+		Name:          name,
+		Layer:         layershell.LayerOverlay,
+		Anchors:       layershell.FullscreenAnchors(),
+		KeyboardMode:  kbMode,
+		ExclusiveZone: -1,
+		Namespace:     name,
 	})
-	win.AddController(keyCtrl)
 }
 
 func AddToggleOn(b *bus.Bus, win *gtk.ApplicationWindow, action string) {

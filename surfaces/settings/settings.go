@@ -20,14 +20,7 @@ type Settings struct {
 }
 
 func New(app *gtk.Application, b *bus.Bus) *Settings {
-	win := layershell.NewWindow(app, layershell.WindowConfig{
-		Name:          "snry-settings",
-		Layer:         layershell.LayerOverlay,
-		Anchors:       layershell.FullscreenAnchors(),
-		KeyboardMode:  layershell.KeyboardModeExclusive,
-		ExclusiveZone: -1,
-		Namespace:     "snry-settings",
-	})
+	win := surfaceutil.NewFullscreenOverlay(app, "snry-settings", layershell.KeyboardModeExclusive)
 
 	cfg, _ := appsettings.Load()
 	s := &Settings{win: win, bus: b, cfg: cfg}

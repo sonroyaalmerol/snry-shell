@@ -22,13 +22,7 @@ type Session struct {
 }
 
 func New(app *gtk.Application, b *bus.Bus) *Session {
-	win := layershell.NewWindow(app, layershell.WindowConfig{
-		Name:         "snry-session",
-		Layer:        layershell.LayerOverlay,
-		Anchors:      layershell.FullscreenAnchors(),
-		KeyboardMode: layershell.KeyboardModeExclusive,
-		Namespace:    "snry-session",
-	})
+	win := surfaceutil.NewFullscreenOverlay(app, "snry-session", layershell.KeyboardModeExclusive)
 
 	s := &Session{win: win, bus: b}
 	s.build()

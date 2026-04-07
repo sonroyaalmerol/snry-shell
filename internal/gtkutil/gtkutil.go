@@ -107,14 +107,7 @@ func SwitchRow(label string, sw *gtk.Switch) *gtk.Box {
 // newDialogBase creates the shared layer-shell overlay window, scrim, card, and
 // title label used by all M3 dialog types. Returns (win, card, close).
 func newDialogBase(parent *gtk.ApplicationWindow, title string) (*gtk.ApplicationWindow, *gtk.Box, func()) {
-	win := layershell.NewWindow(parent.Application(), layershell.WindowConfig{
-		Name:          "snry-m3-dialog",
-		Layer:         layershell.LayerOverlay,
-		Anchors:       layershell.FullscreenAnchors(),
-		KeyboardMode:  layershell.KeyboardModeOnDemand,
-		ExclusiveZone: -1,
-		Namespace:     "snry-m3-dialog",
-	})
+	win := surfaceutil.NewFullscreenOverlay(parent.Application(), "snry-m3-dialog", layershell.KeyboardModeOnDemand)
 
 	close := func() { win.SetVisible(false) }
 
@@ -234,6 +227,20 @@ func ActionDialog(parent *gtk.ApplicationWindow, title, message string, actions 
 	card.Append(btnBox)
 }
 
+// AddPasswordToggle wires btn to toggle entry's password visibility,
+// swapping the eye icon accordingly. Call once after creating the entry and button.
+func AddPasswordToggle(entry *gtk.Entry, btn *gtk.Button) {
+	btn.ConnectClicked(func() {
+		if entry.Visibility() {
+			entry.SetVisibility(false)
+			btn.SetChild(MaterialIcon("visibility_off"))
+		} else {
+			entry.SetVisibility(true)
+			btn.SetChild(MaterialIcon("visibility"))
+		}
+	})
+}
+
 // PasswordDialog shows an M3-styled dialog with a password entry field as a
 // layer-shell overlay.
 func PasswordDialog(parent *gtk.ApplicationWindow, title, message, placeholder string, onConfirm func(password string)) {
@@ -247,30 +254,7 @@ func PasswordDialog(parent *gtk.ApplicationWindow, title, message, placeholder s
 		card.Append(msgLabel)
 	}
 
-	// Password entry with show/hide toggle.
-	pwdBox := gtk.NewBox(gtk.OrientationHorizontal, 0)
-	pwdBox.AddCSSClass("m3-password-box")
-
-	entry := gtk.NewEntry()
-	entry.AddCSSClass("m3-password-entry")
-	entry.SetPlaceholderText(placeholder)
-	entry.SetVisibility(false)
-	entry.SetHExpand(true)
-
-	eyeBtn := MaterialButton("visibility_off")
-	eyeBtn.AddCSSClass("m3-password-eye")
-	eyeBtn.ConnectClicked(func() {
-		if entry.Visibility() {
-			entry.SetVisibility(false)
-			eyeBtn.SetChild(MaterialIcon("visibility_off"))
-		} else {
-			entry.SetVisibility(true)
-			eyeBtn.SetChild(MaterialIcon("visibility"))
-		}
-	})
-
-	pwdBox.Append(entry)
-	pwdBox.Append(eyeBtn)
+	pwdBox, entry := PasswordEntry(placeholder, nil)
 	card.Append(pwdBox)
 
 	btnBox := gtk.NewBox(gtk.OrientationHorizontal, 8)
