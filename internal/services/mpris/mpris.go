@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/godbus/dbus/v5"
@@ -22,6 +23,8 @@ type Service struct {
 	conn          dbusutil.DBusConn
 	bus           *bus.Bus
 	playerNameMap map[string]string
+	mu            sync.Mutex
+	activePlayer  string
 }
 
 func New(conn *dbus.Conn, b *bus.Bus) *Service {
@@ -91,6 +94,16 @@ func (s *Service) handlePropertiesChanged(sig *dbus.Signal) {
 	wellKnown := s.resolvePlayerName(sender)
 
 	player := s.parseChangedProps(wellKnown, changed)
+
+	// Track the most recently active (playing) player.
+	if v, ok := changed["PlaybackStatus"]; ok {
+		if status, ok := v.Value().(string); ok && status == "Playing" {
+			s.mu.Lock()
+			s.activePlayer = wellKnown
+			s.mu.Unlock()
+		}
+	}
+
 	s.bus.Publish(bus.TopicMedia, player)
 }
 
@@ -236,4 +249,58 @@ func (s *Service) Next(playerBusName string) error {
 func (s *Service) Previous(playerBusName string) error {
 	obj := s.conn.Object(playerBusName, "/org/mpris/MediaPlayer2")
 	return obj.Call(playerIface+".Previous", 0).Err
+}
+
+// ActivePlayer returns the bus name of the most recently playing MPRIS player,
+// or an empty string if none has been seen yet.
+func (s *Service) ActivePlayer() string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.activePlayer != "" {
+		return s.activePlayer
+	}
+	// Fall back to the first player found on the bus.
+	var names []string
+	v, err := s.conn.BusObject().GetProperty("org.freedesktop.DBus.ListNames")
+	if err != nil {
+		return ""
+	}
+	if arr, ok := v.Value().([]string); ok {
+		for _, name := range arr {
+			if strings.HasPrefix(name, mprisPrefix) {
+				names = append(names, name)
+			}
+		}
+	}
+	if len(names) > 0 {
+		return names[0]
+	}
+	return ""
+}
+
+// PlayPauseActive toggles playback on the active player.
+func (s *Service) PlayPauseActive() error {
+	p := s.ActivePlayer()
+	if p == "" {
+		return fmt.Errorf("no active MPRIS player")
+	}
+	return s.PlayPause(p)
+}
+
+// NextActive skips to the next track on the active player.
+func (s *Service) NextActive() error {
+	p := s.ActivePlayer()
+	if p == "" {
+		return fmt.Errorf("no active MPRIS player")
+	}
+	return s.Next(p)
+}
+
+// PrevActive goes to the previous track on the active player.
+func (s *Service) PrevActive() error {
+	p := s.ActivePlayer()
+	if p == "" {
+		return fmt.Errorf("no active MPRIS player")
+	}
+	return s.Previous(p)
 }

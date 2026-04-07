@@ -14,11 +14,11 @@ import (
 func main() {
 	if len(os.Args) > 1 {
 		switch {
-		case strings.HasPrefix(os.Args[1], "--toggle-"):
-			sendControl(os.Args[1])
-			return
 		case os.Args[1] == "--control-panel" || os.Args[1] == "-c":
 			os.Exit(controlpanel.Run())
+			return
+		case strings.HasPrefix(os.Args[1], "--"):
+			sendControl(os.Args[1])
 			return
 		}
 	}

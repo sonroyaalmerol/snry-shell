@@ -174,6 +174,72 @@ func Run() int {
 		}
 	})
 
+	// Volume / audio controls.
+	b.Subscribe(bus.TopicSystemControls, func(e bus.Event) {
+		cmd, ok := e.Data.(string)
+		if !ok {
+			return
+		}
+		switch cmd {
+		case "volume-up":
+			if err := refs.Audio.AdjustVolume(0.05); err != nil {
+				log.Printf("[audio] volume-up: %v", err)
+			}
+		case "volume-down":
+			if err := refs.Audio.AdjustVolume(-0.05); err != nil {
+				log.Printf("[audio] volume-down: %v", err)
+			}
+		case "volume-mute":
+			if err := refs.Audio.ToggleMute(); err != nil {
+				log.Printf("[audio] volume-mute: %v", err)
+			}
+		case "mic-mute":
+			if err := refs.Audio.ToggleMicMute(); err != nil {
+				log.Printf("[audio] mic-mute: %v", err)
+			}
+		}
+	})
+
+	// Media controls.
+	b.Subscribe(bus.TopicSystemControls, func(e bus.Event) {
+		cmd, ok := e.Data.(string)
+		if !ok {
+			return
+		}
+		switch cmd {
+		case "media-play-pause":
+			if err := refs.Mpris.PlayPauseActive(); err != nil {
+				log.Printf("[mpris] play-pause: %v", err)
+			}
+		case "media-next":
+			if err := refs.Mpris.NextActive(); err != nil {
+				log.Printf("[mpris] next: %v", err)
+			}
+		case "media-prev":
+			if err := refs.Mpris.PrevActive(); err != nil {
+				log.Printf("[mpris] prev: %v", err)
+			}
+		}
+	})
+
+	// Brightness controls.
+	b.Subscribe(bus.TopicSystemControls, func(e bus.Event) {
+		cmd, ok := e.Data.(string)
+		if !ok {
+			return
+		}
+		switch cmd {
+		case "brightness-up":
+			if err := refs.Brightness.AdjustBrightness(0.05); err != nil {
+				log.Printf("[brightness] up: %v", err)
+			}
+		case "brightness-down":
+			if err := refs.Brightness.AdjustBrightness(-0.05); err != nil {
+				log.Printf("[brightness] down: %v", err)
+			}
+		}
+	})
+
 	// Theme generator and wallpaper monitor.
 	themeMonitor := theme.NewMonitor(b)
 	go themeMonitor.Run(ctx)
