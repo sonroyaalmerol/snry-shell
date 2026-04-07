@@ -13,6 +13,8 @@ import (
 )
 
 // SystemHandler handles hardware events like lid close and power button.
+// It relies on Hyprland keybindings (registered externally via SetupHyprlandBinds)
+// to receive the events, and a logind block inhibitor to suppress logind's default action.
 type SystemHandler struct {
 	bus  *bus.Bus
 	conn *dbus.Conn
@@ -47,90 +49,43 @@ func (h *SystemHandler) Run(ctx context.Context) error {
 		return fmt.Errorf("no system bus connection")
 	}
 
-	// 1. Inhibit logind's default handling.
-	// We use "block" mode to completely prevent logind's default action.
+	// Take a block inhibitor so logind does not handle these events itself.
+	// The actual detection is done via Hyprland bindl keybindings set up by
+	// SetupHyprlandBinds, which send toggle-power-action / toggle-lid-action
+	// through the control socket.
 	err := h.conn.Object("org.freedesktop.login1", "/org/freedesktop/login1").
 		Call("org.freedesktop.login1.Manager.Inhibit", 0,
 			"handle-power-key:handle-lid-switch", "snry-shell", "Shell handling system buttons", "block").
 		Store(&h.lockFD)
-
 	if err != nil {
 		log.Printf("[SYSTEM] failed to inhibit logind: %v", err)
 	} else {
 		log.Printf("[SYSTEM] logind button handling inhibited (block mode)")
 	}
 
-	// 2. Listen for UPower signals (Lid state).
-	_ = h.conn.AddMatchSignal(
-		dbus.WithMatchInterface("org.freedesktop.UPower"),
-		dbus.WithMatchMember("PropertiesChanged"),
-	)
-
-	// 3. Listen for logind signals.
-	// We watch for signals from the Manager object explicitly.
-	_ = h.conn.AddMatchSignal(
-		dbus.WithMatchInterface("org.freedesktop.login1.Manager"),
-		dbus.WithMatchObjectPath("/org/freedesktop/login1"),
-	)
-
-	ch := make(chan *dbus.Signal, 16)
-	h.conn.Signal(ch)
-	defer h.conn.RemoveSignal(ch)
-
-	for {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case sig := <-ch:
-			h.handleSignal(sig)
-		}
-	}
-}
-
-func (h *SystemHandler) handleSignal(sig *dbus.Signal) {
-	h.mu.Lock()
-	lidAction := h.lidAction
-	powerAction := h.powerAction
-	h.mu.Unlock()
-
-	// Handle button signals from logind
-	if sig.Name == "org.freedesktop.login1.Manager.Button" || sig.Name == "org.freedesktop.login1.Manager.PowerKey" {
-		isPower := false
-		if sig.Name == "org.freedesktop.login1.Manager.PowerKey" {
-			isPower = true
-		} else if len(sig.Body) >= 1 {
-			if name, ok := sig.Body[0].(string); ok && name == "power" {
-				isPower = true
-			}
-		}
-
-		if isPower {
-			log.Printf("[SYSTEM] power button press detected")
-			h.executeAction(powerAction)
+	// Receive power-action and lid-action commands forwarded from Hyprland bindings.
+	h.bus.Subscribe(bus.TopicSystemControls, func(e bus.Event) {
+		cmd, ok := e.Data.(string)
+		if !ok {
 			return
 		}
-	}
+		h.mu.Lock()
+		lidAction := h.lidAction
+		powerAction := h.powerAction
+		h.mu.Unlock()
 
-	// Handle lid signals
-	if sig.Name == "org.freedesktop.login1.Manager.LidClosed" {
-		log.Printf("[SYSTEM] logind lid closure detected")
-		h.executeAction(lidAction)
-		return
-	}
-
-	if sig.Name == "org.freedesktop.UPower.PropertiesChanged" {
-		if len(sig.Body) >= 2 {
-			props, ok := sig.Body[1].(map[string]dbus.Variant)
-			if ok {
-				if val, ok := props["LidIsClosed"]; ok {
-					if closed, ok := val.Value().(bool); ok && closed {
-						log.Printf("[SYSTEM] UPower lid closure detected")
-						h.executeAction(lidAction)
-					}
-				}
-			}
+		switch cmd {
+		case "toggle-power-action":
+			log.Printf("[SYSTEM] power button press received")
+			h.executeAction(powerAction)
+		case "toggle-lid-action":
+			log.Printf("[SYSTEM] lid close received")
+			h.executeAction(lidAction)
 		}
-	}
+	})
+
+	<-ctx.Done()
+	return ctx.Err()
 }
 
 func (h *SystemHandler) executeAction(action string) {
