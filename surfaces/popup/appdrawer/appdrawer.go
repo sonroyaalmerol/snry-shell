@@ -234,14 +234,14 @@ func (d *AppDrawer) populateGrid(apps []launcher.App) {
 	}
 
 	for _, app := range apps {
-		tile := newAppTile(app, func() {
+		tile := newAppTile(app, d.win, func() {
 			d.win.SetVisible(false)
 		})
 		d.flowBox.Append(tile)
 	}
 }
 
-func newAppTile(app launcher.App, onLaunch func()) *gtk.Box {
+func newAppTile(app launcher.App, win *gtk.ApplicationWindow, onLaunch func()) *gtk.Box {
 	box := gtk.NewBox(gtk.OrientationVertical, 8)
 	box.AddCSSClass("appdrawer-tile")
 	box.SetCursorFromName("pointer")
@@ -274,8 +274,14 @@ func newAppTile(app launcher.App, onLaunch func()) *gtk.Box {
 	box.Append(label)
 
 	gtkutil.ClaimedClick(&box.Widget, func() {
-		go launcher.Launch(app)
 		onLaunch()
+		go func() {
+			if err := launcher.Launch(app); err != nil {
+				glib.IdleAdd(func() {
+					gtkutil.ErrorDialog(win, "Launch failed", err.Error())
+				})
+			}
+		}()
 	})
 
 	return box
