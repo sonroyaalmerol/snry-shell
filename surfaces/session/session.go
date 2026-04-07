@@ -70,9 +70,9 @@ func (s *Session) build() {
 		action state.SessionAction
 		icon   string
 		label  string
-		cmd    []string
+		cmd    []string // empty = handled via bus, not subprocess
 	}{
-		{state.SessionLock, "lock", "Lock", []string{"loginctl", "lock-session"}},
+		{state.SessionLock, "lock", "Lock", nil},
 		{state.SessionSuspend, "bedtime", "Sleep", []string{"systemctl", "suspend"}},
 		{state.SessionReboot, "restart_alt", "Reboot", []string{"systemctl", "reboot"}},
 		{state.SessionShutdown, "power_settings_new", "Power off", []string{"systemctl", "poweroff"}},
@@ -113,10 +113,17 @@ func (s *Session) buildBtn(a struct {
 	btn.SetChild(inner)
 
 	action := a
-	cmd := a.cmd
 	btn.ConnectClicked(func() {
 		s.bus.Publish(bus.TopicSessionAction, action.action)
 		s.win.SetVisible(false)
+
+		if action.action == state.SessionLock {
+			// Lock via our own lockscreen — no subprocess needed.
+			s.bus.Publish(bus.TopicScreenLock, state.LockScreenState{Locked: true})
+			return
+		}
+
+		cmd := action.cmd
 		go func() {
 			time.Sleep(200 * time.Millisecond)
 			if err := exec.Command(cmd[0], cmd[1:]...).Run(); err != nil {
