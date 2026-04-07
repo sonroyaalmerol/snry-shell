@@ -1950,3 +1950,70 @@ popover.menu list row:selected {
 .conn-row-loading {
     opacity: 0.6;
 }
+
+/* ── Touch device hover suppression ──────────────────────────────────────────── */
+
+/* On touch devices, disable hover effects to prevent stuck states after scrolling */
+@media (pointer: coarse) {
+    /* App drawer tiles */
+    .appdrawer-tile:hover,
+    .appdrawer-tile:active {
+        background-color: transparent;
+    }
+    
+    /* Connection rows (WiFi, Bluetooth, Window management) */
+    .conn-row:hover,
+    .conn-row-connected:hover {
+        background-color: transparent;
+    }
+    
+    /* Quick toggles */
+    .quick-toggle:hover,
+    .quick-toggle:active {
+        background-color: alpha(@col_on_surface, var(--state-hover));
+    }
+    
+    /* Quick toggle segmented buttons */
+    .quick-toggle-segment:hover {
+        background: transparent;
+    }
+    
+    /* Settings nav items */
+    .settings-nav-item:hover {
+        background-color: transparent;
+    }
+    
+    /* Bar groups */
+    .bar-group-clickable:hover {
+        background-color: transparent;
+    }
+    
+    /* Window preview cards */
+    .window-preview-card:hover {
+        background-color: transparent;
+        box-shadow: none;
+    }
+    
+    /* Search result rows */
+    .search-result-row:hover,
+    .search-result-row:focus {
+        background-color: transparent;
+    }
+    
+    /* Section headers */
+    .conn-section-header:hover {
+        background-color: transparent;
+    }
+    
+    /* Calendar day */
+    .cal-day:hover {
+        background-color: transparent;
+    }
+    
+    /* Show active/pressed states only when actually pressed, not on hover */
+    .appdrawer-tile:active,
+    .quick-toggle:active,
+    .conn-row:active {
+        opacity: 0.7;
+    }
+}
