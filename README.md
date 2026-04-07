@@ -68,7 +68,7 @@ internal/
   servicerefs/                  Service container struct
   services/
     hyprland/                   Hyprland IPC (socket events) + queries (hyprctl)
-    audio/                      Volume control (wpctl; event-driven via pactl subscribe)
+    audio/                      Volume control (native PulseAudio protocol over PipeWire socket)
     brightness/                 Brightness control (pure Go DDC/CI over I2C)
     resources/                  CPU/RAM monitoring (/proc, change detection skips <1% deltas)
     network/                    WiFi scanning + connectivity (NetworkManager DBus)
@@ -105,7 +105,7 @@ assets/
 ### Design Patterns
 
 - **Event bus** — All services publish state changes to a central `bus.Bus`; surfaces subscribe to topics they care about. Late subscribers receive the last published event (replay). No direct service-to-surface coupling.
-- **Event-driven architecture** — Services use event streams (pactl subscribe, wl-paste --watch, MPRIS D-Bus signals, Hyprland socket events, `ext-idle-notify-v1`) instead of polling where possible.
+- **Event-driven architecture** — Services use event streams (PulseAudio protocol subscriptions, wl-paste --watch, MPRIS D-Bus signals, Hyprland socket events, `ext-idle-notify-v1`) instead of polling where possible.
 - **Wayland Protocol Interop** — Built-in support for standard Wayland staging protocols (`ext-idle-notify-v1`, `zwp_input_method_v2`) using a custom `fixedBind` workaround to ensure high stability across different compositor versions.
 - **Inhibition Support** — The Idle service natively respects compositor-level inhibitors (e.g., Firefox video playback) and provides an `org.freedesktop.ScreenSaver` D-Bus interface for legacy application compatibility.
 
@@ -148,32 +148,87 @@ Add to your Hyprland config:
 exec-once = snry-shell
 ```
 
-### Keybind toggles
+### Control commands
 
-The binary accepts `--toggle-*` flags that send commands to the running instance via a Unix socket:
+The binary accepts `--<command>` flags that send commands to the running instance via a Unix socket at `/tmp/snry-shell.sock`. This covers everything from surface toggles to hardware control — no external tools needed.
 
-| Command | Surface |
-|---------|---------|
-| `toggle-overview` | Application overview |
-| `toggle-appdrawer` | Application drawer |
-| `toggle-calendar` | Calendar & Quick Settings |
-| `toggle-notif-center` | Notification center |
-| `toggle-wifi` | WiFi picker |
-| `toggle-bluetooth` | Bluetooth picker |
-| `toggle-windowmgmt` | Window management (touch-friendly) |
-| `toggle-session` | Power menu |
-| `toggle-crosshair` | Crosshair overlay |
-| `toggle-cheatsheet` | Keyboard shortcuts |
-| `toggle-media-overlay` | Full-screen media controls |
-| `toggle-settings` | Settings panel |
-| `toggle-region-selector` | Region screenshot selector |
-| `toggle-osk` | On-screen keyboard |
-| `toggle-clipboard` | Clipboard history (OSK panel) |
-| `toggle-emoji` | Emoji picker (OSK panel) |
-| `toggle-notes` | Notes overlay |
-| `toggle-recorder` | Screen recorder |
-| `toggle-reload-theme` | Force theme regeneration |
-| `toggle-lock` | Lock the screen |
+#### Surface toggles
+
+| Flag | Effect |
+|------|--------|
+| `--toggle-overview` | Application overview |
+| `--toggle-appdrawer` | Application drawer |
+| `--toggle-calendar` | Calendar & Quick Settings |
+| `--toggle-notif-center` | Notification center |
+| `--toggle-wifi` | WiFi picker |
+| `--toggle-bluetooth` | Bluetooth picker |
+| `--toggle-windowmgmt` | Window management |
+| `--toggle-session` | Power menu |
+| `--toggle-crosshair` | Crosshair overlay |
+| `--toggle-cheatsheet` | Keyboard shortcuts |
+| `--toggle-media-overlay` | Full-screen media controls |
+| `--toggle-settings` | Settings panel |
+| `--toggle-region-selector` | Region screenshot selector |
+| `--toggle-osk` | On-screen keyboard |
+| `--toggle-clipboard` | Clipboard history (OSK panel) |
+| `--toggle-emoji` | Emoji picker (OSK panel) |
+| `--toggle-notes` | Notes overlay |
+| `--toggle-recorder` | Screen recorder |
+| `--toggle-reload-theme` | Force theme regeneration |
+| `--toggle-lock` | Lock the screen |
+
+#### Hardware & system control
+
+These replace external CLI tools entirely — no `wpctl`, `brightnessctl`, `playerctl`, `loginctl`, or `systemctl` needed.
+
+| Flag | Effect |
+|------|--------|
+| `--volume-up` | Raise default sink volume by 5% |
+| `--volume-down` | Lower default sink volume by 5% |
+| `--volume-mute` | Toggle default sink mute |
+| `--mic-mute` | Toggle default source (mic) mute |
+| `--brightness-up` | Raise display brightness by 5% (DDC or sysfs backlight) |
+| `--brightness-down` | Lower display brightness by 5% |
+| `--media-play-pause` | Play/pause the active MPRIS player |
+| `--media-next` | Skip to next track |
+| `--media-prev` | Previous track |
+| `--zoom-in` | Increase Hyprland cursor zoom by 0.3 (clamped to 3.0) |
+| `--zoom-out` | Decrease Hyprland cursor zoom by 0.3 (min 1.0) |
+| `--zoom-reset` | Reset Hyprland cursor zoom to 1.0 |
+| `--system-suspend` | Lock screen then suspend via logind D-Bus |
+| `--system-reboot` | Reboot via logind D-Bus |
+| `--system-poweroff` | Power off via logind D-Bus |
+| `--system-logout` | Log out (Hyprland dispatch exit) |
+
+#### Example Hyprland keybinds
+
+```ini
+# Volume
+bindle = , XF86AudioRaiseVolume, exec, snry-shell --volume-up
+bindle = , XF86AudioLowerVolume, exec, snry-shell --volume-down
+bindl  = , XF86AudioMute,        exec, snry-shell --volume-mute
+bindl  = , XF86AudioMicMute,     exec, snry-shell --mic-mute
+
+# Brightness
+bindle = , XF86MonBrightnessUp,   exec, snry-shell --brightness-up
+bindle = , XF86MonBrightnessDown, exec, snry-shell --brightness-down
+
+# Media
+bindl = , XF86AudioPlay,  exec, snry-shell --media-play-pause
+bindl = , XF86AudioNext,  exec, snry-shell --media-next
+bindl = , XF86AudioPrev,  exec, snry-shell --media-prev
+
+# Session
+bindl = Super, L,         exec, snry-shell --toggle-lock
+bindl = Super+Shift, L,   exec, snry-shell --system-suspend
+
+# Zoom
+binde = Super, Minus,     exec, snry-shell --zoom-out
+binde = Super, Equal,     exec, snry-shell --zoom-in
+bind  = Super, 0,         exec, snry-shell --zoom-reset
+```
+
+A complete example config is available at [`examples/hyprland.conf`](examples/hyprland.conf).
 
 ## Configuration
 

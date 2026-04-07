@@ -7,9 +7,18 @@
 **Arch Linux:**
 ```sh
 sudo pacman -S go gtk4 gtk4-layer-shell pkgconf
+sudo pacman -S pipewire pipewire-pulse wireplumber
+sudo pacman -S grim wl-clipboard wf-recorder polkit
 yay -S swww cliphist hyprpicker
-sudo pacman -S wireplumber grim wl-clipboard wf-recorder polkit
 ```
+
+> **Runtime dependency notes:**
+> - `pipewire-pulse` — provides the PulseAudio compatibility socket that the audio service speaks to directly (no `wpctl` or `pactl` needed at runtime).
+> - `grim` + `wl-clipboard` — used by the region screenshot selector; these remain runtime requirements.
+> - `wf-recorder` — used by the screen recorder surface.
+> - `cliphist` — used by the clipboard history panel.
+> - `swww` / `hyprpaper` — optional; needed only if you use the wallpaper-based theme generator.
+> - `hyprpicker` — optional; needed only for the color picker quick toggle.
 
 ### Protocol Bindings
 
@@ -32,7 +41,7 @@ surfaces/app.go           The "Main" loop: initialises all services and surfaces
 surfaces/*/               One package per layer-shell window (Bar, Overview, etc.)
 internal/bus/              Pub/sub event bus — the only coupling between services and surfaces
 internal/state/            Plain data types for every published event payload
-internal/services/*/       One package per backend service (audio, network, bluetooth, etc.)
+internal/services/*/       One package per backend service (audio via PulseAudio proto, network, bluetooth, etc.)
 internal/store/            Persistent key-value store (~/.config/snry-shell/store.json)
 internal/settings/         Typed shell config (thin wrapper over store)
 internal/layershell/       CGo bindings for gtk4-layer-shell
