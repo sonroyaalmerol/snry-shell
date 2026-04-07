@@ -17,6 +17,7 @@ import (
 	"github.com/sonroyaalmerol/snry-shell/internal/bus"
 	"github.com/sonroyaalmerol/snry-shell/internal/controlsocket"
 	"github.com/sonroyaalmerol/snry-shell/internal/inputmethod"
+	"github.com/sonroyaalmerol/snry-shell/internal/networkmanager"
 	"github.com/sonroyaalmerol/snry-shell/internal/servicerefs"
 	"github.com/sonroyaalmerol/snry-shell/internal/services/audio"
 	"github.com/sonroyaalmerol/snry-shell/internal/services/audiomixer"
@@ -110,6 +111,13 @@ func Run() int {
 		SNI:        sni.New(sesConn, b),
 		InputMode:  inputmode.New(b, sysConn, cfg, true),
 		DarkMode:   darkmode.New(b, cfg),
+	}
+
+	// Initialize shared network manager singleton for unified network state
+	if sysConn != nil {
+		nmManager := networkmanager.GetInstance(sysConn, b)
+		_ = nmManager // The manager starts itself and handles all network operations
+		log.Printf("[SHELL] Shared NetworkManager initialized")
 	}
 
 	// Start background services.

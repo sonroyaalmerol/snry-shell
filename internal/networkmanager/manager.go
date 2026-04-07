@@ -192,6 +192,11 @@ func (m *Manager) refreshAll() {
 	m.refreshState()
 	m.refreshDevices()
 	m.refreshConnections()
+
+	// Publish legacy state for backward compatibility
+	if m.bus != nil {
+		m.publishLegacyState()
+	}
 }
 
 // GetState returns current network state
@@ -601,12 +606,45 @@ func (m *Manager) SetAutoconnect(connPath string, autoconnect bool) error {
 	// Publish update
 	if m.bus != nil {
 		m.bus.Publish(bus.TopicNetworkManager, m.GetState())
+		m.publishLegacyState()
 	}
 
 	return nil
 }
 
-// DeleteConnection removes a saved connection
+// publishLegacyState publishes to the old TopicNetwork for backward compatibility
+func (m *Manager) publishLegacyState() {
+	m.mu.RLock()
+	state_val := m.state
+	devices := m.devices
+	m.mu.RUnlock()
+
+	// Find connected WiFi info
+	var ssid string
+	var strength int
+	var wirelessEnabled bool
+
+	for _, dev := range devices {
+		if dev.Type == DeviceTypeWiFi {
+			wirelessEnabled = true
+			if dev.ActiveSSID != "" {
+				ssid = dev.ActiveSSID
+				strength = int(dev.SignalStrength)
+			}
+		}
+	}
+
+	connected := state_val >= StateConnectedLocal
+
+	legacyState := state.NetworkState{
+		SSID:            ssid,
+		Connected:       connected,
+		Strength:        strength,
+		WirelessEnabled: wirelessEnabled,
+	}
+
+	m.bus.Publish(bus.TopicNetwork, legacyState)
+}
 func (m *Manager) DeleteConnection(connPath string) error {
 	connObj := m.conn.Object(nmDest, dbus.ObjectPath(connPath))
 
