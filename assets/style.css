@@ -1536,41 +1536,102 @@ scale.quick-slider {
 
 /* ── Lock screen ─────────────────────────────────────────────────────────────── */
 
-.lockscreen {
-    background-color: @col_background;
+/* Wallpaper fills the full window; no extra background needed. */
+.lockscreen-bg {
+    min-width: 1px;
+    min-height: 1px;
+}
+
+/* Dark translucent overlay that sits above the wallpaper for readability. */
+.lockscreen-dim {
+    background-color: rgba(0, 0, 0, 0.52);
+}
+
+/* Centered card holding the clock, entry, and unlock button. */
+.lockscreen-card {
+    padding: 48px 56px;
+    border-radius: var(--radius-xl);
+    background-color: rgba(0, 0, 0, 0.35);
+    min-width: 360px;
 }
 
 .lockscreen-clock {
-    font-size: 72px;
-    font-weight: 300;
-    color: @col_on_background;
+    font-size: 80px;
+    font-weight: 200;
+    color: #ffffff;
+    letter-spacing: -2px;
 }
 
 .lockscreen-date {
     font-size: 18px;
-    color: @col_on_surface_variant;
-    margin-bottom: 48px;
+    color: rgba(255, 255, 255, 0.8);
+    margin-bottom: 40px;
+}
+
+.lockscreen-user-row {
+    margin-bottom: 20px;
+}
+
+.lockscreen-user-icon {
+    font-size: 24px;
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.lockscreen-username {
+    font-size: 15px;
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.lockscreen-entry-row {
+    margin-bottom: 8px;
 }
 
 .lockscreen-entry {
-    background-color: @col_surface_container;
+    background-color: rgba(255, 255, 255, 0.15);
     border-radius: var(--radius-full);
     padding: 12px 24px;
-    color: @col_on_surface;
+    color: #ffffff;
     font-size: 14px;
-    min-width: 280px;
-    border: none;
-    caret-color: @col_primary;
+    min-width: 240px;
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    caret-color: #ffffff;
+}
+
+.lockscreen-entry placeholder {
+    color: rgba(255, 255, 255, 0.5);
 }
 
 .lockscreen-entry:focus {
-    box-shadow: 0 0 0 2px @col_primary;
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.6);
     outline: none;
+    background-color: rgba(255, 255, 255, 0.2);
 }
 
 .lockscreen-entry.error {
     animation: shake var(--duration-medium2) var(--ease-standard-decel);
     box-shadow: 0 0 0 2px @col_error;
+    border-color: @col_error;
+}
+
+.lockscreen-eye-btn {
+    background: transparent;
+    border: none;
+    color: rgba(255, 255, 255, 0.7);
+    padding: 4px;
+    min-width: 0;
+    min-height: 0;
+}
+
+.lockscreen-eye-btn:hover {
+    color: #ffffff;
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.lockscreen-status {
+    font-size: 13px;
+    color: @col_error;
+    min-height: 20px;
+    margin-bottom: 4px;
 }
 
 @keyframes shake {
@@ -1582,19 +1643,24 @@ scale.quick-slider {
 }
 
 .lockscreen-unlock-btn {
-    background-color: @col_primary;
-    color: @col_on_primary;
+    background-color: rgba(255, 255, 255, 0.9);
+    color: #000000;
     border-radius: var(--radius-pill);
-    padding: 10px 32px;
+    padding: 10px 40px;
     font-size: 14px;
+    font-weight: 500;
     border: none;
-    margin-top: 12px;
+    margin-top: 8px;
     transition: background-color var(--duration-short3) var(--ease-emphasized-decel);
 }
 
 .lockscreen-unlock-btn:hover {
-    background-color: @col_primary_container;
-    color: @col_on_primary_container;
+    background-color: #ffffff;
+}
+
+.lockscreen-unlock-btn:disabled {
+    background-color: rgba(255, 255, 255, 0.3);
+    color: rgba(255, 255, 255, 0.5);
 }
 
 /* ── Settings panel ─────────────────────────────────────────────────────────── */
@@ -1712,6 +1778,21 @@ popover.menu list row:selected {
 .settings-dropdown > button > box > image {
     color: @col_on_surface_variant;
     margin-left: 8px;
+}
+
+.settings-spin-entry {
+    background-color: @col_surface_container;
+    border-radius: var(--radius-m);
+    color: @col_on_surface;
+    font-size: 14px;
+    padding: 6px 12px;
+    border: 1px solid @col_outline_variant;
+    min-width: 56px;
+}
+
+.settings-spin-entry:focus {
+    border-color: @col_primary;
+    box-shadow: 0 0 0 2px alpha(@col_primary, 0.2);
 }
 
 .settings-nav {
