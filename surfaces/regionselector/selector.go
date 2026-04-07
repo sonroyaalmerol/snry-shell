@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"time"
 
 	"github.com/diamondburned/gotk4/pkg/cairo"
@@ -104,7 +105,6 @@ func New(app *gtk.Application, b *bus.Bus) *RegionSelector {
 }
 
 func (rs *RegionSelector) capture(x1, y1, x2, y2 int) {
-	// Normalize coordinates.
 	if x1 > x2 {
 		x1, x2 = x2, x1
 	}
@@ -112,14 +112,31 @@ func (rs *RegionSelector) capture(x1, y1, x2, y2 int) {
 		y1, y2 = y2, y1
 	}
 
+	// Build geometry string and output path without any shell interpolation.
 	geom := fmt.Sprintf("%d,%d %dx%d", x1, y1, x2-x1, y2-y1)
-	path := fmt.Sprintf("%s/Pictures/Screenshots/%s.png",
-		os.ExpandEnv("$HOME"),
-		time.Now().Format("2006-01-02_15-04-05"))
+	dir := filepath.Join(os.Getenv("HOME"), "Pictures", "Screenshots")
+	path := filepath.Join(dir, time.Now().Format("2006-01-02_15-04-05")+".png")
 
 	go func() {
-		if err := exec.Command("sh", "-c", fmt.Sprintf("grim -g '%s' %s && wl-copy < %s", geom, path, path)).Run(); err != nil {
-			log.Printf("screenshot: %v", err)
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			log.Printf("screenshot: mkdir: %v", err)
+			return
+		}
+		// Pass arguments directly — no shell, no injection risk.
+		if err := exec.Command("grim", "-g", geom, path).Run(); err != nil {
+			log.Printf("screenshot: grim: %v", err)
+			return
+		}
+		f, err := os.Open(path)
+		if err != nil {
+			log.Printf("screenshot: open: %v", err)
+			return
+		}
+		defer f.Close()
+		cmd := exec.Command("wl-copy", "--type", "image/png")
+		cmd.Stdin = f
+		if err := cmd.Run(); err != nil {
+			log.Printf("screenshot: wl-copy: %v", err)
 		}
 	}()
 }
