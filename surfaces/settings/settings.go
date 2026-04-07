@@ -98,12 +98,12 @@ func (s *Settings) buildAppearancePage() gtk.Widgetter {
 	darkLabel.SetHExpand(true)
 	darkLabel.SetHAlign(gtk.AlignStart)
 
-	darkSwitch := gtk.NewSwitch()
+	darkSwitch := gtkutil.M3Switch()
 	darkSwitch.SetActive(s.cfg.DarkMode)
 	darkSwitch.ConnectStateSet(func(state bool) bool {
 		s.cfg.DarkMode = state
 		s.save()
-		return false
+		return true
 	})
 
 	darkRow.Append(darkLabel)

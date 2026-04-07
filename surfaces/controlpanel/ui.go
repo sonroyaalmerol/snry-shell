@@ -3,16 +3,22 @@ package controlpanel
 import (
 	"fmt"
 
+	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
+	"github.com/sonroyaalmerol/snry-shell/internal/gtkutil"
 	"github.com/sonroyaalmerol/snry-shell/internal/settings"
 )
 
 // controlPanel manages the control panel UI
 type controlPanel struct {
-	cfg       settings.Config
-	providers []ConfigProvider
-	stack     *gtk.Stack
-	navList   *gtk.ListBox
+	cfg            settings.Config
+	providers      []ConfigProvider
+	stack          *gtk.Stack
+	navList        *gtk.ListBox
+	sidebar        *gtk.Box
+	root           *gtk.Box
+	menuBtn        *gtk.Button
+	sidebarVisible bool
 }
 
 func newControlPanel(cfg settings.Config) *controlPanel {
@@ -33,18 +39,18 @@ func newControlPanel(cfg settings.Config) *controlPanel {
 
 func (cp *controlPanel) build() gtk.Widgetter {
 	// Main horizontal box: sidebar + content - use settings-panel style
-	root := gtk.NewBox(gtk.OrientationHorizontal, 0)
-	root.AddCSSClass("settings-panel")
-	root.SetVExpand(true)
-	root.SetHExpand(true)
+	cp.root = gtk.NewBox(gtk.OrientationHorizontal, 0)
+	cp.root.AddCSSClass("settings-panel")
+	cp.root.SetVExpand(true)
+	cp.root.SetHExpand(true)
 
 	// Build sidebar navigation - use settings-nav style
-	sidebar := cp.buildSidebar()
-	root.Append(sidebar)
+	cp.sidebar = cp.buildSidebar()
+	cp.root.Append(cp.sidebar)
 
 	// Build content area with stack - use settings-stack style
 	content := cp.buildContent()
-	root.Append(content)
+	cp.root.Append(content)
 
 	// Show first provider by default
 	cp.showProvider(0)
@@ -54,10 +60,72 @@ func (cp *controlPanel) build() gtk.Widgetter {
 		cp.navList.SelectRow(firstRow)
 	}
 
-	return root
+	// Set up responsive behavior
+	cp.setupResponsive()
+
+	return cp.root
 }
 
-func (cp *controlPanel) buildSidebar() gtk.Widgetter {
+func (cp *controlPanel) setupResponsive() {
+	// Watch for widget size changes
+	cp.root.ConnectMap(func() {
+		cp.updateSidebarVisibility()
+		cp.watchWindowSize()
+	})
+
+	// Also update on realize
+	cp.root.ConnectRealize(func() {
+		glib.IdleAdd(func() {
+			cp.updateSidebarVisibility()
+			cp.watchWindowSize()
+		})
+	})
+}
+
+func (cp *controlPanel) watchWindowSize() {
+	// Use a timeout to periodically check window size
+	// This is more reliable than resize events in GTK4
+	var lastWidth int
+	glib.TimeoutAdd(250, func() bool {
+		window := cp.root.Root()
+		if window == nil {
+			return true // Keep checking
+		}
+		w := window.AllocatedWidth()
+		if w != lastWidth {
+			lastWidth = w
+			cp.updateSidebarVisibility()
+		}
+		return true // Continue timer
+	})
+}
+
+func (cp *controlPanel) updateSidebarVisibility() {
+	// Get window width
+	window := cp.root.Root()
+	if window == nil {
+		return
+	}
+
+	w := window.AllocatedWidth()
+
+	// Breakpoint: auto-collapse sidebar when window is narrower than 700px
+	// Auto-expand when wider than 700px
+	if w < 700 {
+		cp.sidebar.SetVisible(false)
+		cp.sidebarVisible = false
+	} else if w >= 700 {
+		cp.sidebar.SetVisible(true)
+		cp.sidebarVisible = true
+	}
+}
+
+func (cp *controlPanel) toggleSidebar() {
+	cp.sidebarVisible = !cp.sidebarVisible
+	cp.sidebar.SetVisible(cp.sidebarVisible)
+}
+
+func (cp *controlPanel) buildSidebar() *gtk.Box {
 	// Use the existing settings-nav style from shell
 	sidebar := gtk.NewBox(gtk.OrientationVertical, 0)
 	sidebar.AddCSSClass("settings-nav")
@@ -91,6 +159,12 @@ func (cp *controlPanel) buildSidebar() gtk.Widgetter {
 		if row != nil {
 			idx := row.Index()
 			cp.showProvider(idx)
+			// Auto-hide sidebar on mobile when selecting an item
+			window := cp.root.Root()
+			if window != nil && window.AllocatedWidth() < 700 {
+				cp.sidebarVisible = false
+				cp.sidebar.SetVisible(false)
+			}
 		}
 	})
 
@@ -134,6 +208,29 @@ func (cp *controlPanel) buildContent() gtk.Widgetter {
 	content.AddCSSClass("settings-stack")
 	content.SetHExpand(true)
 	content.SetVExpand(true)
+
+	// Header with menu button for mobile
+	header := gtk.NewBox(gtk.OrientationHorizontal, 12)
+	header.SetMarginTop(16)
+	header.SetMarginBottom(16)
+	header.SetMarginStart(16)
+	header.SetMarginEnd(16)
+
+	// Menu button to toggle sidebar on mobile
+	cp.menuBtn = gtkutil.M3IconButton("menu", "settings-btn-small")
+	cp.menuBtn.SetTooltipText("Show menu")
+	cp.menuBtn.ConnectClicked(func() {
+		cp.toggleSidebar()
+	})
+	header.Append(cp.menuBtn)
+
+	// Title
+	title := gtk.NewLabel("Control Panel")
+	title.AddCSSClass("settings-title")
+	title.SetHAlign(gtk.AlignStart)
+	header.Append(title)
+
+	content.Append(header)
 
 	// Stack for switching between providers
 	cp.stack = gtk.NewStack()

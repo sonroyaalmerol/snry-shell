@@ -114,7 +114,7 @@ func NewWiFiWidget(b *bus.Bus, refs *servicerefs.ServiceRefs, parent *gtk.Applic
 func newWiFiRow(parent *gtk.ApplicationWindow, refs *servicerefs.ServiceRefs, net state.WiFiNetwork, rescan func()) gtk.Widgetter {
 	row := gtk.NewBox(gtk.OrientationHorizontal, 12)
 	row.AddCSSClass("conn-row")
-		row.SetCursorFromName("pointer")
+	row.SetCursorFromName("pointer")
 	if net.Connected {
 		row.AddCSSClass("conn-row-connected")
 	}
@@ -152,7 +152,7 @@ func newWiFiRow(parent *gtk.ApplicationWindow, refs *servicerefs.ServiceRefs, ne
 
 		setLoading := func() {
 			row.AddCSSClass("conn-row-loading")
-				row.SetSensitive(false)
+			row.SetSensitive(false)
 			gtkutil.ClearChildren(&meta.Widget, meta.Remove)
 			meta.Append(gtkutil.M3Spinner())
 		}
@@ -168,37 +168,36 @@ func newWiFiRow(parent *gtk.ApplicationWindow, refs *servicerefs.ServiceRefs, ne
 						{Label: "Disconnect", OnClick: func() {
 							setLoading()
 							go func() {
-						if err := refs.Network.DisconnectWiFi(); err != nil {
-							glib.IdleAdd(func() { gtkutil.ErrorDialog(parent, "Disconnect failed", err.Error()) })
-						}
-						rescan()
-					}()
+								if err := refs.Network.DisconnectWiFi(); err != nil {
+									glib.IdleAdd(func() { gtkutil.ErrorDialog(parent, "Disconnect failed", err.Error()) })
+								}
+								rescan()
+							}()
 						}},
 						{Label: "Forget", CSSClass: "m3-dialog-btn-error", OnClick: func() {
 							setLoading()
 							go func() {
-						if err := refs.Network.ForgetWiFi(ssid); err != nil {
-							glib.IdleAdd(func() { gtkutil.ErrorDialog(parent, "Forget failed", err.Error()) })
-						}
-						rescan()
-					}()
+								if err := refs.Network.ForgetWiFi(ssid); err != nil {
+									glib.IdleAdd(func() { gtkutil.ErrorDialog(parent, "Forget failed", err.Error()) })
+								}
+								rescan()
+							}()
 						}},
 					},
 				)
 			case saved:
 				setLoading()
 				go func() {
-				if err := refs.Network.ConnectWiFi(ssid); err != nil {
-					glib.IdleAdd(func() { gtkutil.ErrorDialog(parent, "Connection failed", err.Error()) })
-				}
-				rescan()
-			}()
+					if err := refs.Network.ConnectWiFi(ssid); err != nil {
+						glib.IdleAdd(func() { gtkutil.ErrorDialog(parent, "Connection failed", err.Error()) })
+					}
+					rescan()
+				}()
 			case security != "":
 				gtkutil.PasswordDialog(
 					parent,
 					"Connect to network",
 					ssid,
-					"Password",
 					func(password string) {
 						setLoading()
 						go func() {
@@ -212,11 +211,11 @@ func newWiFiRow(parent *gtk.ApplicationWindow, refs *servicerefs.ServiceRefs, ne
 			default:
 				setLoading()
 				go func() {
-				if err := refs.Network.ConnectWithPassword(ssid, ""); err != nil {
-					glib.IdleAdd(func() { gtkutil.ErrorDialog(parent, "Connection failed", err.Error()) })
-				}
-				rescan()
-			}()
+					if err := refs.Network.ConnectWithPassword(ssid, ""); err != nil {
+						glib.IdleAdd(func() { gtkutil.ErrorDialog(parent, "Connection failed", err.Error()) })
+					}
+					rescan()
+				}()
 			}
 		})
 	}

@@ -840,7 +840,6 @@ scale.m3-scale slider {
     font-size: 12px;
     font-weight: 500;
     color: @col_on_surface;
-    text-align: center;
 }
 
 /* Active/pressed state - Material 3 state layer */
@@ -858,7 +857,6 @@ scale.m3-scale slider {
 .appdrawer-empty {
     font-size: 14px;
     color: @col_on_surface_variant;
-    text-align: center;
     padding: 48px 24px;
 }
 
@@ -1034,7 +1032,6 @@ scale.osd-slider {
     padding: 16px 20px;
     margin-bottom: 8px;
     min-width: 320px;
-    max-width: 400px;
     box-shadow: var(--elevation-3);
     border-left: none;
     transition: transform var(--duration-short3) var(--ease-standard-decel);
@@ -1463,35 +1460,84 @@ scale.quick-slider {
 
 /* ── M3 Switch ─────────────────────────────────────────────────────────────── */
 
+/* Material 3 Switch - Track dimensions: 52x32dp, Thumb: 24x24dp */
+/* Material 3 Switch - Uses GTK4 default sizing with M3 colors */
+/* GTK4 switches have fixed internal geometry that cannot be overridden via CSS */
 .m3-switch {
     font-size: 0;
-    min-width: 48px;
-    min-height: 28px;
-    border-radius: var(--radius-pill);
-    background-color: alpha(@col_on_surface, 0.38);
+    /* GTK4 switch has fixed size, we just style the colors */
+    background-color: transparent;
+    border: none;
+    border-radius: 9999px;
+    /* Track styling via background-image for the empty track */
+    background-image: none;
+    box-shadow: inset 0 0 0 2px alpha(@col_outline, 0.5);
+    transition: box-shadow var(--duration-short4) var(--ease-standard-decel);
+}
+
+/* The slider/handle - GTK4 draws this internally */
+.m3-switch > slider {
+    background-color: @col_outline;
+    border-radius: 9999px;
+    border: none;
+    min-width: 16px;
+    min-height: 16px;
+    margin: 2px;
+    box-shadow: 0 1px 2px alpha(@col_shadow, 0.3);
     transition: background-color var(--duration-short4) var(--ease-standard-decel);
 }
 
-.m3-switch > slider {
-    min-width: 16px;
-    min-height: 16px;
-    border-radius: var(--radius-full);
-    border: none;
-    box-shadow: none;
-    margin: 6px;
-    background-color: @col_surface;
-    transition: all var(--duration-medium1) var(--ease-emphasized-decel);
-}
-
+/* Checked state - M3 primary color */
 .m3-switch:checked {
     background-color: @col_primary;
+    box-shadow: none;
 }
 
 .m3-switch:checked > slider {
     background-color: @col_on_primary;
 }
 
+/* Hover states */
+.m3-switch:hover {
+    box-shadow: inset 0 0 0 2px alpha(@col_on_surface, 0.6);
+}
+
+.m3-switch:hover > slider {
+    background-color: alpha(@col_on_surface_variant, 0.9);
+}
+
+.m3-switch:checked:hover {
+    background-color: alpha(@col_primary, 0.9);
+    box-shadow: none;
+}
+
+.m3-switch:checked:hover > slider {
+    background-color: @col_on_primary;
+}
+
+/* Disabled state */
 .m3-switch:disabled {
+    opacity: 0.38;
+}
+
+.m3-switch:disabled > slider {
+    opacity: 0.38;
+}
+
+/* ── M3 Custom Switch (GTK-independent implementation) ───────────────────────── */
+
+/* Custom Material 3 Switch Widget - 52x32dp track with 24x24dp circular thumb */
+.m3-custom-switch {
+    min-width: 52px;
+    min-height: 32px;
+    background-color: transparent;
+}
+
+.m3-custom-switch-track {
+    border-radius: 9999px;
+}
+
+.m3-custom-switch.disabled {
     opacity: 0.38;
 }
 
@@ -2148,8 +2194,8 @@ popover.menu list row:selected {
     border: 1px solid alpha(@col_outline, 0.2);
 }
 
-/* Material 3 Outlined Text Fields */
-.m3-outlined-field {
+/* Material 3 Outlined Text Fields - Legacy/compat */
+.m3-outlined-field-legacy {
     background-color: transparent;
     border: 1px solid alpha(@col_outline, 0.6);
     border-radius: var(--radius-sm);
@@ -2157,23 +2203,23 @@ popover.menu list row:selected {
     margin-top: 4px;
 }
 
-.m3-outlined-field:focus-within {
+.m3-outlined-field-legacy:focus-within {
     border-color: @col_primary;
     border-width: 2px;
     padding: 7px 15px;
 }
 
-.m3-field-label {
+.m3-field-label-legacy {
     font-size: var(--typescale-body-sm);
     color: alpha(@col_on_surface, 0.6);
     margin-bottom: 4px;
 }
 
-.m3-outlined-field:focus-within .m3-field-label {
+.m3-outlined-field-legacy:focus-within .m3-field-label-legacy {
     color: @col_primary;
 }
 
-.m3-outlined-input {
+.m3-outlined-input-legacy {
     background-color: transparent;
     border: none;
     color: @col_on_surface;
@@ -2252,6 +2298,146 @@ popover.menu list row:selected {
     color: @col_on_surface;
 }
 
+/* ── Material 3 Custom Form Components ─────────────────────────────────────── */
+
+/* Material 3 Outlined Text Field - Consistent with dropdown */
+.m3-outlined-field {
+    /* Container */
+}
+
+.m3-outlined-field .m3-outlined-input-border {
+    background-color: @col_surface_container;
+    border: 1px solid alpha(@col_outline, 0.6);
+    border-radius: var(--radius-md);
+    padding: 12px 16px;
+}
+
+.m3-outlined-field.focused .m3-outlined-input-border {
+    border-color: @col_primary;
+    border-width: 2px;
+    padding: 11px 15px;
+}
+
+.m3-outlined-field .m3-outlined-input {
+    background-color: transparent;
+    border: none;
+    color: @col_on_surface;
+    font-size: var(--typescale-body-lg);
+    outline: none;
+}
+
+.m3-outlined-field .m3-outlined-input:focus {
+    outline: none;
+}
+
+.m3-outlined-field:disabled,
+.m3-outlined-field.disabled {
+    opacity: 0.38;
+}
+
+/* Label container */
+.m3-outlined-field .m3-field-label-container {
+    margin-bottom: -11px;
+    margin-left: 12px;
+}
+
+/* The label */
+.m3-outlined-field .m3-field-label {
+    font-size: 16px;
+    color: alpha(@col_on_surface, 0.6);
+    transition: all 200ms ease;
+    padding: 0 4px;
+    background-color: transparent;
+}
+
+/* Floating label */
+.m3-outlined-field .m3-field-label.floating {
+    font-size: 12px;
+    color: @col_primary;
+    background-color: @col_surface;
+}
+
+.m3-outlined-field.has-value .m3-field-label.floating {
+    color: alpha(@col_on_surface, 0.6);
+}
+
+.m3-outlined-field.focused .m3-field-label.floating {
+    color: @col_primary;
+}
+
+/* Clean up old label styles - GTK4 doesn't support display:none, so we hide via opacity/size */
+.m3-outlined-field .m3-field-label-container,
+.m3-outlined-field .m3-field-label {
+    opacity: 0;
+    font-size: 0;
+}
+
+/* Material 3 Dropdown - Uses GTK4 DropDown with custom styling */
+.m3-dropdown {
+    background-color: @col_surface_container;
+    border: 1px solid alpha(@col_outline, 0.6);
+    border-radius: var(--radius-md);
+    padding: 12px;
+}
+
+.m3-dropdown:hover {
+    border-color: alpha(@col_on_surface, 0.8);
+}
+
+.m3-dropdown:focus-within {
+    border-color: @col_primary;
+    border-width: 2px;
+}
+
+.m3-dropdown:disabled {
+    opacity: 0.38;
+}
+
+/* Number Field */
+.m3-number-field {
+    background-color: @col_surface_container;
+    border: 1px solid alpha(@col_outline, 0.6);
+    border-radius: var(--radius-md);
+    min-height: 48px;
+    padding: 0 8px;
+}
+
+.m3-number-field-btn {
+    background-color: transparent;
+    border: none;
+    border-radius: var(--radius-full);
+    min-width: 40px;
+    min-height: 40px;
+    color: @col_primary;
+    font-size: 20px;
+    font-weight: 600;
+}
+
+.m3-number-field-btn:hover {
+    background-color: alpha(@col_primary, var(--state-hover));
+}
+
+.m3-number-field-btn:active {
+    background-color: alpha(@col_primary, var(--state-press));
+}
+
+.m3-number-field-btn:disabled {
+    opacity: 0.38;
+}
+
+.m3-number-field-input {
+    background-color: transparent;
+    border: none;
+    color: @col_on_surface;
+    font-size: var(--typescale-body-lg);
+    font-weight: 500;
+    outline: none;
+}
+
+.m3-number-field-input:focus {
+    outline: none;
+}
+
 /* Material 3 Assist Chip */
 .m3-assist-chip {
     background-color: @col_surface_container;
@@ -2269,29 +2455,67 @@ popover.menu list row:selected {
     border: 1px solid alpha(@col_outline, 0.2);
 }
 
+/* Material 3 Switch - Uses GTK4 default sizing with M3 colors */
+/* GTK4 switches have fixed internal geometry that cannot be overridden via CSS */
 .m3-switch {
-    background-color: alpha(@col_surface_variant, 0.8);
-    border-radius: var(--radius-pill);
-    min-width: 52px;
-    min-height: 32px;
+    font-size: 0;
+    /* GTK4 switch has fixed size, we just style the colors */
+    background-color: transparent;
+    border: none;
+    border-radius: 9999px;
+    /* Track styling via background-image for the empty track */
+    background-image: none;
+    box-shadow: inset 0 0 0 2px alpha(@col_outline, 0.5);
+    transition: box-shadow var(--duration-short4) var(--ease-standard-decel);
 }
 
+/* The slider/handle - GTK4 draws this internally */
 .m3-switch > slider {
-    background-color: @col_surface;
-    border-radius: var(--radius-pill);
-    min-width: 24px;
-    min-height: 24px;
-    margin: 4px;
-    box-shadow: 0 2px 4px alpha(@col_shadow, 0.2);
+    background-color: @col_outline;
+    border-radius: 9999px;
+    border: none;
+    min-width: 16px;
+    min-height: 16px;
+    margin: 2px;
+    box-shadow: 0 1px 2px alpha(@col_shadow, 0.3);
+    transition: background-color var(--duration-short4) var(--ease-standard-decel);
 }
 
+/* Checked state - M3 primary color */
 .m3-switch:checked {
     background-color: @col_primary;
+    box-shadow: none;
 }
 
 .m3-switch:checked > slider {
     background-color: @col_on_primary;
-    margin-left: 24px;
+}
+
+/* Hover states */
+.m3-switch:hover {
+    box-shadow: inset 0 0 0 2px alpha(@col_on_surface, 0.6);
+}
+
+.m3-switch:hover > slider {
+    background-color: alpha(@col_on_surface_variant, 0.9);
+}
+
+.m3-switch:checked:hover {
+    background-color: alpha(@col_primary, 0.9);
+    box-shadow: none;
+}
+
+.m3-switch:checked:hover > slider {
+    background-color: @col_on_primary;
+}
+
+/* Disabled state */
+.m3-switch:disabled {
+    opacity: 0.38;
+}
+
+.m3-switch:disabled > slider {
+    opacity: 0.38;
 }
 
 .settings-nav {

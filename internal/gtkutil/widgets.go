@@ -2,7 +2,6 @@ package gtkutil
 
 import (
 	"fmt"
-	"strconv"
 
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
@@ -177,20 +176,24 @@ func M3ProgressBar(classes ...string) *gtk.ProgressBar {
 
 // ── Text fields ───────────────────────────────────────────────────────────────
 
-// M3TextField creates a single-line text entry with the M3 filled text field
-// style (underline border). Returns the container box and the entry widget.
-func M3TextField(placeholder string, classes ...string) (*gtk.Box, *gtk.Entry) {
-	box := gtk.NewBox(gtk.OrientationVertical, 0)
-	box.AddCSSClass("m3-outlined-field")
+// M3TextField creates a single-line text entry with the M3 outlined text field style.
+// Returns the field widget and the entry widget.
+func M3TextField(classes ...string) (*M3OutlinedTextField, *gtk.Entry) {
+	field := NewM3OutlinedTextField()
 	for _, c := range classes {
-		box.AddCSSClass(c)
+		field.AddCSSClass(c)
 	}
-	entry := gtk.NewEntry()
-	entry.AddCSSClass("m3-outlined-input")
-	entry.SetPlaceholderText(placeholder)
-	entry.SetHExpand(true)
-	box.Append(entry)
-	return box, entry
+	return field, field.Entry()
+}
+
+// M3PasswordField creates a password entry with the M3 outlined text field style.
+// Returns the field widget and the entry widget.
+func M3PasswordField(classes ...string) (*M3OutlinedTextField, *gtk.Entry) {
+	field := NewM3OutlinedPasswordField()
+	for _, c := range classes {
+		field.AddCSSClass(c)
+	}
+	return field, field.Entry()
 }
 
 // ── Composite helpers ─────────────────────────────────────────────────────────
@@ -310,14 +313,14 @@ func LabeledRow(title, subtitle string, control gtk.Widgetter, classes ...string
 
 // SwitchRowFull creates a LabeledRow with an M3 switch, wiring up the callback
 // and returning the row so callers can subscribe to state updates.
-func SwitchRowFull(title, subtitle string, active bool, onChange func(bool)) (*gtk.Box, *gtk.Switch) {
+func SwitchRowFull(title, subtitle string, active bool, onChange func(bool)) (*gtk.Box, *M3CustomSwitch) {
 	sw := M3Switch()
 	sw.SetActive(active)
 	sw.ConnectStateSet(func(state bool) bool {
 		if onChange != nil {
 			onChange(state)
 		}
-		return false
+		return true
 	})
 	row := LabeledRow(title, subtitle, sw)
 	return row, sw
@@ -327,19 +330,15 @@ func SwitchRowFull(title, subtitle string, active bool, onChange func(bool)) (*g
 // list of string values; current is the initially-selected value. onChange is
 // called whenever the selection changes.
 func DropdownRow(title, subtitle string, options []string, current string, onChange func(string)) *gtk.Box {
-	dropdown := gtk.NewDropDownFromStrings(options)
-	dropdown.AddCSSClass("settings-dropdown")
-	dropdown.SetCursorFromName("pointer")
-
+	dropdown := NewM3Dropdown(options)
 	for i, opt := range options {
 		if opt == current {
-			dropdown.SetSelected(uint(i))
+			dropdown.SetSelected(i)
 			break
 		}
 	}
-	dropdown.Connect("notify::selected", func() {
-		idx := dropdown.Selected()
-		if int(idx) < len(options) && onChange != nil {
+	dropdown.ConnectSelected(func(idx int) {
+		if idx >= 0 && idx < len(options) && onChange != nil {
 			onChange(options[idx])
 		}
 	})
@@ -347,37 +346,17 @@ func DropdownRow(title, subtitle string, options []string, current string, onCha
 	return LabeledRow(title, subtitle, dropdown)
 }
 
-// SpinRow creates a LabeledRow with a text entry that accepts an integer in
-// [min, max]. The callback fires on Enter or focus-out. Invalid/out-of-range
-// input reverts the entry to the last valid value.
+// SpinRow creates a LabeledRow with a number field that accepts an integer in
+// [min, max]. The callback fires on value change.
 func SpinRow(title, subtitle string, min, max, current int, onChange func(int)) *gtk.Box {
-	cur := current
-	entry := gtk.NewEntry()
-	entry.AddCSSClass("settings-spin-entry")
-	entry.SetText(fmt.Sprintf("%d", cur))
-	entry.SetMaxWidthChars(4)
-	entry.SetHAlign(gtk.AlignEnd)
-
-	apply := func() {
-		v, err := strconv.Atoi(entry.Text())
-		if err != nil || v < min || v > max {
-			entry.SetText(fmt.Sprintf("%d", cur))
-			return
+	numberField := NewM3NumberField(min, max, current)
+	numberField.ConnectChanged(func(value int) {
+		if onChange != nil {
+			onChange(value)
 		}
-		if v != cur {
-			cur = v
-			if onChange != nil {
-				onChange(v)
-			}
-		}
-	}
+	})
 
-	entry.ConnectActivate(apply)
-	focusCtrl := gtk.NewEventControllerFocus()
-	focusCtrl.ConnectLeave(apply)
-	entry.AddController(focusCtrl)
-
-	return LabeledRow(title, subtitle, entry)
+	return LabeledRow(title, subtitle, numberField)
 }
 
 // SettingsSection builds a titled section with a "system-controls" card
@@ -410,25 +389,26 @@ func SettingsSection(title string, children ...gtk.Widgetter) *gtk.Box {
 // PasswordEntry creates an entry pre-configured for password input: hidden by
 // default, with a trailing eye-toggle button to show/hide the value.
 // onSubmit is called when the user presses Enter (may be nil).
-func PasswordEntry(placeholder string, onSubmit func(string)) (*gtk.Box, *gtk.Entry) {
-	box := gtk.NewBox(gtk.OrientationHorizontal, 0)
-	box.AddCSSClass("m3-password-box")
+func PasswordEntry(onSubmit func(string)) (*gtk.Box, *gtk.Entry) {
+	// Create the M3 outlined password field
+	field := NewM3OutlinedPasswordField()
 
-	entry := gtk.NewEntry()
-	entry.AddCSSClass("m3-password-entry")
-	entry.SetPlaceholderText(placeholder)
-	entry.SetVisibility(false)
-	entry.SetHExpand(true)
-
+	// Add eye toggle button
 	eyeBtn := MaterialButton("visibility_off")
 	eyeBtn.AddCSSClass("m3-password-eye")
-	AddPasswordToggle(entry, eyeBtn)
+	eyeBtn.SetVAlign(gtk.AlignCenter)
+	AddPasswordToggle(field.Entry(), eyeBtn)
+
+	// Create a box to hold the field and button
+	box := gtk.NewBox(gtk.OrientationHorizontal, 8)
+	box.SetHExpand(true)
+	field.SetHExpand(true)
+	box.Append(field)
+	box.Append(eyeBtn)
 
 	if onSubmit != nil {
-		entry.ConnectActivate(func() { onSubmit(entry.Text()) })
+		field.ConnectActivate(func(text string) { onSubmit(text) })
 	}
 
-	box.Append(entry)
-	box.Append(eyeBtn)
-	return box, entry
+	return box, field.Entry()
 }

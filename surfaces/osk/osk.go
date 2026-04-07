@@ -188,10 +188,9 @@ func New(app *gtk.Application, b *bus.Bus) *OSK {
 			glib.IdleAdd(func() {
 				osk.screenLocked = ls.Locked
 				if ls.Locked {
-					// Hide OSK when screen locks - user must manually open it
-					// This prevents focus wars with password field
+					// Hide OSK when screen locks
 					osk.hide()
-					log.Printf("[OSK] screen locked, hidden (use bar button to show)")
+					log.Printf("[OSK] screen locked (use bar button to show)")
 				} else {
 					// Screen unlocked - restore normal behavior
 					log.Printf("[OSK] screen unlocked, auto-show restored")
@@ -265,8 +264,11 @@ func (o *OSK) scheduleFocusUpdate(want bool) {
 
 func (o *OSK) show() {
 	o.win.SetVisible(true)
-	o.win.Present()
 	o.visible = true
+	// Always raise to top when showing, especially important when lock screen is active
+	glib.IdleAdd(func() {
+		o.win.PresentWithTime(uint32(glib.GetMonotonicTime() / 1000))
+	})
 }
 
 func (o *OSK) hide() {

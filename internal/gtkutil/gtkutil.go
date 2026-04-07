@@ -91,23 +91,24 @@ func M3Divider() *gtk.Separator {
 }
 
 // M3Switch creates a Material Design 3 styled switch toggle.
-func M3Switch() *gtk.Switch {
-	s := gtk.NewSwitch()
-	s.AddCSSClass("m3-switch")
-	return s
+// This uses a custom widget with exact Material 3 dimensions (52x32dp track, 24x24dp thumb).
+func M3Switch() *M3CustomSwitch {
+	return NewM3CustomSwitch()
 }
 
 // SwitchRow creates a labeled row with an M3 switch on the trailing side.
 // Prefer SwitchRowFull from widgets.go for new code — it supports a subtitle
 // and wires the callback automatically.
-func SwitchRow(label string, sw *gtk.Switch) *gtk.Box {
+func SwitchRow(label string, sw *M3CustomSwitch) *gtk.Box {
 	return LabeledRow(label, "", sw)
 }
 
 // newDialogBase creates the shared layer-shell overlay window, scrim, card, and
 // title label used by all M3 dialog types. Returns (win, card, close).
 func newDialogBase(parent *gtk.ApplicationWindow, title string) (*gtk.ApplicationWindow, *gtk.Box, func()) {
-	win := surfaceutil.NewFullscreenOverlay(parent.Application(), "snry-m3-dialog", layershell.KeyboardModeOnDemand)
+	// Use KeyboardModeExclusive so the dialog captures all input
+	// This ensures clicks on other shell surfaces (like the bar) dismiss the dialog
+	win := surfaceutil.NewFullscreenOverlay(parent.Application(), "snry-m3-dialog", layershell.KeyboardModeExclusive)
 
 	close := func() { win.SetVisible(false) }
 
@@ -243,7 +244,7 @@ func AddPasswordToggle(entry *gtk.Entry, btn *gtk.Button) {
 
 // PasswordDialog shows an M3-styled dialog with a password entry field as a
 // layer-shell overlay.
-func PasswordDialog(parent *gtk.ApplicationWindow, title, message, placeholder string, onConfirm func(password string)) {
+func PasswordDialog(parent *gtk.ApplicationWindow, title, message string, onConfirm func(password string)) {
 	win, card, close := newDialogBase(parent, title)
 
 	if message != "" {
@@ -254,7 +255,7 @@ func PasswordDialog(parent *gtk.ApplicationWindow, title, message, placeholder s
 		card.Append(msgLabel)
 	}
 
-	pwdBox, entry := PasswordEntry(placeholder, nil)
+	pwdBox, entry := PasswordEntry(nil)
 	card.Append(pwdBox)
 
 	btnBox := gtk.NewBox(gtk.OrientationHorizontal, 8)
