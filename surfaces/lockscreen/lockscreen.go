@@ -428,6 +428,7 @@ func (ls *LockScreen) resetAuth() {
 
 // authenticate checks the given password against the system password database.
 // It tries multiple methods: unix_chkpwd (PAM), then su fallback.
+// On success, it also unlocks the default keyring with the same password.
 func authenticate(password string) error {
 	username := currentUser()
 	log.Printf("[LOCKSCREEN] attempting authentication for user %q", username)
@@ -435,6 +436,8 @@ func authenticate(password string) error {
 	// Try unix_chkpwd first (standard PAM helper)
 	if err := authenticateWithUnixChkpwd(username, password); err == nil {
 		log.Printf("[LOCKSCREEN] unix_chkpwd authentication succeeded for %q", username)
+		// Unlock keyring with the same password
+		go unlockKeyring(password)
 		return nil
 	} else {
 		log.Printf("[LOCKSCREEN] unix_chkpwd failed: %v", err)
@@ -443,6 +446,8 @@ func authenticate(password string) error {
 	// Fallback to su method
 	if err := authenticateWithSu(username, password); err == nil {
 		log.Printf("[LOCKSCREEN] su authentication succeeded for %q", username)
+		// Unlock keyring with the same password
+		go unlockKeyring(password)
 		return nil
 	} else {
 		log.Printf("[LOCKSCREEN] su failed: %v", err)
@@ -490,6 +495,39 @@ func authenticateWithSu(username, password string) error {
 		return fmt.Errorf("su auth failed: %w", err)
 	}
 	return nil
+}
+
+// unlockKeyring attempts to unlock the default keyring using the provided password.
+// It supports GNOME Keyring and other Secret Service implementations.
+func unlockKeyring(password string) {
+	// Try to unlock via secret-tool (libsecret CLI)
+	// This works with GNOME Keyring and other Secret Service providers
+	cmd := exec.Command("secret-tool", "store", "--label=snry-shell", "service", "snry-shell")
+	cmd.Stdin = strings.NewReader(password)
+	if err := cmd.Run(); err == nil {
+		// Clean up the test entry
+		exec.Command("secret-tool", "clear", "service", "snry-shell").Run()
+		log.Printf("[LOCKSCREEN] keyring unlocked successfully")
+		return
+	}
+
+	// Fallback: try gnome-keyring-daemon unlock
+	cmd = exec.Command("gnome-keyring-daemon", "--unlock")
+	cmd.Stdin = strings.NewReader(password + "\n")
+	if err := cmd.Run(); err == nil {
+		log.Printf("[LOCKSCREEN] GNOME keyring unlocked via daemon")
+		return
+	}
+
+	// Try dbus-send method for GNOME Keyring
+	cmd = exec.Command("dbus-send", "--session", "--dest=org.gnome.keyring", "--type=method_call",
+		"/org/gnome/keyring/daemon", "org.gnome.keyringDaemon.Unlock", "string:"+password)
+	if err := cmd.Run(); err == nil {
+		log.Printf("[LOCKSCREEN] GNOME keyring unlocked via D-Bus")
+		return
+	}
+
+	log.Printf("[LOCKSCREEN] could not unlock keyring (may not be running or not supported)")
 }
 
 func currentUser() string {
