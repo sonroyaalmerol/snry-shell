@@ -11,6 +11,8 @@ import (
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/godbus/dbus/v5"
+	"time"
+
 	"github.com/sonroyaalmerol/snry-shell/assets"
 	"github.com/sonroyaalmerol/snry-shell/internal/bus"
 	"github.com/sonroyaalmerol/snry-shell/internal/controlsocket"
@@ -27,6 +29,7 @@ import (
 	"github.com/sonroyaalmerol/snry-shell/internal/services/mpris"
 	"github.com/sonroyaalmerol/snry-shell/internal/services/network"
 	"github.com/sonroyaalmerol/snry-shell/internal/services/nightmode"
+	"github.com/sonroyaalmerol/snry-shell/internal/services/idle"
 	"github.com/sonroyaalmerol/snry-shell/internal/services/notifications"
 	"github.com/sonroyaalmerol/snry-shell/internal/services/pomodoro"
 	"github.com/sonroyaalmerol/snry-shell/internal/services/resources"
@@ -34,6 +37,7 @@ import (
 	"github.com/sonroyaalmerol/snry-shell/internal/services/todo"
 	"github.com/sonroyaalmerol/snry-shell/internal/services/upower"
 	shellsettings "github.com/sonroyaalmerol/snry-shell/internal/settings"
+	"github.com/sonroyaalmerol/snry-shell/internal/state"
 	"github.com/sonroyaalmerol/snry-shell/internal/theme"
 	"github.com/sonroyaalmerol/snry-shell/surfaces/bar"
 	"github.com/sonroyaalmerol/snry-shell/surfaces/cheatsheet"
@@ -137,6 +141,31 @@ func Run() int {
 
 	// Clipboard watcher.
 	go serviceclipboard.NewWithDefaults(b).Run(ctx)
+
+	// Idle service — replaces hypridle.
+	idleCfg := idle.Config{
+		LockTimeout:    idleDuration(cfg.IdleLockTimeout),
+		SuspendTimeout: idleDuration(cfg.IdleSuspendTimeout),
+	}
+	idleSvc := idle.New(b, sysConn, idleCfg)
+	go idleSvc.Run(ctx)
+
+	// Update idle config when settings change.
+	b.Subscribe(bus.TopicSettingsChanged, func(e bus.Event) {
+		if newCfg, ok := e.Data.(shellsettings.Config); ok {
+			idleSvc.UpdateConfig(idle.Config{
+				LockTimeout:    idleDuration(newCfg.IdleLockTimeout),
+				SuspendTimeout: idleDuration(newCfg.IdleSuspendTimeout),
+			})
+		}
+	})
+
+	// toggle-lock command from CLI or keybind.
+	b.Subscribe(bus.TopicSystemControls, func(e bus.Event) {
+		if e.Data == "toggle-lock" {
+			b.Publish(bus.TopicScreenLock, state.LockScreenState{Locked: true})
+		}
+	})
 
 	// Theme generator and wallpaper monitor.
 	themeMonitor := theme.NewMonitor(b)
@@ -299,6 +328,15 @@ func Run() int {
 	defer controlsocket.Close(sockLn)
 
 	return app.Run(os.Args)
+}
+
+// idleDuration converts an integer seconds value from settings to a
+// time.Duration. Zero means disabled (returns 0).
+func idleDuration(seconds int) time.Duration {
+	if seconds <= 0 {
+		return 0
+	}
+	return time.Duration(seconds) * time.Second
 }
 
 // loadThemeCSS loads the dynamic theme CSS if it exists
