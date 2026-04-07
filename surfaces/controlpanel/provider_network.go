@@ -357,6 +357,7 @@ func (n *nmConfigProvider) buildConnectionsSection() gtk.Widgetter {
 }
 
 func (n *nmConfigProvider) buildConnectionRow(conn state.NMConnection) gtk.Widgetter {
+	log.Printf("[CONTROLPANEL] Building connection row for: %s", conn.Name)
 	row := gtk.NewBox(gtk.OrientationVertical, 0)
 	row.SetMarginStart(16)
 	row.SetMarginEnd(16)
@@ -408,6 +409,8 @@ func (n *nmConfigProvider) buildConnectionRow(conn state.NMConnection) gtk.Widge
 
 	autoconnectSwitch := gtk.NewSwitch()
 	autoconnectSwitch.SetActive(conn.Autoconnect)
+	autoconnectSwitch.SetSensitive(true)
+	autoconnectSwitch.SetCanTarget(true)
 	autoconnectSwitch.ConnectStateSet(func(state bool) bool {
 		log.Printf("[CONTROLPANEL] Autoconnect toggle changed for %s: %v", conn.Name, state)
 		if n.nmService == nil {
@@ -436,9 +439,15 @@ func (n *nmConfigProvider) buildConnectionRow(conn state.NMConnection) gtk.Widge
 	})
 	actionsRow.Append(editBtn)
 
-	// Delete button
-	deleteBtn := gtkutil.M3IconButton("delete", "settings-btn-small")
+	// Delete button - make it more visible/obvious
+	deleteBtn := gtk.NewButton()
+	deleteBtn.AddCSSClass("m3-icon-btn")
+	deleteBtn.AddCSSClass("settings-btn-small")
 	deleteBtn.SetTooltipText("Delete connection")
+	deleteIcon := gtkutil.MaterialIcon("delete")
+	deleteBtn.SetChild(deleteIcon)
+	deleteBtn.SetCursorFromName("pointer")
+	deleteBtn.SetSensitive(true)
 	deleteBtn.ConnectClicked(func() {
 		log.Printf("[CONTROLPANEL] Delete button clicked for connection: %s (path: %s)", conn.Name, conn.Path)
 		if n.nmService == nil {
