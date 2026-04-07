@@ -5,8 +5,9 @@ import (
 	"log"
 
 	"github.com/rajveermalviya/go-wayland/wayland/client"
-	protocol "github.com/sonroyaalmerol/snry-shell/internal/inputmethod/protocol"
 	"github.com/sonroyaalmerol/snry-shell/internal/bus"
+	protocol "github.com/sonroyaalmerol/snry-shell/internal/inputmethod/protocol"
+	"github.com/sonroyaalmerol/snry-shell/internal/waylandutil"
 )
 
 // Watcher monitors zwp_input_method_v2 activate/deactivate events on the
@@ -46,7 +47,6 @@ func New(b *bus.Bus) (*Watcher, error) {
 		imManagerVer  uint32
 		seatName      uint32
 		seatVer       uint32
-		found         int
 	)
 
 	registry.SetGlobalHandler(func(e client.RegistryGlobalEvent) {
@@ -54,22 +54,22 @@ func New(b *bus.Bus) (*Watcher, error) {
 		case imInterfaceName:
 			imManagerName = e.Name
 			imManagerVer = e.Version
-			found++
 		case seatInterface:
-			seatName = e.Name
-			seatVer = e.Version
-			found++
+			if seatName == 0 {
+				seatName = e.Name
+				seatVer = e.Version
+			}
 		}
 	})
 
 	// Round-trip to receive global events.
-	if err := roundtrip(display); err != nil {
+	if err := waylandutil.Roundtrip(display); err != nil {
 		log.Printf("[IM] registry round-trip failed: %v", err)
 		display.Destroy()
 		return nil, nil
 	}
 
-	if found < 2 {
+	if imManagerName == 0 || seatName == 0 {
 		if imManagerName == 0 {
 			log.Printf("[IM] %s not advertised by compositor", imInterfaceName)
 		}
@@ -80,17 +80,24 @@ func New(b *bus.Bus) (*Watcher, error) {
 		return nil, nil
 	}
 
-	// Bind the input method manager and seat.
+	// Bind the input method manager and seat using the FixedBind workaround.
 	manager := protocol.NewInputMethodManager(display.Context())
-	if err := registry.Bind(imManagerName, imInterfaceName, min(imManagerVer, imVersion), manager); err != nil {
+	if err := waylandutil.FixedBind(registry, imManagerName, imInterfaceName, min(imManagerVer, imVersion), manager); err != nil {
 		log.Printf("[IM] bind %s failed: %v", imInterfaceName, err)
 		display.Destroy()
 		return nil, nil
 	}
 
 	seat := client.NewSeat(display.Context())
-	if err := registry.Bind(seatName, seatInterface, min(seatVer, seatVersion), seat); err != nil {
+	if err := waylandutil.FixedBind(registry, seatName, seatInterface, min(seatVer, seatVersion), seat); err != nil {
 		log.Printf("[IM] bind %s failed: %v", seatInterface, err)
+		display.Destroy()
+		return nil, nil
+	}
+
+	// Wait for Binds to process.
+	if err := waylandutil.Roundtrip(display); err != nil {
+		log.Printf("[IM] bind round-trip failed: %v", err)
 		display.Destroy()
 		return nil, nil
 	}
@@ -135,42 +142,26 @@ func New(b *bus.Bus) (*Watcher, error) {
 func (w *Watcher) Run(ctx context.Context) {
 	log.Printf("[IM] watching for input-method events")
 
-	// Close the connection from a separate goroutine to unblock
-	// the blocking Dispatch() call when context is cancelled.
+	// Capture display for shutdown goroutine.
+	d := w.display
 	go func() {
 		<-ctx.Done()
-		w.display.Context().Close()
+		d.Context().Close()
 	}()
 
-	defer w.display.Context().Close()
+	defer d.Context().Close()
 
 	for {
-		if err := w.display.Context().Dispatch(); err != nil {
+		if err := d.Context().Dispatch(); err != nil {
 			log.Printf("[IM] dispatch ended: %v", err)
 			return
 		}
 	}
 }
 
-// roundtrip performs a sync round-trip to ensure all pending events are
-// delivered before returning.
-func roundtrip(display *client.Display) error {
-	cb, err := display.Sync()
-	if err != nil {
-		return err
+func min(a, b uint32) uint32 {
+	if a < b {
+		return a
 	}
-	done := make(chan struct{})
-	cb.SetDoneHandler(func(client.CallbackDoneEvent) {
-		close(done)
-	})
-	for {
-		if err := display.Context().Dispatch(); err != nil {
-			return err
-		}
-		select {
-		case <-done:
-			return nil
-		default:
-		}
-	}
+	return b
 }
