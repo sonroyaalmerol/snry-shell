@@ -1845,6 +1845,83 @@ popover.menu list row:selected {
     box-shadow: 0 0 0 2px alpha(@col_primary, 0.2);
 }
 
+/* Control Panel Network Settings */
+.settings-title {
+    font-size: var(--typescale-headline-md);
+    font-weight: 600;
+    color: @col_on_surface;
+    margin-bottom: 8px;
+}
+
+.settings-subtitle {
+    font-size: var(--typescale-title-sm);
+    font-weight: 600;
+    color: @col_on_surface;
+    margin-bottom: 8px;
+}
+
+.settings-section {
+    margin-bottom: 8px;
+}
+
+.settings-empty-label {
+    font-size: var(--typescale-body-md);
+    color: @col_on_surface_variant;
+    font-style: italic;
+}
+
+.settings-small-label {
+    font-size: var(--typescale-body-sm);
+    color: @col_on_surface_variant;
+}
+
+.settings-entry {
+    background-color: @col_surface_container;
+    border-radius: var(--radius-md);
+    color: @col_on_surface;
+    font-size: var(--typescale-body-md);
+    padding: 8px 12px;
+    border: 1px solid alpha(@col_outline, 0.2);
+}
+
+.settings-entry:focus {
+    border-color: @col_primary;
+    box-shadow: 0 0 0 2px alpha(@col_primary, 0.2);
+}
+
+.settings-btn {
+    background-color: alpha(@col_on_surface, var(--state-hover));
+    border: none;
+    border-radius: var(--radius-pill);
+    color: @col_on_surface;
+    min-width: 36px;
+    min-height: 36px;
+    font-family: "Material Symbols Rounded";
+    font-size: 20px;
+    transition: background-color var(--duration-short3) var(--ease-standard-decel);
+}
+
+.settings-btn:hover {
+    background-color: alpha(@col_on_surface, var(--state-focus));
+}
+
+.settings-btn-small {
+    background-color: transparent;
+    border: none;
+    border-radius: var(--radius-full);
+    color: @col_on_surface_variant;
+    min-width: 32px;
+    min-height: 32px;
+    font-family: "Material Symbols Rounded";
+    font-size: 18px;
+    transition: background-color var(--duration-short3) var(--ease-standard-decel);
+}
+
+.settings-btn-small:hover {
+    background-color: alpha(@col_on_surface, var(--state-hover));
+    color: @col_on_surface;
+}
+
 .settings-nav {
     background-color: @col_surface_container_low;
     border-radius: var(--radius-xl) 0 0 var(--radius-xl);

@@ -33,7 +33,7 @@ func (n *nmConfigProvider) Name() string {
 }
 
 func (n *nmConfigProvider) Icon() string {
-	return "network_ethernet"
+	return "settings_ethernet"
 }
 
 func (n *nmConfigProvider) Load() error {
@@ -55,9 +55,27 @@ func (n *nmConfigProvider) BuildWidget() gtk.Widgetter {
 	box.AddCSSClass("settings-stack")
 	box.SetVExpand(true)
 	box.SetHExpand(true)
+	box.SetMarginTop(12)
+	box.SetMarginBottom(24)
+	box.SetMarginStart(24)
+	box.SetMarginEnd(24)
 
+	// Title
+	title := gtk.NewLabel("Network Settings")
+	title.AddCSSClass("settings-title")
+	title.SetHAlign(gtk.AlignStart)
+	box.Append(title)
+
+	// Hostname section
 	box.Append(n.buildHostnameSection())
+
+	// Devices section
 	box.Append(n.buildDevicesSection())
+
+	// WiFi Networks section
+	box.Append(n.buildWiFiSection())
+
+	// Connections section
 	box.Append(n.buildConnectionsSection())
 
 	scroll.SetChild(box)
@@ -66,12 +84,13 @@ func (n *nmConfigProvider) BuildWidget() gtk.Widgetter {
 
 func (n *nmConfigProvider) buildHostnameSection() gtk.Widgetter {
 	section := gtk.NewBox(gtk.OrientationVertical, 12)
-	section.AddCSSClass("settings-page")
+	section.AddCSSClass("settings-section")
+	section.SetMarginTop(24)
 
-	title := gtk.NewLabel("System Hostname")
-	title.AddCSSClass("settings-label")
-	title.SetHAlign(gtk.AlignStart)
-	section.Append(title)
+	subtitle := gtk.NewLabel("System Hostname")
+	subtitle.AddCSSClass("settings-subtitle")
+	subtitle.SetHAlign(gtk.AlignStart)
+	section.Append(subtitle)
 
 	card := gtk.NewBox(gtk.OrientationVertical, 0)
 	card.AddCSSClass("system-controls")
@@ -112,13 +131,13 @@ func (n *nmConfigProvider) buildHostnameSection() gtk.Widgetter {
 
 func (n *nmConfigProvider) buildDevicesSection() gtk.Widgetter {
 	section := gtk.NewBox(gtk.OrientationVertical, 12)
-	section.AddCSSClass("settings-page")
+	section.AddCSSClass("settings-section")
 	section.SetMarginTop(24)
 
-	title := gtk.NewLabel("Network Devices")
-	title.AddCSSClass("settings-label")
-	title.SetHAlign(gtk.AlignStart)
-	section.Append(title)
+	subtitle := gtk.NewLabel("Network Devices")
+	subtitle.AddCSSClass("settings-subtitle")
+	subtitle.SetHAlign(gtk.AlignStart)
+	section.Append(subtitle)
 
 	card := gtk.NewBox(gtk.OrientationVertical, 0)
 	card.AddCSSClass("system-controls")
@@ -129,12 +148,20 @@ func (n *nmConfigProvider) buildDevicesSection() gtk.Widgetter {
 			log.Printf("[CONTROLPANEL] failed to get devices: %v", err)
 		}
 
-		for i, dev := range devices {
-			if i > 0 {
-				card.Append(gtkutil.M3Divider())
+		if len(devices) == 0 {
+			emptyLabel := gtk.NewLabel("No network devices found")
+			emptyLabel.AddCSSClass("settings-empty-label")
+			emptyLabel.SetMarginTop(16)
+			emptyLabel.SetMarginBottom(16)
+			card.Append(emptyLabel)
+		} else {
+			for i, dev := range devices {
+				if i > 0 {
+					card.Append(gtkutil.M3Divider())
+				}
+				row := n.buildDeviceRow(dev)
+				card.Append(row)
 			}
-			row := n.buildDeviceRow(dev)
-			card.Append(row)
 		}
 	}
 
@@ -145,7 +172,12 @@ func (n *nmConfigProvider) buildDevicesSection() gtk.Widgetter {
 func (n *nmConfigProvider) buildDeviceRow(dev state.NMDevice) gtk.Widgetter {
 	row := gtk.NewBox(gtk.OrientationHorizontal, 12)
 	row.AddCSSClass("conn-row")
+	row.SetMarginStart(16)
+	row.SetMarginEnd(16)
+	row.SetMarginTop(12)
+	row.SetMarginBottom(12)
 
+	// Device icon
 	icon := gtk.NewLabel("")
 	icon.AddCSSClass("conn-row-icon")
 	icon.AddCSSClass("material-icon")
@@ -153,7 +185,7 @@ func (n *nmConfigProvider) buildDeviceRow(dev state.NMDevice) gtk.Widgetter {
 	var typeLabel string
 	switch dev.Type {
 	case 1:
-		icon.SetText("ethernet")
+		icon.SetText("cable")
 		typeLabel = "Wired"
 	case 2:
 		icon.SetText("wifi")
@@ -161,12 +193,16 @@ func (n *nmConfigProvider) buildDeviceRow(dev state.NMDevice) gtk.Widgetter {
 	case 14:
 		icon.SetText("bluetooth")
 		typeLabel = "Bluetooth"
+	case 30:
+		icon.SetText("vpn_key")
+		typeLabel = "WWAN"
 	default:
 		icon.SetText("settings_ethernet")
 		typeLabel = "Other"
 	}
 
-	infoBox := gtk.NewBox(gtk.OrientationVertical, 2)
+	// Info box
+	infoBox := gtk.NewBox(gtk.OrientationVertical, 4)
 	infoBox.SetHExpand(true)
 
 	nameLabel := gtk.NewLabel(dev.Interface)
@@ -175,45 +211,98 @@ func (n *nmConfigProvider) buildDeviceRow(dev state.NMDevice) gtk.Widgetter {
 
 	hwAddr := dev.HwAddress
 	if hwAddr == "" {
-		hwAddr = "No address"
+		hwAddr = "No MAC address"
 	}
-	detailLabel := gtk.NewLabel(fmt.Sprintf("%s %s", typeLabel, hwAddr))
+
+	statusText := deviceStateText(dev.State)
+	detailLabel := gtk.NewLabel(fmt.Sprintf("%s  %s  %s", typeLabel, hwAddr, statusText))
 	detailLabel.AddCSSClass("conn-row-status")
 	detailLabel.SetHAlign(gtk.AlignStart)
 
 	infoBox.Append(nameLabel)
 	infoBox.Append(detailLabel)
 
-	statusLabel := gtk.NewLabel(deviceStateText(dev.State))
-	statusLabel.AddCSSClass("conn-row-meta-icon")
-
 	row.Append(icon)
 	row.Append(infoBox)
-	row.Append(statusLabel)
 
 	return row
 }
 
+func (n *nmConfigProvider) buildWiFiSection() gtk.Widgetter {
+	section := gtk.NewBox(gtk.OrientationVertical, 12)
+	section.AddCSSClass("settings-section")
+	section.SetMarginTop(24)
+
+	subtitle := gtk.NewLabel("Available Wi-Fi Networks")
+	subtitle.AddCSSClass("settings-subtitle")
+	subtitle.SetHAlign(gtk.AlignStart)
+	section.Append(subtitle)
+
+	card := gtk.NewBox(gtk.OrientationVertical, 0)
+	card.AddCSSClass("system-controls")
+
+	// Scan button
+	scanRow := gtk.NewBox(gtk.OrientationHorizontal, 8)
+	scanRow.SetMarginStart(16)
+	scanRow.SetMarginEnd(16)
+	scanRow.SetMarginTop(12)
+	scanRow.SetMarginBottom(12)
+
+	scanLabel := gtk.NewLabel("Scan for networks")
+	scanLabel.AddCSSClass("conn-row-label")
+	scanLabel.SetHExpand(true)
+	scanLabel.SetHAlign(gtk.AlignStart)
+
+	scanBtn := gtkutil.M3IconButton("refresh", "settings-btn")
+	scanBtn.SetTooltipText("Scan for Wi-Fi networks")
+	scanBtn.ConnectClicked(func() {
+		if n.nmService != nil {
+			go func() {
+				_, err := n.nmService.ScanWiFi()
+				if err != nil {
+					log.Printf("[CONTROLPANEL] WiFi scan failed: %v", err)
+				}
+			}()
+		}
+	})
+
+	scanRow.Append(scanLabel)
+	scanRow.Append(scanBtn)
+	card.Append(scanRow)
+
+	section.Append(card)
+	return section
+}
+
 func (n *nmConfigProvider) buildConnectionsSection() gtk.Widgetter {
 	section := gtk.NewBox(gtk.OrientationVertical, 12)
-	section.AddCSSClass("settings-page")
+	section.AddCSSClass("settings-section")
 	section.SetMarginTop(24)
+
+	subtitle := gtk.NewLabel("Saved Connections")
+	subtitle.AddCSSClass("settings-subtitle")
+	subtitle.SetHAlign(gtk.AlignStart)
+	section.Append(subtitle)
 
 	header := gtk.NewBox(gtk.OrientationHorizontal, 8)
 	header.SetMarginBottom(8)
+	header.SetHAlign(gtk.AlignEnd)
 
-	title := gtk.NewLabel("Connections")
-	title.AddCSSClass("settings-label")
-	title.SetHAlign(gtk.AlignStart)
-	title.SetHExpand(true)
+	refreshBtn := gtkutil.M3IconButton("refresh", "settings-btn")
+	refreshBtn.SetTooltipText("Refresh connections list")
+	refreshBtn.ConnectClicked(func() {
+		// TODO: Refresh the view
+		log.Printf("[CONTROLPANEL] refresh connections clicked")
+	})
 
 	addBtn := gtkutil.M3IconButton("add", "settings-btn")
 	addBtn.SetTooltipText("Add new connection")
 	addBtn.ConnectClicked(func() {
+		// TODO: Open add connection dialog
 		log.Printf("[CONTROLPANEL] add connection clicked")
 	})
 
-	header.Append(title)
+	header.Append(refreshBtn)
 	header.Append(addBtn)
 	section.Append(header)
 
@@ -226,12 +315,20 @@ func (n *nmConfigProvider) buildConnectionsSection() gtk.Widgetter {
 			log.Printf("[CONTROLPANEL] failed to get connections: %v", err)
 		}
 
-		for i, conn := range conns {
-			if i > 0 {
-				card.Append(gtkutil.M3Divider())
+		if len(conns) == 0 {
+			emptyLabel := gtk.NewLabel("No saved connections")
+			emptyLabel.AddCSSClass("settings-empty-label")
+			emptyLabel.SetMarginTop(16)
+			emptyLabel.SetMarginBottom(16)
+			card.Append(emptyLabel)
+		} else {
+			for i, conn := range conns {
+				if i > 0 {
+					card.Append(gtkutil.M3Divider())
+				}
+				row := n.buildConnectionRow(conn)
+				card.Append(row)
 			}
-			row := n.buildConnectionRow(conn)
-			card.Append(row)
 		}
 	}
 
@@ -240,14 +337,20 @@ func (n *nmConfigProvider) buildConnectionsSection() gtk.Widgetter {
 }
 
 func (n *nmConfigProvider) buildConnectionRow(conn state.NMConnection) gtk.Widgetter {
-	row := gtk.NewBox(gtk.OrientationHorizontal, 12)
-	row.AddCSSClass("conn-row")
+	row := gtk.NewBox(gtk.OrientationVertical, 0)
+	row.SetMarginStart(16)
+	row.SetMarginEnd(16)
+	row.SetMarginTop(12)
+	row.SetMarginBottom(12)
+
+	// Main row with icon and info
+	mainRow := gtk.NewBox(gtk.OrientationHorizontal, 12)
 
 	icon := gtk.NewLabel(connectionIcon(conn.Type))
 	icon.AddCSSClass("conn-row-icon")
 	icon.AddCSSClass("material-icon")
 
-	infoBox := gtk.NewBox(gtk.OrientationVertical, 2)
+	infoBox := gtk.NewBox(gtk.OrientationVertical, 4)
 	infoBox.SetHExpand(true)
 
 	nameLabel := gtk.NewLabel(conn.Name)
@@ -255,8 +358,11 @@ func (n *nmConfigProvider) buildConnectionRow(conn state.NMConnection) gtk.Widge
 	nameLabel.SetHAlign(gtk.AlignStart)
 
 	detail := conn.TypeLabel
-	if conn.Autoconnect {
-		detail += " Auto"
+	if conn.Secured {
+		detail += "  Secured"
+	}
+	if conn.IPv4Method != "" {
+		detail += fmt.Sprintf("  IPv4: %s", conn.IPv4Method)
 	}
 	detailLabel := gtk.NewLabel(detail)
 	detailLabel.AddCSSClass("conn-row-status")
@@ -265,11 +371,23 @@ func (n *nmConfigProvider) buildConnectionRow(conn state.NMConnection) gtk.Widge
 	infoBox.Append(nameLabel)
 	infoBox.Append(detailLabel)
 
-	actionsBox := gtk.NewBox(gtk.OrientationHorizontal, 4)
+	mainRow.Append(icon)
+	mainRow.Append(infoBox)
+
+	row.Append(mainRow)
+
+	// Actions row
+	actionsRow := gtk.NewBox(gtk.OrientationHorizontal, 8)
+	actionsRow.SetMarginStart(36)
+	actionsRow.SetMarginTop(8)
+
+	// Autoconnect toggle with label
+	autoBox := gtk.NewBox(gtk.OrientationHorizontal, 8)
+	autoLabel := gtk.NewLabel("Auto-connect")
+	autoLabel.AddCSSClass("settings-small-label")
 
 	autoconnectSwitch := gtk.NewSwitch()
 	autoconnectSwitch.SetActive(conn.Autoconnect)
-	autoconnectSwitch.SetTooltipText("Auto-connect")
 	autoconnectSwitch.ConnectStateSet(func(state bool) bool {
 		if n.nmService != nil {
 			if err := n.nmService.SetAutoconnect(conn.Path, state); err != nil {
@@ -279,6 +397,21 @@ func (n *nmConfigProvider) buildConnectionRow(conn state.NMConnection) gtk.Widge
 		return false
 	})
 
+	autoBox.Append(autoLabel)
+	autoBox.Append(autoconnectSwitch)
+	actionsRow.Append(autoBox)
+
+	actionsRow.Append(gtk.NewBox(gtk.OrientationHorizontal, 0)) // Spacer
+
+	// Edit button
+	editBtn := gtkutil.M3IconButton("edit", "settings-btn-small")
+	editBtn.SetTooltipText("Edit connection")
+	editBtn.ConnectClicked(func() {
+		log.Printf("[CONTROLPANEL] edit connection %s", conn.Name)
+	})
+	actionsRow.Append(editBtn)
+
+	// Delete button
 	deleteBtn := gtkutil.M3IconButton("delete", "settings-btn-small")
 	deleteBtn.SetTooltipText("Delete connection")
 	deleteBtn.ConnectClicked(func() {
@@ -288,13 +421,9 @@ func (n *nmConfigProvider) buildConnectionRow(conn state.NMConnection) gtk.Widge
 			}
 		}
 	})
+	actionsRow.Append(deleteBtn)
 
-	actionsBox.Append(autoconnectSwitch)
-	actionsBox.Append(deleteBtn)
-
-	row.Append(icon)
-	row.Append(infoBox)
-	row.Append(actionsBox)
+	row.Append(actionsRow)
 
 	return row
 }
@@ -302,13 +431,15 @@ func (n *nmConfigProvider) buildConnectionRow(conn state.NMConnection) gtk.Widge
 func deviceStateText(state uint32) string {
 	switch state {
 	case 100:
-		return "Activated"
+		return "Connected"
 	case 50, 60:
-		return "Connecting"
+		return "Connecting..."
 	case 30:
 		return "Disconnected"
 	case 20:
 		return "Unavailable"
+	case 10:
+		return "Unmanaged"
 	default:
 		return "Unknown"
 	}
@@ -319,11 +450,15 @@ func connectionIcon(connType string) string {
 	case "802-11-wireless":
 		return "wifi"
 	case "802-3-ethernet":
-		return "ethernet"
+		return "cable"
 	case "vpn":
 		return "vpn_key"
 	case "wireguard":
 		return "security"
+	case "pppoe":
+		return "settings_ethernet"
+	case "gsm", "cdma":
+		return "signal_cellular_alt"
 	default:
 		return "settings_ethernet"
 	}
