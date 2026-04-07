@@ -228,6 +228,13 @@ func Run() int {
 		log.Printf("[SHELL] forced config: restoring original values")
 		forced.Restore()
 	}()
+
+	// Register Hyprland keybindings for power button and lid switch.
+	// These use bindl (works on lock screen) and dispatch to the control socket
+	// via the --toggle-* CLI. logind's block inhibitor (in SystemHandler) prevents
+	// logind from also acting on the same events.
+	cleanupSystemBinds := setupHyprlandSystemBinds(refs.Hyprland)
+	defer cleanupSystemBinds()
 	// Subscribe to tray item activation.
 	b.Subscribe(bus.TopicTrayActivate, func(ev bus.Event) {
 		if id, ok := ev.Data.(string); ok {
@@ -348,6 +355,31 @@ func idleDuration(seconds int) time.Duration {
 		return 0
 	}
 	return time.Duration(seconds) * time.Second
+}
+
+// setupHyprlandSystemBinds registers bindl keybindings for power button and lid
+// switch so Hyprland forwards those events to the shell via the control socket.
+// Returns a cleanup function that removes the bindings; call it on shell exit.
+func setupHyprlandSystemBinds(q *hyprland.Querier) func() {
+	binds := []struct{ key, cmd string }{
+		{"XF86PowerOff", "toggle-power-action"},
+		{"switch:on:Lid Switch", "toggle-lid-action"},
+	}
+	for _, b := range binds {
+		val := ", " + b.key + ", exec, snry-shell --" + b.cmd
+		if err := q.SetKeyword("bindl", val); err != nil {
+			log.Printf("[SHELL] hyprland bindl %s: %v", b.key, err)
+		} else {
+			log.Printf("[SHELL] hyprland bindl registered: %s -> %s", b.key, b.cmd)
+		}
+	}
+	return func() {
+		for _, b := range binds {
+			if err := q.SetKeyword("unbind", ", "+b.key); err != nil {
+				log.Printf("[SHELL] hyprland unbind %s: %v", b.key, err)
+			}
+		}
+	}
 }
 
 // loadThemeCSS loads the dynamic theme CSS if it exists
