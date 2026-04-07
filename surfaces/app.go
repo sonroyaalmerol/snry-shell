@@ -174,6 +174,27 @@ func Run() int {
 		}
 	})
 
+	// System power actions from session menu or CLI — use logind D-Bus.
+	b.Subscribe(bus.TopicSystemControls, func(e bus.Event) {
+		cmd, ok := e.Data.(string)
+		if !ok || sysConn == nil {
+			return
+		}
+		mgr := sysConn.Object("org.freedesktop.login1", "/org/freedesktop/login1")
+		const iface = "org.freedesktop.login1.Manager"
+		switch cmd {
+		case "system-suspend":
+			b.Publish(bus.TopicScreenLock, state.LockScreenState{Locked: true})
+			go mgr.Call(iface+".Suspend", 0, false)
+		case "system-reboot":
+			go mgr.Call(iface+".Reboot", 0, false)
+		case "system-poweroff":
+			go mgr.Call(iface+".PowerOff", 0, false)
+		case "system-logout":
+			go refs.Hyprland.SetKeyword("dispatch", "exit")
+		}
+	})
+
 	// Volume / audio controls.
 	b.Subscribe(bus.TopicSystemControls, func(e bus.Event) {
 		cmd, ok := e.Data.(string)
@@ -236,6 +257,24 @@ func Run() int {
 		case "brightness-down":
 			if err := refs.Brightness.AdjustBrightness(-0.05); err != nil {
 				log.Printf("[brightness] down: %v", err)
+			}
+		}
+	})
+
+	// Zoom controls — adjust Hyprland cursor:zoom_factor at runtime.
+	b.Subscribe(bus.TopicSystemControls, func(e bus.Event) {
+		cmd, ok := e.Data.(string)
+		if !ok {
+			return
+		}
+		switch cmd {
+		case "zoom-in":
+			adjustZoom(refs.Hyprland, +0.3)
+		case "zoom-out":
+			adjustZoom(refs.Hyprland, -0.3)
+		case "zoom-reset":
+			if err := refs.Hyprland.SetKeyword("cursor:zoom_factor", "1"); err != nil {
+				log.Printf("[zoom] reset: %v", err)
 			}
 		}
 	})
@@ -445,6 +484,30 @@ func setupHyprlandSystemBinds(q *hyprland.Querier) func() {
 				log.Printf("[SHELL] hyprland unbind %s: %v", b.key, err)
 			}
 		}
+	}
+}
+
+// adjustZoom reads the current cursor:zoom_factor, adds delta, clamps to [1, 3],
+// and applies it via hyprctl keyword.
+func adjustZoom(q *hyprland.Querier, delta float64) {
+	raw, err := q.GetOption("cursor:zoom_factor")
+	if err != nil {
+		log.Printf("[zoom] getoption: %v", err)
+		return
+	}
+	var current float64
+	if _, err := fmt.Sscanf(raw, "%f", &current); err != nil {
+		current = 1.0
+	}
+	next := current + delta
+	if next < 1.0 {
+		next = 1.0
+	}
+	if next > 3.0 {
+		next = 3.0
+	}
+	if err := q.SetKeyword("cursor:zoom_factor", fmt.Sprintf("%.2f", next)); err != nil {
+		log.Printf("[zoom] set: %v", err)
 	}
 }
 

@@ -3,8 +3,6 @@
 package session
 
 import (
-	"log"
-	"os/exec"
 	"time"
 
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
@@ -64,13 +62,13 @@ func (s *Session) build() {
 		action state.SessionAction
 		icon   string
 		label  string
-		cmd    []string // empty = handled via bus, not subprocess
+		busCmd string // published to TopicSystemControls; "" = handled inline
 	}{
-		{state.SessionLock, "lock", "Lock", nil},
-		{state.SessionSuspend, "bedtime", "Sleep", []string{"systemctl", "suspend"}},
-		{state.SessionReboot, "restart_alt", "Reboot", []string{"systemctl", "reboot"}},
-		{state.SessionShutdown, "power_settings_new", "Power off", []string{"systemctl", "poweroff"}},
-		{state.SessionLogout, "logout", "Log out", []string{"hyprctl", "dispatch", "exit"}},
+		{state.SessionLock, "lock", "Lock", ""},
+		{state.SessionSuspend, "bedtime", "Sleep", "system-suspend"},
+		{state.SessionReboot, "restart_alt", "Reboot", "system-reboot"},
+		{state.SessionShutdown, "power_settings_new", "Power off", "system-poweroff"},
+		{state.SessionLogout, "logout", "Log out", "system-logout"},
 	}
 
 	for _, a := range actions {
@@ -86,7 +84,7 @@ func (s *Session) buildBtn(a struct {
 	action state.SessionAction
 	icon   string
 	label  string
-	cmd    []string
+	busCmd string
 }) *gtk.Button {
 	btn := gtkutil.M3FilledButton(a.label, "session-btn")
 
@@ -112,17 +110,14 @@ func (s *Session) buildBtn(a struct {
 		s.win.SetVisible(false)
 
 		if action.action == state.SessionLock {
-			// Lock via our own lockscreen — no subprocess needed.
 			s.bus.Publish(bus.TopicScreenLock, state.LockScreenState{Locked: true})
 			return
 		}
 
-		cmd := action.cmd
+		busCmd := action.busCmd
 		go func() {
 			time.Sleep(200 * time.Millisecond)
-			if err := exec.Command(cmd[0], cmd[1:]...).Run(); err != nil {
-				log.Printf("session: %s: %v", cmd[0], err)
-			}
+			s.bus.Publish(bus.TopicSystemControls, busCmd)
 		}()
 	})
 	return btn
