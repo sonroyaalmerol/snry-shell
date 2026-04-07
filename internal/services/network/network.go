@@ -273,7 +273,8 @@ func (s *Service) ScanWiFi() ([]state.WiFiNetwork, error) {
 	return networks, nil
 }
 func (s *Service) ConnectWiFi(ssid string) error {
-	connsV, err := s.conn.Object(nmDest, nmPath).GetProperty(nmIface + ".Connections")
+	settingsObj := s.conn.Object(nmDest, "/org/freedesktop/NetworkManager/Settings")
+	connsV, err := settingsObj.GetProperty("org.freedesktop.NetworkManager.Settings.Connections")
 	if err != nil {
 		return err
 	}
