@@ -99,28 +99,26 @@ func (p *NotifPopup) removeToast(revealer *gtk.Revealer) {
 }
 
 func (p *NotifPopup) buildCard(n state.Notification) gtk.Widgetter {
-	card := gtk.NewBox(gtk.OrientationVertical, 4)
+	card := gtk.NewBox(gtk.OrientationVertical, 0)
 	card.AddCSSClass("notif-toast")
 	if n.Urgency >= 2 {
 		card.AddCSSClass("urgent")
 	}
 
-	header := gtk.NewBox(gtk.OrientationHorizontal, 0)
-	header.SetHAlign(gtk.AlignFill)
-
+	// App name header
 	appName := gtk.NewLabel(n.AppName)
 	appName.AddCSSClass("notif-toast-app-name")
 	appName.SetHAlign(gtk.AlignStart)
-	appName.SetHExpand(true)
+	card.Append(appName)
 
+	// Summary
 	summary := gtk.NewLabel(n.Summary)
 	summary.AddCSSClass("notif-toast-summary")
 	summary.SetHAlign(gtk.AlignStart)
-
-	header.Append(appName)
-	card.Append(header)
+	summary.SetWrap(true)
 	card.Append(summary)
 
+	// Body (if present)
 	if n.Body != "" {
 		body := gtk.NewLabel(n.Body)
 		body.AddCSSClass("notif-toast-body")

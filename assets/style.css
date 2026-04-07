@@ -725,41 +725,63 @@ scale.m3-scale slider {
     padding: 4px;
 }
 
+/* Material 3 Notification Card */
 .notification-card {
     background-color: @col_surface_container;
-    border-radius: var(--radius-md);
-    padding: 12px 16px;
-    margin: 4px 0;
-    transition: background-color var(--duration-short3) var(--ease-emphasized-decel);
+    border-radius: var(--radius-lg);
+    padding: 16px;
+    margin: 6px 0;
+    box-shadow: var(--elevation-1);
+    transition: background-color var(--duration-short3) var(--ease-standard-decel),
+                box-shadow var(--duration-short3) var(--ease-standard-decel);
+}
+
+.notification-card:hover {
+    background-color: @col_surface_container_high;
+    box-shadow: var(--elevation-2);
 }
 
 .notification-card.urgent {
     background-color: @col_error_container;
+    border-left: 4px solid @col_error;
+}
+
+.notification-card.urgent:hover {
+    background-color: alpha(@col_error_container, 0.9);
 }
 
 .notification-card.urgency-low {
-    background-color: alpha(@col_surface_container_high, 0.6);
+    background-color: alpha(@col_surface_container_low, 0.8);
+    opacity: 0.9;
 }
 
 .notification-card.urgency-critical {
     background-color: @col_error_container;
     border: 1px solid alpha(@col_error, 0.5);
+    border-left: 4px solid @col_error;
 }
 
 .notification-app-name {
-    font-size: 11px;
-    color: @col_subtext;
+    font-size: var(--typescale-label-sm);
+    font-weight: 600;
+    color: @col_primary;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
 }
 
 .notification-summary {
-    font-size: 13px;
+    font-size: var(--typescale-body-md);
     font-weight: 500;
     color: @col_on_surface;
+    margin-top: 4px;
+    line-height: 1.4;
 }
 
 .notification-body {
-    font-size: 12px;
+    font-size: var(--typescale-body-sm);
     color: @col_on_surface_variant;
+    margin-top: 6px;
+    line-height: 1.4;
 }
 
 .notification-dismiss-btn {
@@ -767,27 +789,36 @@ scale.m3-scale slider {
     border: none;
     border-radius: var(--radius-pill);
     color: @col_on_surface_variant;
-    min-width: 24px;
-    min-height: 24px;
-    transition: background-color var(--duration-short3) var(--ease-emphasized-decel);
+    min-width: 28px;
+    min-height: 28px;
+    transition: background-color var(--duration-short3) var(--ease-standard-decel),
+                color var(--duration-short3) var(--ease-standard-decel);
 }
 
 .notification-dismiss-btn:hover {
-    background-color: alpha(@col_on_surface, var(--state-focus));
+    background-color: alpha(@col_on_surface, var(--state-hover));
+    color: @col_on_surface;
 }
 
+.notification-dismiss-btn:active {
+    background-color: alpha(@col_on_surface, var(--state-press));
+}
+
+/* Empty state with Material 3 styling */
 .notification-empty {
-    padding: 24px 0;
+    padding: 48px 24px;
 }
 
 .notification-empty-icon {
-    font-size: 40px;
-    color: @col_outline;
+    font-size: 48px;
+    color: @col_outline_variant;
+    margin-bottom: 16px;
 }
 
 .notification-empty-label {
-    font-size: 13px;
-    color: @col_outline;
+    font-size: var(--typescale-body-md);
+    color: @col_on_surface_variant;
+    font-weight: 500;
 }
 
 /* ── OSD (volume / brightness) ───────────────────────────────────────────────── */
@@ -849,33 +880,52 @@ scale.osd-slider {
 
 /* ── Notification toasts (popup) ─────────────────────────────────────────────── */
 
+/* Material 3 Toast Notifications */
 .notif-toast {
-    background-color: alpha(@col_surface_container_high, 0.95);
+    background-color: alpha(@col_surface_container_high, 0.98);
     border-radius: var(--radius-xl);
-    padding: 12px 16px;
-    margin-bottom: 6px;
+    padding: 16px 20px;
+    margin-bottom: 8px;
     min-width: 320px;
-    box-shadow: var(--elevation-2);
+    max-width: 400px;
+    box-shadow: var(--elevation-3);
+    border-left: none;
+    transition: transform var(--duration-short3) var(--ease-standard-decel);
 }
 
 .notif-toast.urgent {
-    background-color: alpha(@col_error_container, 0.97);
+    background-color: alpha(@col_error_container, 0.98);
+    border-left: 4px solid @col_error;
 }
 
 .notif-toast-app-name {
-    font-size: 11px;
-    color: @col_subtext;
+    font-size: var(--typescale-label-sm);
+    font-weight: 600;
+    color: @col_primary;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 4px;
 }
 
 .notif-toast-summary {
-    font-size: 13px;
+    font-size: var(--typescale-body-md);
     font-weight: 500;
     color: @col_on_surface;
+    line-height: 1.4;
 }
 
 .notif-toast-body {
-    font-size: 12px;
+    font-size: var(--typescale-body-sm);
     color: @col_on_surface_variant;
+    margin-top: 6px;
+    line-height: 1.4;
+}
+
+/* Toast actions */
+.notif-toast-actions {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid alpha(@col_outline, 0.15);
 }
 
 .notif-group-header {

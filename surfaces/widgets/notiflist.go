@@ -1,8 +1,6 @@
 package widgets
 
 import (
-	"fmt"
-
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/sonroyaalmerol/snry-shell/internal/bus"
@@ -73,7 +71,7 @@ func (nl *notificationList) prepend(n state.Notification) {
 }
 
 func (nl *notificationList) buildCard(n state.Notification) gtk.Widgetter {
-	card := gtk.NewBox(gtk.OrientationVertical, 4)
+	card := gtk.NewBox(gtk.OrientationVertical, 0)
 	card.AddCSSClass("notification-card")
 	switch n.Urgency {
 	case 0:
@@ -82,7 +80,9 @@ func (nl *notificationList) buildCard(n state.Notification) gtk.Widgetter {
 		card.AddCSSClass("urgency-critical")
 	}
 
+	// Header row: app name and close button
 	header := gtk.NewBox(gtk.OrientationHorizontal, 8)
+	header.SetMarginBottom(4)
 
 	appLabel := gtk.NewLabel(n.AppName)
 	appLabel.AddCSSClass("notification-app-name")
@@ -106,6 +106,7 @@ func (nl *notificationList) buildCard(n state.Notification) gtk.Widgetter {
 	header.Append(appLabel)
 	header.Append(closeBtn)
 
+	// Summary
 	summary := gtk.NewLabel(n.Summary)
 	summary.AddCSSClass("notification-summary")
 	summary.SetHAlign(gtk.AlignStart)
@@ -114,12 +115,12 @@ func (nl *notificationList) buildCard(n state.Notification) gtk.Widgetter {
 	card.Append(header)
 	card.Append(summary)
 
+	// Body (if present)
 	if n.Body != "" {
 		body := gtk.NewLabel(n.Body)
 		body.AddCSSClass("notification-body")
 		body.SetHAlign(gtk.AlignStart)
 		body.SetWrap(true)
-		body.SetTooltipText(fmt.Sprintf("ID: %d", n.ID))
 		card.Append(body)
 	}
 
