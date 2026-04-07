@@ -1,6 +1,7 @@
 package controlpanel
 
 import (
+	"log"
 	"net"
 
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
@@ -50,7 +51,9 @@ func (s *shellConfigProvider) notifyShellReload() {
 		return
 	}
 	defer conn.Close()
-	conn.Write([]byte("reload-settings"))
+	if _, err := conn.Write([]byte("reload-settings")); err != nil {
+		log.Printf("[CONTROLPANEL] notify shell reload: %v", err)
+	}
 }
 
 func (s *shellConfigProvider) BuildWidget() gtk.Widgetter {
@@ -90,7 +93,9 @@ func (s *shellConfigProvider) buildAppearanceSection() gtk.Widgetter {
 	// Dark mode toggle - use m3-switch style
 	darkModeRow := s.buildSwitchRow("Dark Mode", "Use dark theme", s.cfg.DarkMode, func(active bool) {
 		s.cfg.DarkMode = active
-		s.Save()
+		if err := s.Save(); err != nil {
+			log.Printf("[CONTROLPANEL] save dark mode: %v", err)
+		}
 	})
 	card.Append(darkModeRow)
 
@@ -116,7 +121,9 @@ func (s *shellConfigProvider) buildBehaviorSection() gtk.Widgetter {
 	// Do Not Disturb toggle
 	dndRow := s.buildSwitchRow("Do Not Disturb", "Silence notifications", s.cfg.DoNotDisturb, func(active bool) {
 		s.cfg.DoNotDisturb = active
-		s.Save()
+		if err := s.Save(); err != nil {
+			log.Printf("[CONTROLPANEL] save do-not-disturb: %v", err)
+		}
 	})
 	card.Append(dndRow)
 
@@ -126,7 +133,9 @@ func (s *shellConfigProvider) buildBehaviorSection() gtk.Widgetter {
 	// Input mode dropdown
 	inputModeRow := s.buildDropdownRow("Input Mode", "Touch input handling", []string{"auto", "tablet", "desktop"}, s.cfg.InputMode, func(value string) {
 		s.cfg.InputMode = value
-		s.Save()
+		if err := s.Save(); err != nil {
+			log.Printf("[CONTROLPANEL] save input mode: %v", err)
+		}
 	})
 	card.Append(inputModeRow)
 
