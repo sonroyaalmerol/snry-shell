@@ -503,3 +503,257 @@ func (s *Service) GetSavedSSIDs() ([]string, error) {
 	}
 	return ssids, nil
 }
+
+// GetAllConnections returns all connection profiles from NetworkManager.
+func (s *Service) GetAllConnections() ([]state.NMConnection, error) {
+	settingsObj := s.conn.Object(nmDest, "/org/freedesktop/NetworkManager/Settings")
+	connsV, err := settingsObj.GetProperty("org.freedesktop.NetworkManager.Settings.Connections")
+	if err != nil {
+		return nil, err
+	}
+	connPaths, ok := connsV.Value().([]dbus.ObjectPath)
+	if !ok {
+		return nil, fmt.Errorf("no connections found")
+	}
+
+	var connections []state.NMConnection
+	for _, cp := range connPaths {
+		connObj := s.conn.Object(nmDest, cp)
+		var settings map[string]map[string]dbus.Variant
+		if err := connObj.Call("org.freedesktop.NetworkManager.Settings.Connection.GetSettings", 0).Store(&settings); err != nil {
+			continue
+		}
+
+		conn := state.NMConnection{
+			Path: string(cp),
+		}
+
+		// Extract connection details
+		if connSettings, ok := settings["connection"]; ok {
+			if v, ok := connSettings["id"]; ok {
+				conn.Name, _ = v.Value().(string)
+			}
+			if v, ok := connSettings["uuid"]; ok {
+				conn.UUID, _ = v.Value().(string)
+			}
+			if v, ok := connSettings["type"]; ok {
+				conn.Type, _ = v.Value().(string)
+			}
+			if v, ok := connSettings["autoconnect"]; ok {
+				if ac, ok := v.Value().(bool); ok {
+					conn.Autoconnect = ac
+				}
+			}
+		}
+
+		// Determine connection type name
+		switch conn.Type {
+		case "802-11-wireless":
+			conn.TypeLabel = "Wi-Fi"
+			if wireless, ok := settings["802-11-wireless"]; ok {
+				if v, ok := wireless["ssid"]; ok {
+					if ssidBytes, ok := v.Value().([]byte); ok {
+						conn.SSID = string(ssidBytes)
+					}
+				}
+			}
+			// Check for security
+			if sec, ok := settings["802-11-wireless-security"]; ok {
+				if v, ok := sec["key-mgmt"]; ok {
+					keyMgmt, _ := v.Value().(string)
+					if keyMgmt == "wpa-psk" || keyMgmt == "wpa-eap" {
+						conn.Secured = true
+					}
+				}
+			}
+		case "802-3-ethernet":
+			conn.TypeLabel = "Ethernet"
+			if eth, ok := settings["802-3-ethernet"]; ok {
+				if v, ok := eth["mac-address"]; ok {
+					if mac, ok := v.Value().([]byte); ok && len(mac) == 6 {
+						conn.MAC = fmt.Sprintf("%02x:%02x:%02x:%02x:%02x:%02x", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5])
+					}
+				}
+			}
+		case "vpn":
+			conn.TypeLabel = "VPN"
+			if vpn, ok := settings["vpn"]; ok {
+				if v, ok := vpn["service-type"]; ok {
+					conn.VPNType, _ = v.Value().(string)
+				}
+			}
+		case "wireguard":
+			conn.TypeLabel = "WireGuard"
+		case "pppoe":
+			conn.TypeLabel = "PPPoE"
+		case "gsm", "cdma":
+			conn.TypeLabel = "Mobile Broadband"
+		default:
+			conn.TypeLabel = conn.Type
+		}
+
+		// Get IP configuration
+		if ipv4, ok := settings["ipv4"]; ok {
+			if methodV, ok := ipv4["method"]; ok {
+				conn.IPv4Method, _ = methodV.Value().(string)
+			}
+			if _, ok := ipv4["address-data"]; ok {
+				conn.IPv4Configured = true
+			}
+		}
+		if ipv6, ok := settings["ipv6"]; ok {
+			if methodV, ok := ipv6["method"]; ok {
+				conn.IPv6Method, _ = methodV.Value().(string)
+			}
+		}
+
+		connections = append(connections, conn)
+	}
+	return connections, nil
+}
+
+// GetDevices returns all network devices managed by NetworkManager.
+func (s *Service) GetDevices() ([]state.NMDevice, error) {
+	nmObj := s.conn.Object(nmDest, nmPath)
+	if nmObj == nil {
+		return nil, fmt.Errorf("no D-Bus connection")
+	}
+
+	devicesV, err := nmObj.GetProperty(nmIface + ".Devices")
+	if err != nil {
+		return nil, err
+	}
+	paths, ok := devicesV.Value().([]dbus.ObjectPath)
+	if !ok {
+		return nil, nil
+	}
+
+	var devices []state.NMDevice
+	for _, p := range paths {
+		devObj := s.conn.Object(nmDest, p)
+		device := state.NMDevice{Path: string(p)}
+
+		// Get device type
+		if dtV, err := devObj.GetProperty(nmIface + ".Device.DeviceType"); err == nil {
+			device.Type, _ = dtV.Value().(uint32)
+		}
+
+		// Get interface name
+		if ifaceV, err := devObj.GetProperty(nmIface + ".Device.Interface"); err == nil {
+			device.Interface, _ = ifaceV.Value().(string)
+		}
+
+		// Get state
+		if stateV, err := devObj.GetProperty(nmIface + ".Device.State"); err == nil {
+			device.State, _ = stateV.Value().(uint32)
+		}
+
+		// Get active connection
+		if acV, err := devObj.GetProperty(nmIface + ".Device.ActiveConnection"); err == nil {
+			if acPath, ok := acV.Value().(dbus.ObjectPath); ok && acPath != "/" {
+				device.ActiveConnection = string(acPath)
+			}
+		}
+
+		// Get IP config
+		if ipV, err := devObj.GetProperty(nmIface + ".Device.Ip4Config"); err == nil {
+			if ipPath, ok := ipV.Value().(dbus.ObjectPath); ok && ipPath != "/" {
+				device.HasIP4 = true
+			}
+		}
+
+		// Get MAC address for ethernet/wifi
+		if device.Type == 1 || device.Type == 2 { // ethernet or wifi
+			if hwV, err := devObj.GetProperty(nmIface + ".Device.HwAddress"); err == nil {
+				device.HwAddress, _ = hwV.Value().(string)
+			}
+		}
+
+		devices = append(devices, device)
+	}
+	return devices, nil
+}
+
+// ActivateConnection activates a connection profile on a specific device.
+func (s *Service) ActivateConnection(connPath string, devicePath string) error {
+	nmObj := s.conn.Object(nmDest, nmPath)
+	if nmObj == nil {
+		return fmt.Errorf("no D-Bus connection")
+	}
+	return nmObj.Call(nmIface+".ActivateConnection", 0,
+		dbus.ObjectPath(connPath),
+		dbus.ObjectPath(devicePath),
+		dbus.ObjectPath("/")).Err
+}
+
+// DeactivateConnection deactivates an active connection.
+func (s *Service) DeactivateConnection(connPath string) error {
+	nmObj := s.conn.Object(nmDest, nmPath)
+	if nmObj == nil {
+		return fmt.Errorf("no D-Bus connection")
+	}
+	return nmObj.Call(nmIface+".DeactivateConnection", 0, dbus.ObjectPath(connPath)).Err
+}
+
+// DeleteConnection removes a saved connection profile.
+func (s *Service) DeleteConnection(connPath string) error {
+	connObj := s.conn.Object(nmDest, dbus.ObjectPath(connPath))
+	return connObj.Call("org.freedesktop.NetworkManager.Settings.Connection.Delete", 0).Err
+}
+
+// UpdateConnection updates a connection's settings.
+func (s *Service) UpdateConnection(connPath string, settings map[string]map[string]dbus.Variant) error {
+	connObj := s.conn.Object(nmDest, dbus.ObjectPath(connPath))
+	return connObj.Call("org.freedesktop.NetworkManager.Settings.Connection.Update", 0, settings).Err
+}
+
+// AddConnection adds a new connection profile.
+func (s *Service) AddConnection(settings map[string]map[string]dbus.Variant) (string, error) {
+	settingsObj := s.conn.Object(nmDest, "/org/freedesktop/NetworkManager/Settings")
+	var newPath dbus.ObjectPath
+	err := settingsObj.Call("org.freedesktop.NetworkManager.Settings.AddConnection", 0, settings).Store(&newPath)
+	if err != nil {
+		return "", err
+	}
+	return string(newPath), nil
+}
+
+// GetHostname returns the system hostname.
+func (s *Service) GetHostname() (string, error) {
+	nmObj := s.conn.Object(nmDest, nmPath)
+	if nmObj == nil {
+		return "", fmt.Errorf("no D-Bus connection")
+	}
+	hostnameV, err := nmObj.GetProperty(nmIface + ".Hostname")
+	if err != nil {
+		return "", err
+	}
+	hostname, _ := hostnameV.Value().(string)
+	return hostname, nil
+}
+
+// SetHostname sets the system hostname.
+func (s *Service) SetHostname(hostname string) error {
+	nmObj := s.conn.Object(nmDest, nmPath)
+	if nmObj == nil {
+		return fmt.Errorf("no D-Bus connection")
+	}
+	return nmObj.SetProperty(nmIface+".Hostname", dbus.MakeVariant(hostname))
+}
+
+// SetAutoconnect enables/disables autoconnect for a connection.
+func (s *Service) SetAutoconnect(connPath string, autoconnect bool) error {
+	connObj := s.conn.Object(nmDest, dbus.ObjectPath(connPath))
+	// Get current settings
+	var settings map[string]map[string]dbus.Variant
+	if err := connObj.Call("org.freedesktop.NetworkManager.Settings.Connection.GetSettings", 0).Store(&settings); err != nil {
+		return err
+	}
+	// Update autoconnect
+	if _, ok := settings["connection"]; !ok {
+		settings["connection"] = make(map[string]dbus.Variant)
+	}
+	settings["connection"]["autoconnect"] = dbus.MakeVariant(autoconnect)
+	// Update connection
+	return connObj.Call("org.freedesktop.NetworkManager.Settings.Connection.Update", 0, settings).Err
+}

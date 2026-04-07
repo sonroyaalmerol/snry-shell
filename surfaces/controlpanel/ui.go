@@ -16,12 +16,19 @@ type controlPanel struct {
 }
 
 func newControlPanel(cfg settings.Config) *controlPanel {
-	return &controlPanel{
+	cp := &controlPanel{
 		cfg: cfg,
 		providers: []ConfigProvider{
 			newShellConfigProvider(&cfg),
 		},
 	}
+
+	// Try to add network provider if we can connect to D-Bus
+	if nmProvider := newNMProviderWithConnection(); nmProvider != nil {
+		cp.providers = append(cp.providers, nmProvider)
+	}
+
+	return cp
 }
 
 func (cp *controlPanel) build() gtk.Widgetter {
