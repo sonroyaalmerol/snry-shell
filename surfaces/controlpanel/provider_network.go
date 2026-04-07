@@ -893,6 +893,88 @@ func (n *nmConfigProvider) createPasswordField(labelText string) *outlinedTextFi
 	return field
 }
 
+// touchFriendlyDropDown represents a touch-friendly dropdown using MenuButton
+type touchFriendlyDropDown struct {
+	button   *gtk.MenuButton
+	items    []string
+	selected int
+}
+
+// createTouchFriendlyDropDown creates a dropdown that works reliably with touch input
+// Uses a MenuButton with Popover for better touch handling than native DropDown
+func (n *nmConfigProvider) createTouchFriendlyDropDown(items []string) *touchFriendlyDropDown {
+	// Create a MenuButton which has better touch support
+	menuBtn := gtk.NewMenuButton()
+	menuBtn.AddCSSClass("m3-dropdown-field")
+	menuBtn.SetLabel(items[0])
+
+	dd := &touchFriendlyDropDown{
+		button:   menuBtn,
+		items:    items,
+		selected: 0,
+	}
+
+	// Create popover with list
+	popover := gtk.NewPopover()
+	popover.AddCSSClass("m3-dropdown-popover")
+
+	listBox := gtk.NewListBox()
+	listBox.AddCSSClass("m3-dropdown-list")
+	listBox.SetSelectionMode(gtk.SelectionSingle)
+
+	for i, item := range items {
+		row := gtk.NewListBoxRow()
+		row.AddCSSClass("m3-dropdown-item")
+
+		label := gtk.NewLabel(item)
+		label.AddCSSClass("m3-dropdown-item-label")
+		label.SetHAlign(gtk.AlignStart)
+
+		row.SetChild(label)
+		listBox.Append(row)
+
+		// Capture index for closure
+		idx := i
+		itemText := item
+		row.ConnectActivate(func() {
+			menuBtn.SetLabel(itemText)
+			dd.selected = idx
+			popover.Popdown()
+		})
+	}
+
+	scroll := gtk.NewScrolledWindow()
+	scroll.SetPolicy(gtk.PolicyNever, gtk.PolicyAutomatic)
+	scroll.SetMaxContentHeight(300)
+	scroll.SetChild(listBox)
+
+	popover.SetChild(scroll)
+	menuBtn.SetPopover(popover)
+
+	// Make the button itself larger for touch
+	menuBtn.SetSizeRequest(-1, 56)
+
+	return dd
+}
+
+// SetSelected sets the selected index
+func (dd *touchFriendlyDropDown) SetSelected(index int) {
+	if index >= 0 && index < len(dd.items) {
+		dd.selected = index
+		dd.button.SetLabel(dd.items[index])
+	}
+}
+
+// Selected returns the currently selected index
+func (dd *touchFriendlyDropDown) Selected() int {
+	return dd.selected
+}
+
+// Widget returns the underlying widget for packing
+func (dd *touchFriendlyDropDown) Widget() *gtk.MenuButton {
+	return dd.button
+}
+
 func (n *nmConfigProvider) showEditConnectionDialog(conn state.NMConnection) {
 	dialog := gtk.NewDialog()
 	dialog.SetTitle(fmt.Sprintf("Edit %s", conn.Name))
@@ -936,21 +1018,20 @@ func (n *nmConfigProvider) showEditConnectionDialog(conn state.NMConnection) {
 	typeBox.Append(typeChip)
 	box.Append(typeBox)
 
-	// IPv4 Method - Material 3 Dropdown
+	// IPv4 Method - Material 3 Dropdown (touch-friendly)
 	ipv4Box := gtk.NewBox(gtk.OrientationVertical, 8)
 	ipv4Box.SetMarginTop(16)
 	ipv4Label := gtk.NewLabel("IPv4 Method")
 	ipv4Label.AddCSSClass("settings-small-label")
 	ipv4Label.SetHAlign(gtk.AlignStart)
-	ipv4Dropdown := gtk.NewDropDownFromStrings([]string{"Automatic (DHCP)", "Manual", "Disabled"})
-	ipv4Dropdown.AddCSSClass("m3-dropdown-field")
+	ipv4Dropdown := n.createTouchFriendlyDropDown([]string{"Automatic (DHCP)", "Manual", "Disabled"})
 	if conn.IPv4Method == "manual" {
 		ipv4Dropdown.SetSelected(1)
 	} else if conn.IPv4Method == "disabled" {
 		ipv4Dropdown.SetSelected(2)
 	}
 	ipv4Box.Append(ipv4Label)
-	ipv4Box.Append(ipv4Dropdown)
+	ipv4Box.Append(ipv4Dropdown.Widget())
 	box.Append(ipv4Box)
 
 	// Autoconnect - Material 3 Switch with row

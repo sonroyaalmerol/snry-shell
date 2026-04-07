@@ -2038,17 +2038,71 @@ popover.menu list row:selected {
     outline: none;
 }
 
-/* Material 3 Dropdown Field */
+/* Material 3 Dropdown Field - Touch Friendly */
 .m3-dropdown-field {
     background-color: @col_surface_container;
     border: 1px solid alpha(@col_outline, 0.6);
-    border-radius: var(--radius-sm);
-    padding: 12px 16px;
+    border-radius: var(--radius-md);
+    padding: 0 16px;
     font-size: var(--typescale-body-lg);
+    min-height: 56px;
+    color: @col_on_surface;
 }
 
 .m3-dropdown-field:hover {
     border-color: alpha(@col_on_surface, 0.8);
+    background-color: alpha(@col_on_surface, var(--state-hover));
+}
+
+.m3-dropdown-field:active {
+    background-color: alpha(@col_on_surface, var(--state-press));
+}
+
+/* Touch-friendly popover */
+.m3-dropdown-popover {
+    background-color: @col_surface_container;
+    border-radius: var(--radius-md);
+    box-shadow: var(--elevation-2);
+    margin-top: 4px;
+}
+
+.m3-dropdown-popover contents {
+    padding: 8px 0;
+}
+
+/* Dropdown list styling */
+.m3-dropdown-list {
+    background-color: transparent;
+}
+
+.m3-dropdown-item {
+    min-height: 48px;
+    padding: 12px 24px;
+    margin: 2px 8px;
+    border-radius: var(--radius-sm);
+    transition: background-color var(--duration-short3) var(--ease-standard-decel);
+}
+
+.m3-dropdown-item:hover {
+    background-color: alpha(@col_on_surface, var(--state-hover));
+}
+
+.m3-dropdown-item:active {
+    background-color: alpha(@col_on_surface, var(--state-press));
+}
+
+.m3-dropdown-item:selected {
+    background-color: @col_primary_container;
+}
+
+.m3-dropdown-item:selected .m3-dropdown-item-label {
+    color: @col_on_primary_container;
+    font-weight: 600;
+}
+
+.m3-dropdown-item-label {
+    font-size: var(--typescale-body-lg);
+    color: @col_on_surface;
 }
 
 /* Material 3 Assist Chip */
