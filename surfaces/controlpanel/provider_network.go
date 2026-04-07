@@ -3,39 +3,41 @@ package controlpanel
 import (
 	"fmt"
 	"log"
+	"net"
 
+	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/godbus/dbus/v5"
+	"github.com/sonroyaalmerol/snry-shell/internal/controlsocket"
 	"github.com/sonroyaalmerol/snry-shell/internal/gtkutil"
-	"github.com/sonroyaalmerol/snry-shell/internal/services/network"
+	"github.com/sonroyaalmerol/snry-shell/internal/networkmanager"
 	"github.com/sonroyaalmerol/snry-shell/internal/state"
 )
 
 // nmConfigProvider implements ConfigProvider for NetworkManager settings
 type nmConfigProvider struct {
-	nmService *network.Service
+	manager *networkmanager.Manager
+	// Track widgets that need updates
+	connectionsList *gtk.Box
+	devicesList     *gtk.Box
+	wifiList        *gtk.Box
+	hostnameEntry   *gtk.Entry
 }
 
-// newNMProviderWithConnection creates a network provider with its own D-Bus connection
 func newNMProviderWithConnection() ConfigProvider {
-	log.Printf("[CONTROLPANEL] Attempting to connect to system D-Bus for NetworkManager...")
+	// Connect to D-Bus
 	conn, err := dbus.ConnectSystemBus()
 	if err != nil {
-		log.Printf("[CONTROLPANEL] cannot connect to system bus for NetworkManager: %v", err)
+		log.Printf("[CONTROLPANEL] cannot connect to system bus: %v", err)
 		return nil
 	}
-	log.Printf("[CONTROLPANEL] Successfully connected to system D-Bus")
 
-	nmSvc := network.New(conn, nil)
+	// Get the singleton manager
+	manager := networkmanager.GetInstance(conn, nil)
 
-	// Test the connection by getting hostname
-	if hostname, err := nmSvc.GetHostname(); err != nil {
-		log.Printf("[CONTROLPANEL] Warning: Failed to get hostname, NM may not be available: %v", err)
-	} else {
-		log.Printf("[CONTROLPANEL] NetworkManager available, hostname: %s", hostname)
+	return &nmConfigProvider{
+		manager: manager,
 	}
-
-	return &nmConfigProvider{nmService: nmSvc}
 }
 
 func (n *nmConfigProvider) Name() string {
@@ -52,6 +54,15 @@ func (n *nmConfigProvider) Load() error {
 
 func (n *nmConfigProvider) Save() error {
 	return nil
+}
+
+func (n *nmConfigProvider) notifyShellReload() {
+	conn, err := net.Dial("unix", controlsocket.DefaultPath)
+	if err != nil {
+		return
+	}
+	defer conn.Close()
+	conn.Write([]byte("reload-settings"))
 }
 
 func (n *nmConfigProvider) BuildWidget() gtk.Widgetter {
@@ -76,16 +87,10 @@ func (n *nmConfigProvider) BuildWidget() gtk.Widgetter {
 	title.SetHAlign(gtk.AlignStart)
 	box.Append(title)
 
-	// Hostname section
+	// Build sections
 	box.Append(n.buildHostnameSection())
-
-	// Devices section
 	box.Append(n.buildDevicesSection())
-
-	// WiFi Networks section
 	box.Append(n.buildWiFiSection())
-
-	// Connections section
 	box.Append(n.buildConnectionsSection())
 
 	scroll.SetChild(box)
@@ -108,15 +113,10 @@ func (n *nmConfigProvider) buildHostnameSection() gtk.Widgetter {
 	row := gtk.NewBox(gtk.OrientationHorizontal, 16)
 	row.AddCSSClass("m3-switch-row")
 
-	hostnameEntry := gtk.NewEntry()
-	hostnameEntry.AddCSSClass("settings-entry")
-	hostnameEntry.SetHExpand(true)
-
-	if n.nmService != nil {
-		if hostname, err := n.nmService.GetHostname(); err == nil {
-			hostnameEntry.SetText(hostname)
-		}
-	}
+	n.hostnameEntry = gtk.NewEntry()
+	n.hostnameEntry.AddCSSClass("settings-entry")
+	n.hostnameEntry.SetHExpand(true)
+	n.hostnameEntry.SetText(n.manager.GetHostname())
 
 	updateBtn := gtk.NewButton()
 	updateBtn.AddCSSClass("m3-icon-btn")
@@ -126,21 +126,16 @@ func (n *nmConfigProvider) buildHostnameSection() gtk.Widgetter {
 	updateBtn.SetChild(updateIcon)
 	updateBtn.SetCursorFromName("pointer")
 	updateBtn.ConnectClicked(func() {
-		log.Printf("[CONTROLPANEL] Update hostname button clicked")
-		if n.nmService == nil {
-			log.Printf("[CONTROLPANEL] ERROR: nmService is nil!")
-			return
-		}
-		newHostname := hostnameEntry.Text()
-		log.Printf("[CONTROLPANEL] Setting hostname to: %s", newHostname)
-		if err := n.nmService.SetHostname(newHostname); err != nil {
+		newHostname := n.hostnameEntry.Text()
+		if err := n.manager.SetHostname(newHostname); err != nil {
 			log.Printf("[CONTROLPANEL] failed to set hostname: %v", err)
+			gtkutil.ErrorDialog(nil, "Error", fmt.Sprintf("Failed to set hostname: %v", err))
 		} else {
 			log.Printf("[CONTROLPANEL] hostname updated to %s", newHostname)
 		}
 	})
 
-	row.Append(hostnameEntry)
+	row.Append(n.hostnameEntry)
 	row.Append(updateBtn)
 	card.Append(row)
 	section.Append(card)
@@ -161,31 +156,36 @@ func (n *nmConfigProvider) buildDevicesSection() gtk.Widgetter {
 	card := gtk.NewBox(gtk.OrientationVertical, 0)
 	card.AddCSSClass("system-controls")
 
-	if n.nmService != nil {
-		devices, err := n.nmService.GetDevices()
-		if err != nil {
-			log.Printf("[CONTROLPANEL] failed to get devices: %v", err)
-		}
+	n.devicesList = gtk.NewBox(gtk.OrientationVertical, 0)
+	n.refreshDevicesList()
 
-		if len(devices) == 0 {
-			emptyLabel := gtk.NewLabel("No network devices found")
-			emptyLabel.AddCSSClass("settings-empty-label")
-			emptyLabel.SetMarginTop(16)
-			emptyLabel.SetMarginBottom(16)
-			card.Append(emptyLabel)
-		} else {
-			for i, dev := range devices {
-				if i > 0 {
-					card.Append(gtkutil.M3Divider())
-				}
-				row := n.buildDeviceRow(dev)
-				card.Append(row)
-			}
-		}
+	card.Append(n.devicesList)
+	section.Append(card)
+
+	return section
+}
+
+func (n *nmConfigProvider) refreshDevicesList() {
+	gtkutil.ClearChildren(&n.devicesList.Widget, n.devicesList.Remove)
+
+	devices := n.manager.GetDevices()
+
+	if len(devices) == 0 {
+		emptyLabel := gtk.NewLabel("No network devices found")
+		emptyLabel.AddCSSClass("settings-empty-label")
+		emptyLabel.SetMarginTop(16)
+		emptyLabel.SetMarginBottom(16)
+		n.devicesList.Append(emptyLabel)
+		return
 	}
 
-	section.Append(card)
-	return section
+	for i, dev := range devices {
+		if i > 0 {
+			n.devicesList.Append(gtkutil.M3Divider())
+		}
+		row := n.buildDeviceRow(dev)
+		n.devicesList.Append(row)
+	}
 }
 
 func (n *nmConfigProvider) buildDeviceRow(dev state.NMDevice) gtk.Widgetter {
@@ -196,31 +196,10 @@ func (n *nmConfigProvider) buildDeviceRow(dev state.NMDevice) gtk.Widgetter {
 	row.SetMarginTop(12)
 	row.SetMarginBottom(12)
 
-	// Device icon
-	icon := gtk.NewLabel("")
+	icon := gtk.NewLabel(n.deviceIcon(dev.Type))
 	icon.AddCSSClass("conn-row-icon")
 	icon.AddCSSClass("material-icon")
 
-	var typeLabel string
-	switch dev.Type {
-	case 1:
-		icon.SetText("cable")
-		typeLabel = "Wired"
-	case 2:
-		icon.SetText("wifi")
-		typeLabel = "Wi-Fi"
-	case 14:
-		icon.SetText("bluetooth")
-		typeLabel = "Bluetooth"
-	case 30:
-		icon.SetText("vpn_key")
-		typeLabel = "WWAN"
-	default:
-		icon.SetText("settings_ethernet")
-		typeLabel = "Other"
-	}
-
-	// Info box
 	infoBox := gtk.NewBox(gtk.OrientationVertical, 4)
 	infoBox.SetHExpand(true)
 
@@ -234,15 +213,58 @@ func (n *nmConfigProvider) buildDeviceRow(dev state.NMDevice) gtk.Widgetter {
 	}
 
 	statusText := deviceStateText(dev.State)
-	detailLabel := gtk.NewLabel(fmt.Sprintf("%s  %s  %s", typeLabel, hwAddr, statusText))
+	detailLabel := gtk.NewLabel(fmt.Sprintf("%s  %s  %s", n.deviceTypeLabel(dev.Type), hwAddr, statusText))
 	detailLabel.AddCSSClass("conn-row-status")
 	detailLabel.SetHAlign(gtk.AlignStart)
 
 	infoBox.Append(nameLabel)
 	infoBox.Append(detailLabel)
 
-	row.Append(icon)
-	row.Append(infoBox)
+	// Add connect/disconnect button if device has a connection
+	if dev.ActiveConnection != "" {
+		disconnectBtn := gtk.NewButton()
+		disconnectBtn.AddCSSClass("m3-icon-btn")
+		disconnectBtn.AddCSSClass("settings-btn-small")
+		disconnectBtn.SetTooltipText("Disconnect")
+		disconnectBtn.SetChild(gtkutil.MaterialIcon("link_off"))
+		disconnectBtn.SetCursorFromName("pointer")
+		disconnectBtn.ConnectClicked(func() {
+			if err := n.manager.DeactivateConnection(dev.ActiveConnection); err != nil {
+				log.Printf("[CONTROLPANEL] failed to disconnect: %v", err)
+				gtkutil.ErrorDialog(nil, "Error", fmt.Sprintf("Failed to disconnect: %v", err))
+			}
+			// Refresh after a moment
+			glib.TimeoutAdd(1000, func() bool {
+				n.refreshDevicesList()
+				return false
+			})
+		})
+		row.Append(icon)
+		row.Append(infoBox)
+		row.Append(disconnectBtn)
+	} else if dev.State == 30 { // Disconnected - can connect
+		connectBtn := gtk.NewButton()
+		connectBtn.AddCSSClass("m3-icon-btn")
+		connectBtn.AddCSSClass("settings-btn-small")
+		connectBtn.SetTooltipText("Connect")
+		connectBtn.SetChild(gtkutil.MaterialIcon("link"))
+		connectBtn.SetCursorFromName("pointer")
+		connectBtn.ConnectClicked(func() {
+			// For WiFi, show network selector
+			if dev.Type == 2 {
+				n.showWiFiSelector(dev.Path)
+			} else {
+				// For other devices, try to auto-connect
+				gtkutil.ErrorDialog(nil, "Not Implemented", "Auto-connect for this device type not yet implemented")
+			}
+		})
+		row.Append(icon)
+		row.Append(infoBox)
+		row.Append(connectBtn)
+	} else {
+		row.Append(icon)
+		row.Append(infoBox)
+	}
 
 	return row
 }
@@ -260,14 +282,14 @@ func (n *nmConfigProvider) buildWiFiSection() gtk.Widgetter {
 	card := gtk.NewBox(gtk.OrientationVertical, 0)
 	card.AddCSSClass("system-controls")
 
-	// Scan button
+	// Scan button row
 	scanRow := gtk.NewBox(gtk.OrientationHorizontal, 8)
 	scanRow.SetMarginStart(16)
 	scanRow.SetMarginEnd(16)
 	scanRow.SetMarginTop(12)
 	scanRow.SetMarginBottom(12)
 
-	scanLabel := gtk.NewLabel("Scan for networks")
+	scanLabel := gtk.NewLabel("Scan for available networks")
 	scanLabel.AddCSSClass("conn-row-label")
 	scanLabel.SetHExpand(true)
 	scanLabel.SetHAlign(gtk.AlignStart)
@@ -276,23 +298,21 @@ func (n *nmConfigProvider) buildWiFiSection() gtk.Widgetter {
 	scanBtn.AddCSSClass("m3-icon-btn")
 	scanBtn.AddCSSClass("settings-btn")
 	scanBtn.SetTooltipText("Scan for Wi-Fi networks")
-	scanIcon := gtkutil.MaterialIcon("refresh")
-	scanBtn.SetChild(scanIcon)
+	scanBtn.SetChild(gtkutil.MaterialIcon("refresh"))
 	scanBtn.SetCursorFromName("pointer")
 	scanBtn.ConnectClicked(func() {
-		log.Printf("[CONTROLPANEL] Scan WiFi button clicked")
-		if n.nmService == nil {
-			log.Printf("[CONTROLPANEL] ERROR: nmService is nil!")
-			return
-		}
+		scanLabel.SetText("Scanning...")
 		go func() {
-			log.Printf("[CONTROLPANEL] Starting WiFi scan...")
-			networks, err := n.nmService.ScanWiFi()
-			if err != nil {
-				log.Printf("[CONTROLPANEL] WiFi scan failed: %v", err)
-			} else {
-				log.Printf("[CONTROLPANEL] WiFi scan completed, found %d networks", len(networks))
-			}
+			_, err := n.manager.ScanWiFi()
+			glib.IdleAdd(func() {
+				if err != nil {
+					log.Printf("[CONTROLPANEL] WiFi scan failed: %v", err)
+					scanLabel.SetText("Scan failed")
+				} else {
+					n.refreshWiFiList()
+					scanLabel.SetText("Scan for available networks")
+				}
+			})
 		}()
 	})
 
@@ -300,8 +320,137 @@ func (n *nmConfigProvider) buildWiFiSection() gtk.Widgetter {
 	scanRow.Append(scanBtn)
 	card.Append(scanRow)
 
+	// WiFi networks list
+	n.wifiList = gtk.NewBox(gtk.OrientationVertical, 0)
+	card.Append(gtkutil.M3Divider())
+	card.Append(n.wifiList)
+
 	section.Append(card)
 	return section
+}
+
+func (n *nmConfigProvider) refreshWiFiList() {
+	gtkutil.ClearChildren(&n.wifiList.Widget, n.wifiList.Remove)
+
+	networks := n.manager.GetWiFiNetworks()
+
+	if len(networks) == 0 {
+		emptyLabel := gtk.NewLabel("No Wi-Fi networks found. Click scan to search.")
+		emptyLabel.AddCSSClass("settings-empty-label")
+		emptyLabel.SetMarginTop(16)
+		emptyLabel.SetMarginBottom(16)
+		n.wifiList.Append(emptyLabel)
+		return
+	}
+
+	for i, net := range networks {
+		if i > 0 {
+			n.wifiList.Append(gtkutil.M3Divider())
+		}
+		row := n.buildWiFiRow(net)
+		n.wifiList.Append(row)
+	}
+}
+
+func (n *nmConfigProvider) buildWiFiRow(net state.WiFiNetwork) gtk.Widgetter {
+	row := gtk.NewBox(gtk.OrientationHorizontal, 12)
+	row.AddCSSClass("conn-row")
+	row.SetMarginStart(16)
+	row.SetMarginEnd(16)
+	row.SetMarginTop(12)
+	row.SetMarginBottom(12)
+
+	// Signal strength icon
+	signalIcon := "signal_wifi_0_bar"
+	if net.Signal > 75 {
+		signalIcon = "signal_wifi_4_bar"
+	} else if net.Signal > 50 {
+		signalIcon = "signal_wifi_3_bar"
+	} else if net.Signal > 25 {
+		signalIcon = "signal_wifi_2_bar"
+	} else if net.Signal > 0 {
+		signalIcon = "signal_wifi_1_bar"
+	}
+
+	icon := gtk.NewLabel(signalIcon)
+	icon.AddCSSClass("conn-row-icon")
+	icon.AddCSSClass("material-icon")
+
+	infoBox := gtk.NewBox(gtk.OrientationVertical, 4)
+	infoBox.SetHExpand(true)
+
+	nameLabel := gtk.NewLabel(net.SSID)
+	nameLabel.AddCSSClass("conn-row-label")
+	nameLabel.SetHAlign(gtk.AlignStart)
+
+	securityText := "Open"
+	if net.Security != "" {
+		securityText = net.Security
+	}
+	detail := fmt.Sprintf("%s  Signal: %d%%", securityText, net.Signal)
+	if net.Connected {
+		detail += "  Connected"
+	} else if net.Saved {
+		detail += "  Saved"
+	}
+	detailLabel := gtk.NewLabel(detail)
+	detailLabel.AddCSSClass("conn-row-status")
+	detailLabel.SetHAlign(gtk.AlignStart)
+
+	infoBox.Append(nameLabel)
+	infoBox.Append(detailLabel)
+
+	// Action button
+	if net.Connected {
+		disconnectBtn := gtk.NewButton()
+		disconnectBtn.AddCSSClass("m3-icon-btn")
+		disconnectBtn.AddCSSClass("settings-btn-small")
+		disconnectBtn.SetTooltipText("Disconnect")
+		disconnectBtn.SetChild(gtkutil.MaterialIcon("link_off"))
+		disconnectBtn.ConnectClicked(func() {
+			// Find and disconnect
+			devices := n.manager.GetDevices()
+			for _, dev := range devices {
+				if dev.ActiveSSID == net.SSID && dev.ActiveConnection != "" {
+					n.manager.DeactivateConnection(dev.ActiveConnection)
+					break
+				}
+			}
+		})
+		row.Append(icon)
+		row.Append(infoBox)
+		row.Append(disconnectBtn)
+	} else if net.Saved {
+		connectBtn := gtk.NewButton()
+		connectBtn.AddCSSClass("m3-icon-btn")
+		connectBtn.AddCSSClass("settings-btn-small")
+		connectBtn.SetTooltipText("Connect")
+		connectBtn.SetChild(gtkutil.MaterialIcon("link"))
+		connectBtn.ConnectClicked(func() {
+			if err := n.manager.ConnectWiFi(net.SSID); err != nil {
+				log.Printf("[CONTROLPANEL] failed to connect: %v", err)
+				gtkutil.ErrorDialog(nil, "Error", fmt.Sprintf("Failed to connect: %v", err))
+			}
+		})
+		row.Append(icon)
+		row.Append(infoBox)
+		row.Append(connectBtn)
+	} else {
+		// New network - need password
+		connectBtn := gtk.NewButton()
+		connectBtn.AddCSSClass("m3-icon-btn")
+		connectBtn.AddCSSClass("settings-btn-small")
+		connectBtn.SetTooltipText("Connect (requires password)")
+		connectBtn.SetChild(gtkutil.MaterialIcon("add"))
+		connectBtn.ConnectClicked(func() {
+			n.showWiFiPasswordDialog(net.SSID)
+		})
+		row.Append(icon)
+		row.Append(infoBox)
+		row.Append(connectBtn)
+	}
+
+	return row
 }
 
 func (n *nmConfigProvider) buildConnectionsSection() gtk.Widgetter {
@@ -318,18 +467,22 @@ func (n *nmConfigProvider) buildConnectionsSection() gtk.Widgetter {
 	header.SetMarginBottom(8)
 	header.SetHAlign(gtk.AlignEnd)
 
-	refreshBtn := gtkutil.M3IconButton("refresh", "settings-btn")
+	refreshBtn := gtk.NewButton()
+	refreshBtn.AddCSSClass("m3-icon-btn")
+	refreshBtn.AddCSSClass("settings-btn")
 	refreshBtn.SetTooltipText("Refresh connections list")
+	refreshBtn.SetChild(gtkutil.MaterialIcon("refresh"))
 	refreshBtn.ConnectClicked(func() {
-		// TODO: Refresh the view
-		log.Printf("[CONTROLPANEL] refresh connections clicked")
+		n.refreshConnectionsList()
 	})
 
-	addBtn := gtkutil.M3IconButton("add", "settings-btn")
+	addBtn := gtk.NewButton()
+	addBtn.AddCSSClass("m3-icon-btn")
+	addBtn.AddCSSClass("settings-btn")
 	addBtn.SetTooltipText("Add new connection")
+	addBtn.SetChild(gtkutil.MaterialIcon("add"))
 	addBtn.ConnectClicked(func() {
-		// TODO: Open add connection dialog
-		log.Printf("[CONTROLPANEL] add connection clicked")
+		n.showAddConnectionDialog()
 	})
 
 	header.Append(refreshBtn)
@@ -339,35 +492,39 @@ func (n *nmConfigProvider) buildConnectionsSection() gtk.Widgetter {
 	card := gtk.NewBox(gtk.OrientationVertical, 0)
 	card.AddCSSClass("system-controls")
 
-	if n.nmService != nil {
-		conns, err := n.nmService.GetAllConnections()
-		if err != nil {
-			log.Printf("[CONTROLPANEL] failed to get connections: %v", err)
-		}
+	n.connectionsList = gtk.NewBox(gtk.OrientationVertical, 0)
+	n.refreshConnectionsList()
 
-		if len(conns) == 0 {
-			emptyLabel := gtk.NewLabel("No saved connections")
-			emptyLabel.AddCSSClass("settings-empty-label")
-			emptyLabel.SetMarginTop(16)
-			emptyLabel.SetMarginBottom(16)
-			card.Append(emptyLabel)
-		} else {
-			for i, conn := range conns {
-				if i > 0 {
-					card.Append(gtkutil.M3Divider())
-				}
-				row := n.buildConnectionRow(conn)
-				card.Append(row)
-			}
-		}
-	}
-
+	card.Append(n.connectionsList)
 	section.Append(card)
+
 	return section
 }
 
+func (n *nmConfigProvider) refreshConnectionsList() {
+	gtkutil.ClearChildren(&n.connectionsList.Widget, n.connectionsList.Remove)
+
+	connections := n.manager.GetConnections()
+
+	if len(connections) == 0 {
+		emptyLabel := gtk.NewLabel("No saved connections")
+		emptyLabel.AddCSSClass("settings-empty-label")
+		emptyLabel.SetMarginTop(16)
+		emptyLabel.SetMarginBottom(16)
+		n.connectionsList.Append(emptyLabel)
+		return
+	}
+
+	for i, conn := range connections {
+		if i > 0 {
+			n.connectionsList.Append(gtkutil.M3Divider())
+		}
+		row := n.buildConnectionRow(conn)
+		n.connectionsList.Append(row)
+	}
+}
+
 func (n *nmConfigProvider) buildConnectionRow(conn state.NMConnection) gtk.Widgetter {
-	log.Printf("[CONTROLPANEL] Building connection row for: %s", conn.Name)
 	row := gtk.NewBox(gtk.OrientationVertical, 0)
 	row.SetMarginStart(16)
 	row.SetMarginEnd(16)
@@ -395,6 +552,9 @@ func (n *nmConfigProvider) buildConnectionRow(conn state.NMConnection) gtk.Widge
 	if conn.IPv4Method != "" {
 		detail += fmt.Sprintf("  IPv4: %s", conn.IPv4Method)
 	}
+	if conn.Active {
+		detail += "  Active"
+	}
 	detailLabel := gtk.NewLabel(detail)
 	detailLabel.AddCSSClass("conn-row-status")
 	detailLabel.SetHAlign(gtk.AlignStart)
@@ -419,20 +579,10 @@ func (n *nmConfigProvider) buildConnectionRow(conn state.NMConnection) gtk.Widge
 
 	autoconnectSwitch := gtk.NewSwitch()
 	autoconnectSwitch.SetActive(conn.Autoconnect)
-	autoconnectSwitch.SetSensitive(true)
-	autoconnectSwitch.SetCanTarget(true)
-	// Use Connect with notify signal for the active property
 	autoconnectSwitch.Connect("notify::active", func() {
 		state := autoconnectSwitch.Active()
-		log.Printf("[CONTROLPANEL] Autoconnect toggle changed for %s: %v", conn.Name, state)
-		if n.nmService == nil {
-			log.Printf("[CONTROLPANEL] ERROR: nmService is nil!")
-			return
-		}
-		if err := n.nmService.SetAutoconnect(conn.Path, state); err != nil {
+		if err := n.manager.SetAutoconnect(conn.Path, state); err != nil {
 			log.Printf("[CONTROLPANEL] failed to set autoconnect: %v", err)
-		} else {
-			log.Printf("[CONTROLPANEL] autoconnect set to %v for %s", state, conn.Name)
 		}
 	})
 
@@ -446,43 +596,65 @@ func (n *nmConfigProvider) buildConnectionRow(conn state.NMConnection) gtk.Widge
 	editBtn := gtk.NewButton()
 	editBtn.AddCSSClass("m3-icon-btn")
 	editBtn.AddCSSClass("settings-btn-small")
-	editBtn.SetTooltipText("Edit connection (not implemented)")
-	editIcon := gtkutil.MaterialIcon("edit")
-	editBtn.SetChild(editIcon)
+	editBtn.SetTooltipText("Edit connection")
+	editBtn.SetChild(gtkutil.MaterialIcon("edit"))
 	editBtn.SetCursorFromName("pointer")
 	editBtn.ConnectClicked(func() {
-		log.Printf("[CONTROLPANEL] Edit button clicked for connection: %s (path: %s)", conn.Name, conn.Path)
-		log.Printf("[CONTROLPANEL] Note: Edit dialog not yet implemented")
+		n.showEditConnectionDialog(conn)
 	})
 	actionsRow.Append(editBtn)
 
-	// Delete button - make it more visible/obvious
+	// Delete button
 	deleteBtn := gtk.NewButton()
 	deleteBtn.AddCSSClass("m3-icon-btn")
 	deleteBtn.AddCSSClass("settings-btn-small")
 	deleteBtn.SetTooltipText("Delete connection")
-	deleteIcon := gtkutil.MaterialIcon("delete")
-	deleteBtn.SetChild(deleteIcon)
+	deleteBtn.SetChild(gtkutil.MaterialIcon("delete"))
 	deleteBtn.SetCursorFromName("pointer")
-	deleteBtn.SetSensitive(true)
 	deleteBtn.ConnectClicked(func() {
-		log.Printf("[CONTROLPANEL] Delete button clicked for connection: %s (path: %s)", conn.Name, conn.Path)
-		if n.nmService == nil {
-			log.Printf("[CONTROLPANEL] ERROR: nmService is nil!")
-			return
-		}
-		log.Printf("[CONTROLPANEL] Deleting connection at path: %s", conn.Path)
-		if err := n.nmService.DeleteConnection(conn.Path); err != nil {
-			log.Printf("[CONTROLPANEL] failed to delete connection: %v", err)
-		} else {
-			log.Printf("[CONTROLPANEL] successfully deleted connection: %s", conn.Name)
-		}
+		n.showDeleteConfirmDialog(conn)
 	})
 	actionsRow.Append(deleteBtn)
 
 	row.Append(actionsRow)
 
 	return row
+}
+
+// Helper functions
+
+func (n *nmConfigProvider) deviceIcon(deviceType uint32) string {
+	switch deviceType {
+	case 1:
+		return "cable"
+	case 2:
+		return "wifi"
+	case 5:
+		return "bluetooth"
+	case 14:
+		return "settings_ethernet"
+	case 30:
+		return "vpn_key"
+	default:
+		return "settings_ethernet"
+	}
+}
+
+func (n *nmConfigProvider) deviceTypeLabel(deviceType uint32) string {
+	switch deviceType {
+	case 1:
+		return "Wired"
+	case 2:
+		return "Wi-Fi"
+	case 5:
+		return "Bluetooth"
+	case 14:
+		return "Generic"
+	case 30:
+		return "WireGuard"
+	default:
+		return "Other"
+	}
 }
 
 func deviceStateText(state uint32) string {
@@ -519,4 +691,501 @@ func connectionIcon(connType string) string {
 	default:
 		return "settings_ethernet"
 	}
+}
+
+// Dialog functions
+
+func (n *nmConfigProvider) showWiFiSelector(devicePath string) {
+	dialog := gtk.NewDialog()
+	dialog.SetTitle("Select Wi-Fi Network")
+	dialog.SetTransientFor(nil)
+	dialog.SetModal(true)
+	dialog.SetDefaultSize(400, 300)
+
+	content := dialog.ContentArea()
+	content.SetMarginTop(12)
+	content.SetMarginBottom(12)
+	content.SetMarginStart(12)
+	content.SetMarginEnd(12)
+
+	scroll := gtk.NewScrolledWindow()
+	scroll.SetVExpand(true)
+
+	list := gtk.NewBox(gtk.OrientationVertical, 8)
+	networks := n.manager.GetWiFiNetworks()
+
+	for _, net := range networks {
+		if net.Saved {
+			row := gtk.NewBox(gtk.OrientationHorizontal, 8)
+			row.AddCSSClass("conn-row")
+
+			label := gtk.NewLabel(net.SSID)
+			label.SetHExpand(true)
+			label.SetHAlign(gtk.AlignStart)
+
+			btn := gtk.NewButtonWithLabel("Connect")
+			btn.AddCSSClass("m3-filled-btn")
+			btn.ConnectClicked(func() {
+				// Find connection for this SSID
+				connections := n.manager.GetConnections()
+				for _, conn := range connections {
+					if conn.SSID == net.SSID {
+						n.manager.ActivateConnection(conn.Path, devicePath)
+						break
+					}
+				}
+				dialog.Close()
+			})
+
+			row.Append(label)
+			row.Append(btn)
+			list.Append(row)
+		}
+	}
+
+	scroll.SetChild(list)
+	content.Append(scroll)
+
+	cancelBtn := gtk.NewButtonWithLabel("Cancel")
+	cancelBtn.ConnectClicked(func() {
+		dialog.Close()
+	})
+	cancelBtn.ConnectClicked(func() { dialog.Close() })
+	dialog.AddActionWidget(cancelBtn, int(gtk.ResponseCancel))
+
+	dialog.Show()
+}
+
+func (n *nmConfigProvider) showWiFiPasswordDialog(ssid string) {
+	dialog := gtk.NewDialog()
+	dialog.SetTitle(fmt.Sprintf("Connect to %s", ssid))
+	dialog.SetTransientFor(nil)
+	dialog.SetModal(true)
+	dialog.SetDefaultSize(350, 150)
+
+	content := dialog.ContentArea()
+	content.SetMarginTop(12)
+	content.SetMarginBottom(12)
+	content.SetMarginStart(12)
+	content.SetMarginEnd(12)
+
+	label := gtk.NewLabel(fmt.Sprintf("Enter password for %s:", ssid))
+	label.SetHAlign(gtk.AlignStart)
+	content.Append(label)
+
+	entry := gtk.NewEntry()
+	entry.SetVisibility(false)
+	entry.SetInputPurpose(gtk.InputPurposePassword)
+	entry.SetMarginTop(8)
+	content.Append(entry)
+
+	connectBtn := gtk.NewButtonWithLabel("Connect")
+	connectBtn.AddCSSClass("m3-filled-btn")
+	connectBtn.ConnectClicked(func() {
+		password := entry.Text()
+		if err := n.manager.ConnectWiFiWithPassword(ssid, password); err != nil {
+			log.Printf("[CONTROLPANEL] failed to connect: %v", err)
+			gtkutil.ErrorDialog(nil, "Connection Failed", err.Error())
+		}
+		dialog.Close()
+	})
+	dialog.AddActionWidget(connectBtn, int(gtk.ResponseAccept))
+
+	cancelBtn := gtk.NewButtonWithLabel("Cancel")
+	cancelBtn.ConnectClicked(func() {
+		dialog.Close()
+	})
+	cancelBtn.ConnectClicked(func() { dialog.Close() })
+	dialog.AddActionWidget(cancelBtn, int(gtk.ResponseCancel))
+
+	dialog.Show()
+}
+
+func (n *nmConfigProvider) showDeleteConfirmDialog(conn state.NMConnection) {
+	dialog := gtk.NewDialog()
+	dialog.SetTitle("Confirm Delete")
+	dialog.SetTransientFor(nil)
+	dialog.SetModal(true)
+
+	content := dialog.ContentArea()
+	content.SetMarginTop(24)
+	content.SetMarginBottom(24)
+	content.SetMarginStart(24)
+	content.SetMarginEnd(24)
+
+	label := gtk.NewLabel(fmt.Sprintf("Delete connection '%s'?", conn.Name))
+	label.AddCSSClass("settings-subtitle")
+	sublabel := gtk.NewLabel("This action cannot be undone.")
+	sublabel.AddCSSClass("settings-small-label")
+	content.Append(label)
+	content.Append(sublabel)
+
+	dialog.AddButton("Cancel", int(gtk.ResponseCancel))
+	dialog.AddButton("Delete", int(gtk.ResponseAccept))
+
+	dialog.ConnectResponse(func(response int) {
+		if response == int(gtk.ResponseAccept) {
+			if err := n.manager.DeleteConnection(conn.Path); err != nil {
+				log.Printf("[CONTROLPANEL] failed to delete connection: %v", err)
+				gtkutil.ErrorDialog(nil, "Error", fmt.Sprintf("Failed to delete: %v", err))
+			} else {
+				n.refreshConnectionsList()
+			}
+		}
+		dialog.Close()
+	})
+
+	dialog.Show()
+}
+
+func (n *nmConfigProvider) showEditConnectionDialog(conn state.NMConnection) {
+	dialog := gtk.NewDialog()
+	dialog.SetTitle(fmt.Sprintf("Edit %s", conn.Name))
+	dialog.SetTransientFor(nil)
+	dialog.SetModal(true)
+	dialog.SetDefaultSize(450, 400)
+
+	content := dialog.ContentArea()
+	content.SetMarginTop(12)
+	content.SetMarginBottom(12)
+	content.SetMarginStart(12)
+	content.SetMarginEnd(12)
+
+	scroll := gtk.NewScrolledWindow()
+	scroll.SetVExpand(true)
+
+	box := gtk.NewBox(gtk.OrientationVertical, 12)
+
+	// Connection name
+	nameRow := n.buildFormRow("Connection Name:", conn.Name)
+	box.Append(nameRow)
+
+	// Connection type (read-only)
+	typeRow := n.buildFormRow("Type:", conn.TypeLabel)
+	box.Append(typeRow)
+
+	// IPv4 Method
+	ipv4Box := gtk.NewBox(gtk.OrientationHorizontal, 8)
+	ipv4Label := gtk.NewLabel("IPv4 Method:")
+	ipv4Label.SetSizeRequest(120, -1)
+	ipv4Label.SetHAlign(gtk.AlignStart)
+
+	ipv4Dropdown := gtk.NewDropDownFromStrings([]string{"auto", "manual", "disabled"})
+	ipv4Dropdown.SetSelected(0) // Default to auto
+	if conn.IPv4Method == "manual" {
+		ipv4Dropdown.SetSelected(1)
+	} else if conn.IPv4Method == "disabled" {
+		ipv4Dropdown.SetSelected(2)
+	}
+
+	ipv4Box.Append(ipv4Label)
+	ipv4Box.Append(ipv4Dropdown)
+	box.Append(ipv4Box)
+
+	// Autoconnect
+	autoBox := gtk.NewBox(gtk.OrientationHorizontal, 8)
+	autoLabel := gtk.NewLabel("Auto-connect:")
+	autoLabel.SetSizeRequest(120, -1)
+	autoLabel.SetHAlign(gtk.AlignStart)
+
+	autoSwitch := gtk.NewSwitch()
+	autoSwitch.SetActive(conn.Autoconnect)
+
+	autoBox.Append(autoLabel)
+	autoBox.Append(autoSwitch)
+	box.Append(autoBox)
+
+	scroll.SetChild(box)
+	content.Append(scroll)
+
+	// Save button
+	saveBtn := gtk.NewButtonWithLabel("Save")
+	saveBtn.AddCSSClass("m3-filled-btn")
+	saveBtn.ConnectClicked(func() {
+		// Build updated settings
+		settings := map[string]map[string]dbus.Variant{
+			"connection": {
+				"autoconnect": dbus.MakeVariant(autoSwitch.Active()),
+			},
+			"ipv4": {
+				"method": dbus.MakeVariant(ipv4Dropdown.Selected()),
+			},
+		}
+
+		if err := n.manager.UpdateConnection(conn.Path, settings); err != nil {
+			log.Printf("[CONTROLPANEL] failed to update connection: %v", err)
+			gtkutil.ErrorDialog(nil, "Error", fmt.Sprintf("Failed to save: %v", err))
+		} else {
+			n.refreshConnectionsList()
+			dialog.Close()
+		}
+	})
+	dialog.AddActionWidget(saveBtn, int(gtk.ResponseAccept))
+
+	cancelBtn := gtk.NewButtonWithLabel("Cancel")
+	cancelBtn.ConnectClicked(func() {
+		dialog.Close()
+	})
+	cancelBtn.ConnectClicked(func() { dialog.Close() })
+	dialog.AddActionWidget(cancelBtn, int(gtk.ResponseCancel))
+
+	dialog.Show()
+}
+
+func (n *nmConfigProvider) buildFormRow(label, value string) gtk.Widgetter {
+	row := gtk.NewBox(gtk.OrientationHorizontal, 8)
+	lbl := gtk.NewLabel(label)
+	lbl.SetSizeRequest(120, -1)
+	lbl.SetHAlign(gtk.AlignStart)
+
+	entry := gtk.NewEntry()
+	entry.SetText(value)
+	entry.SetHExpand(true)
+
+	row.Append(lbl)
+	row.Append(entry)
+	return row
+}
+
+func (n *nmConfigProvider) showAddConnectionDialog() {
+	dialog := gtk.NewDialog()
+	dialog.SetTitle("Add New Connection")
+	dialog.SetTransientFor(nil)
+	dialog.SetModal(true)
+	dialog.SetDefaultSize(400, 300)
+
+	content := dialog.ContentArea()
+	content.SetMarginTop(12)
+	content.SetMarginBottom(12)
+	content.SetMarginStart(12)
+	content.SetMarginEnd(12)
+
+	// Connection type selector
+	typeLabel := gtk.NewLabel("Select connection type:")
+	typeLabel.SetHAlign(gtk.AlignStart)
+	content.Append(typeLabel)
+
+	types := []string{"Wi-Fi", "Ethernet", "VPN"}
+	typeList := gtk.NewBox(gtk.OrientationVertical, 8)
+	typeList.SetMarginTop(12)
+
+	for _, connType := range types {
+		btn := gtk.NewButtonWithLabel(connType)
+		btn.AddCSSClass("m3-text-btn")
+		btn.SetHAlign(gtk.AlignStart)
+		btn.ConnectClicked(func(t string) func() {
+			return func() {
+				dialog.Close()
+				n.showAddConnectionForm(t)
+			}
+		}(connType))
+		typeList.Append(btn)
+	}
+
+	content.Append(typeList)
+
+	cancelBtn := gtk.NewButtonWithLabel("Cancel")
+	cancelBtn.ConnectClicked(func() {
+		dialog.Close()
+	})
+	cancelBtn.ConnectClicked(func() { dialog.Close() })
+	dialog.AddActionWidget(cancelBtn, int(gtk.ResponseCancel))
+
+	dialog.Show()
+}
+
+func (n *nmConfigProvider) showAddConnectionForm(connType string) {
+	switch connType {
+	case "Wi-Fi":
+		n.showAddWiFiDialog()
+	case "Ethernet":
+		n.showAddEthernetDialog()
+	case "VPN":
+		gtkutil.ErrorDialog(nil, "Not Implemented", "VPN configuration not yet implemented")
+	}
+}
+
+func (n *nmConfigProvider) showAddWiFiDialog() {
+	dialog := gtk.NewDialog()
+	dialog.SetTitle("Add Wi-Fi Connection")
+	dialog.SetTransientFor(nil)
+	dialog.SetModal(true)
+	dialog.SetDefaultSize(350, 250)
+
+	content := dialog.ContentArea()
+	content.SetMarginTop(12)
+	content.SetMarginBottom(12)
+	content.SetMarginStart(12)
+	content.SetMarginEnd(12)
+
+	// SSID
+	ssidRow := gtk.NewBox(gtk.OrientationHorizontal, 8)
+	ssidLabel := gtk.NewLabel("Network Name (SSID):")
+	ssidLabel.SetHAlign(gtk.AlignStart)
+	ssidEntry := gtk.NewEntry()
+	ssidEntry.SetHExpand(true)
+	ssidRow.Append(ssidLabel)
+	ssidRow.Append(ssidEntry)
+	content.Append(ssidRow)
+
+	// Password
+	passRow := gtk.NewBox(gtk.OrientationHorizontal, 8)
+	passRow.SetMarginTop(12)
+	passLabel := gtk.NewLabel("Password:")
+	passLabel.SetHAlign(gtk.AlignStart)
+	passEntry := gtk.NewEntry()
+	passEntry.SetVisibility(false)
+	passEntry.SetInputPurpose(gtk.InputPurposePassword)
+	passEntry.SetHExpand(true)
+	passRow.Append(passLabel)
+	passRow.Append(passEntry)
+	content.Append(passRow)
+
+	// Auto-connect
+	autoBox := gtk.NewBox(gtk.OrientationHorizontal, 8)
+	autoBox.SetMarginTop(12)
+	autoLabel := gtk.NewLabel("Auto-connect:")
+	autoLabel.SetHAlign(gtk.AlignStart)
+	autoSwitch := gtk.NewSwitch()
+	autoSwitch.SetActive(true)
+	autoBox.Append(autoLabel)
+	autoBox.Append(autoSwitch)
+	content.Append(autoBox)
+
+	// Add button
+	addBtn := gtk.NewButtonWithLabel("Add")
+	addBtn.AddCSSClass("m3-filled-btn")
+	addBtn.ConnectClicked(func() {
+		ssid := ssidEntry.Text()
+		password := passEntry.Text()
+		autoconnect := autoSwitch.Active()
+
+		if ssid == "" {
+			gtkutil.ErrorDialog(nil, "Error", "Please enter a network name")
+			return
+		}
+
+		settings := map[string]map[string]dbus.Variant{
+			"connection": {
+				"id":          dbus.MakeVariant(ssid),
+				"type":        dbus.MakeVariant("802-11-wireless"),
+				"autoconnect": dbus.MakeVariant(autoconnect),
+			},
+			"802-11-wireless": {
+				"ssid": dbus.MakeVariant([]byte(ssid)),
+				"mode": dbus.MakeVariant("infrastructure"),
+			},
+			"ipv4": {
+				"method": dbus.MakeVariant("auto"),
+			},
+			"ipv6": {
+				"method": dbus.MakeVariant("auto"),
+			},
+		}
+
+		if password != "" {
+			settings["802-11-wireless-security"] = map[string]dbus.Variant{
+				"key-mgmt": dbus.MakeVariant("wpa-psk"),
+				"psk":      dbus.MakeVariant(password),
+			}
+		}
+
+		if _, err := n.manager.AddConnection(settings); err != nil {
+			log.Printf("[CONTROLPANEL] failed to add connection: %v", err)
+			gtkutil.ErrorDialog(nil, "Error", fmt.Sprintf("Failed to add connection: %v", err))
+		} else {
+			n.refreshConnectionsList()
+			dialog.Close()
+		}
+	})
+	dialog.AddActionWidget(addBtn, int(gtk.ResponseAccept))
+
+	cancelBtn := gtk.NewButtonWithLabel("Cancel")
+	cancelBtn.ConnectClicked(func() {
+		dialog.Close()
+	})
+	cancelBtn.ConnectClicked(func() { dialog.Close() })
+	dialog.AddActionWidget(cancelBtn, int(gtk.ResponseCancel))
+
+	dialog.Show()
+}
+
+func (n *nmConfigProvider) showAddEthernetDialog() {
+	dialog := gtk.NewDialog()
+	dialog.SetTitle("Add Ethernet Connection")
+	dialog.SetTransientFor(nil)
+	dialog.SetModal(true)
+	dialog.SetDefaultSize(350, 200)
+
+	content := dialog.ContentArea()
+	content.SetMarginTop(12)
+	content.SetMarginBottom(12)
+	content.SetMarginStart(12)
+	content.SetMarginEnd(12)
+
+	// Connection name
+	nameRow := gtk.NewBox(gtk.OrientationHorizontal, 8)
+	nameLabel := gtk.NewLabel("Connection Name:")
+	nameLabel.SetHAlign(gtk.AlignStart)
+	nameEntry := gtk.NewEntry()
+	nameEntry.SetHExpand(true)
+	nameRow.Append(nameLabel)
+	nameRow.Append(nameEntry)
+	content.Append(nameRow)
+
+	// Auto-connect
+	autoBox := gtk.NewBox(gtk.OrientationHorizontal, 8)
+	autoBox.SetMarginTop(12)
+	autoLabel := gtk.NewLabel("Auto-connect:")
+	autoLabel.SetHAlign(gtk.AlignStart)
+	autoSwitch := gtk.NewSwitch()
+	autoSwitch.SetActive(true)
+	autoBox.Append(autoLabel)
+	autoBox.Append(autoSwitch)
+	content.Append(autoBox)
+
+	// Add button
+	addBtn := gtk.NewButtonWithLabel("Add")
+	addBtn.AddCSSClass("m3-filled-btn")
+	addBtn.ConnectClicked(func() {
+		name := nameEntry.Text()
+		autoconnect := autoSwitch.Active()
+
+		if name == "" {
+			gtkutil.ErrorDialog(nil, "Error", "Please enter a connection name")
+			return
+		}
+
+		settings := map[string]map[string]dbus.Variant{
+			"connection": {
+				"id":          dbus.MakeVariant(name),
+				"type":        dbus.MakeVariant("802-3-ethernet"),
+				"autoconnect": dbus.MakeVariant(autoconnect),
+			},
+			"ipv4": {
+				"method": dbus.MakeVariant("auto"),
+			},
+			"ipv6": {
+				"method": dbus.MakeVariant("auto"),
+			},
+		}
+
+		if _, err := n.manager.AddConnection(settings); err != nil {
+			log.Printf("[CONTROLPANEL] failed to add connection: %v", err)
+			gtkutil.ErrorDialog(nil, "Error", fmt.Sprintf("Failed to add connection: %v", err))
+		} else {
+			n.refreshConnectionsList()
+			dialog.Close()
+		}
+	})
+	dialog.AddActionWidget(addBtn, int(gtk.ResponseAccept))
+
+	cancelBtn := gtk.NewButtonWithLabel("Cancel")
+	cancelBtn.ConnectClicked(func() {
+		dialog.Close()
+	})
+	cancelBtn.ConnectClicked(func() { dialog.Close() })
+	dialog.AddActionWidget(cancelBtn, int(gtk.ResponseCancel))
+
+	dialog.Show()
 }

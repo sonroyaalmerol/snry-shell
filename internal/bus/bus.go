@@ -41,6 +41,7 @@ const (
 	TopicThemeChanged     Topic = "themechanged"
 	TopicSettingsChanged  Topic = "settingschanged"
 	TopicDarkMode         Topic = "darkmode"
+	TopicNetworkManager   Topic = "networkmanager"
 )
 
 type Event struct {

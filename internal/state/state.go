@@ -116,33 +116,53 @@ type BluetoothDevice struct {
 
 // NMConnection represents a NetworkManager connection profile
 type NMConnection struct {
-	Path           string
-	Name           string
-	UUID           string
-	Type           string
-	TypeLabel      string
-	SSID           string
-	MAC            string
-	VPNType        string
-	Autoconnect    bool
-	Secured        bool
-	IPv4Method     string
-	IPv6Method     string
-	IPv4Configured bool
-	IPv6Configured bool
-	Active         bool
+	Path              string
+	Name              string
+	UUID              string
+	Type              string
+	TypeLabel         string
+	SSID              string
+	MAC               string
+	VPNType           string
+	VPNTypeLabel      string
+	Autoconnect       bool
+	Secured           bool
+	SecurityType      string
+	InterfaceName     string
+	IPv4Method        string
+	IPv6Method        string
+	IPv4Configured    bool
+	IPv6Configured    bool
+	IPv4DNSConfigured bool
+	Active            bool
+	WiFiMode          string
+	APN               string
+	LastUsed          time.Time
 }
 
 // NMDevice represents a NetworkManager device
 type NMDevice struct {
-	Path             string
-	Interface        string
-	Type             uint32
-	State            uint32
-	HwAddress        string
-	ActiveConnection string
-	HasIP4           bool
-	HasIP6           bool
+	Path                 string
+	Interface            string
+	Type                 uint32
+	State                uint32
+	HwAddress            string
+	ActiveConnection     string
+	ActiveConnectionName string
+	ActiveSSID           string
+	SignalStrength       uint8
+	HasIP4               bool
+	HasIP6               bool
+}
+
+// NetworkManagerState represents the complete NM state
+type NetworkManagerState struct {
+	Hostname        string
+	State           uint32
+	Devices         []NMDevice
+	Connections     []NMConnection
+	WiFiNetworks    []WiFiNetwork
+	WirelessEnabled bool
 }
 type PomodoroState struct {
 	Phase             string
