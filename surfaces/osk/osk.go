@@ -28,6 +28,7 @@ type OSK struct {
 	hasTouch       bool
 	tabletMode     bool // dynamic: true when no physical keyboard (tablet/convertible folded)
 	manualOff      bool
+	manualMode     bool // true when OSK was manually opened via bar button
 	visible        bool
 	fullscreen     bool
 	viewMode       string // "keyboard", "emoji", "clipboard"
@@ -90,9 +91,25 @@ func New(app *gtk.Application, b *bus.Bus) *OSK {
 			glib.IdleAdd(func() {
 				if osk.visible {
 					osk.manualOff = true
+					osk.manualMode = false
 					osk.hide()
 				} else {
 					osk.manualOff = false
+					osk.manualMode = false
+					osk.switchView("keyboard")
+					osk.show()
+				}
+			})
+		case "toggle-osk-bar":
+			// Manual toggle from bar button - enables manual mode
+			glib.IdleAdd(func() {
+				if osk.visible {
+					osk.manualOff = true
+					osk.manualMode = false
+					osk.hide()
+				} else {
+					osk.manualOff = false
+					osk.manualMode = true
 					osk.switchView("keyboard")
 					osk.show()
 				}
@@ -197,8 +214,13 @@ func (o *OSK) updateViewButtons() {
 }
 
 func (o *OSK) scheduleFocusUpdate(want bool) {
+	// If in manual mode, don't auto-show/hide
+	if o.manualMode {
+		return
+	}
+
 	want = o.tabletMode && want
-	log.Printf("[OSK] focus: want=%v tablet=%v", want, o.tabletMode)
+	log.Printf("[OSK] focus: want=%v tablet=%v manual=%v", want, o.tabletMode, o.manualMode)
 
 	if o.debounce != nil {
 		o.debounce.Stop()
@@ -422,6 +444,7 @@ func (o *OSK) build() {
 	closeBtn.SetVAlign(gtk.AlignStart)
 	closeBtn.ConnectClicked(func() {
 		o.manualOff = true
+		o.manualMode = false
 		o.hide()
 	})
 

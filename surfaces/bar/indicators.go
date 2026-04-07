@@ -131,6 +131,13 @@ func newBluetoothIcon(b *bus.Bus, refs *servicerefs.ServiceRefs) gtk.Widgetter {
 	return icon
 }
 
+// newOskIcon returns a keyboard icon for toggling the on-screen keyboard.
+func newOskIcon(b *bus.Bus) gtk.Widgetter {
+	icon := gtkutil.MaterialIcon("keyboard")
+	icon.AddCSSClass("indicator-icon")
+	return icon
+}
+
 // newBatteryIndicator returns a battery icon + percentage, hidden if no battery.
 func newBatteryIndicator(b *bus.Bus) gtk.Widgetter {
 	revealer := gtk.NewRevealer()
