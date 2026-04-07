@@ -360,11 +360,7 @@ func (s *Service) tick() {
 		s.mu.Lock()
 		s.idleStarted = time.Time{}
 		s.mu.Unlock()
-		go func() {
-			if err := exec.Command("systemctl", "suspend").Run(); err != nil {
-				log.Printf("[IDLE] suspend: %v", err)
-			}
-		}()
+		go logindSuspend(s.conn)
 	}
 }
 

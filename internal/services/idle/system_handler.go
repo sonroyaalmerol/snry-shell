@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"os/exec"
 	"sync"
 
 	"github.com/godbus/dbus/v5"
@@ -99,10 +98,42 @@ func (h *SystemHandler) executeAction(action string) {
 		h.bus.Publish(bus.TopicScreenLock, state.LockScreenState{Locked: true})
 	case "suspend":
 		h.bus.Publish(bus.TopicScreenLock, state.LockScreenState{Locked: true})
-		go exec.Command("systemctl", "suspend").Run()
+		go logindSuspend(h.conn)
 	case "shutdown":
-		go exec.Command("systemctl", "poweroff").Run()
+		go logindPowerOff(h.conn)
 	case "session-menu":
 		h.bus.Publish(bus.TopicSystemControls, "toggle-session")
+	}
+}
+
+// ── logind D-Bus helpers ──────────────────────────────────────────────────────
+
+func logindSuspend(conn *dbus.Conn) {
+	if conn == nil {
+		return
+	}
+	if err := conn.Object(logindDest, logindManager).
+		Call(managerIface+".Suspend", 0, false).Err; err != nil {
+		log.Printf("[SYSTEM] logind Suspend: %v", err)
+	}
+}
+
+func logindReboot(conn *dbus.Conn) {
+	if conn == nil {
+		return
+	}
+	if err := conn.Object(logindDest, logindManager).
+		Call(managerIface+".Reboot", 0, false).Err; err != nil {
+		log.Printf("[SYSTEM] logind Reboot: %v", err)
+	}
+}
+
+func logindPowerOff(conn *dbus.Conn) {
+	if conn == nil {
+		return
+	}
+	if err := conn.Object(logindDest, logindManager).
+		Call(managerIface+".PowerOff", 0, false).Err; err != nil {
+		log.Printf("[SYSTEM] logind PowerOff: %v", err)
 	}
 }
