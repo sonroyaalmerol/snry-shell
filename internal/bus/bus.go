@@ -24,11 +24,8 @@ const (
 	TopicScreenLock       Topic = "screenlock"
 	TopicResources        Topic = "resources"
 	TopicKeyboard         Topic = "keyboard"
-	TopicAudioMixer       Topic = "audiomixer"
 	TopicWiFiNetworks     Topic = "wifinetworks"
 	TopicBluetoothDevices Topic = "btdevices"
-	TopicPomodoro         Topic = "pomodoro"
-	TopicTodo             Topic = "todo"
 	TopicDND              Topic = "dnd"
 	TopicTrayItems        Topic = "trayitems"
 	TopicTrayActivate     Topic = "trayactivate"
@@ -42,6 +39,7 @@ const (
 	TopicSettingsChanged  Topic = "settingschanged"
 	TopicDarkMode         Topic = "darkmode"
 	TopicNetworkManager   Topic = "networkmanager"
+	TopicIdleInhibit      Topic = "idleinhibit"
 )
 
 type Event struct {
