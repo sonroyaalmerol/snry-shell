@@ -118,8 +118,13 @@ func (n *nmConfigProvider) buildHostnameSection() gtk.Widgetter {
 		}
 	}
 
-	updateBtn := gtkutil.M3IconButton("check", "settings-btn")
+	updateBtn := gtk.NewButton()
+	updateBtn.AddCSSClass("m3-icon-btn")
+	updateBtn.AddCSSClass("settings-btn")
 	updateBtn.SetTooltipText("Update hostname")
+	updateIcon := gtkutil.MaterialIcon("check")
+	updateBtn.SetChild(updateIcon)
+	updateBtn.SetCursorFromName("pointer")
 	updateBtn.ConnectClicked(func() {
 		log.Printf("[CONTROLPANEL] Update hostname button clicked")
 		if n.nmService == nil {
@@ -267,8 +272,13 @@ func (n *nmConfigProvider) buildWiFiSection() gtk.Widgetter {
 	scanLabel.SetHExpand(true)
 	scanLabel.SetHAlign(gtk.AlignStart)
 
-	scanBtn := gtkutil.M3IconButton("refresh", "settings-btn")
+	scanBtn := gtk.NewButton()
+	scanBtn.AddCSSClass("m3-icon-btn")
+	scanBtn.AddCSSClass("settings-btn")
 	scanBtn.SetTooltipText("Scan for Wi-Fi networks")
+	scanIcon := gtkutil.MaterialIcon("refresh")
+	scanBtn.SetChild(scanIcon)
+	scanBtn.SetCursorFromName("pointer")
 	scanBtn.ConnectClicked(func() {
 		log.Printf("[CONTROLPANEL] Scan WiFi button clicked")
 		if n.nmService == nil {
@@ -411,18 +421,19 @@ func (n *nmConfigProvider) buildConnectionRow(conn state.NMConnection) gtk.Widge
 	autoconnectSwitch.SetActive(conn.Autoconnect)
 	autoconnectSwitch.SetSensitive(true)
 	autoconnectSwitch.SetCanTarget(true)
-	autoconnectSwitch.ConnectStateSet(func(state bool) bool {
+	// Use Connect with notify signal for the active property
+	autoconnectSwitch.Connect("notify::active", func() {
+		state := autoconnectSwitch.Active()
 		log.Printf("[CONTROLPANEL] Autoconnect toggle changed for %s: %v", conn.Name, state)
 		if n.nmService == nil {
 			log.Printf("[CONTROLPANEL] ERROR: nmService is nil!")
-			return false
+			return
 		}
 		if err := n.nmService.SetAutoconnect(conn.Path, state); err != nil {
 			log.Printf("[CONTROLPANEL] failed to set autoconnect: %v", err)
 		} else {
 			log.Printf("[CONTROLPANEL] autoconnect set to %v for %s", state, conn.Name)
 		}
-		return false
 	})
 
 	autoBox.Append(autoLabel)
@@ -432,10 +443,16 @@ func (n *nmConfigProvider) buildConnectionRow(conn state.NMConnection) gtk.Widge
 	actionsRow.Append(gtk.NewBox(gtk.OrientationHorizontal, 0)) // Spacer
 
 	// Edit button
-	editBtn := gtkutil.M3IconButton("edit", "settings-btn-small")
-	editBtn.SetTooltipText("Edit connection")
+	editBtn := gtk.NewButton()
+	editBtn.AddCSSClass("m3-icon-btn")
+	editBtn.AddCSSClass("settings-btn-small")
+	editBtn.SetTooltipText("Edit connection (not implemented)")
+	editIcon := gtkutil.MaterialIcon("edit")
+	editBtn.SetChild(editIcon)
+	editBtn.SetCursorFromName("pointer")
 	editBtn.ConnectClicked(func() {
 		log.Printf("[CONTROLPANEL] Edit button clicked for connection: %s (path: %s)", conn.Name, conn.Path)
+		log.Printf("[CONTROLPANEL] Note: Edit dialog not yet implemented")
 	})
 	actionsRow.Append(editBtn)
 

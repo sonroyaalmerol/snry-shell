@@ -1922,6 +1922,20 @@ popover.menu list row:selected {
     color: @col_on_surface;
 }
 
+.settings-btn-small:active {
+    background-color: alpha(@col_on_surface, var(--state-press));
+}
+
+/* Ensure buttons in network settings are clickable */
+.settings-section .m3-icon-btn {
+    min-width: 32px;
+    min-height: 32px;
+}
+
+.settings-section switch {
+    margin: 4px;
+}
+
 .settings-nav {
     background-color: @col_surface_container_low;
     border-radius: var(--radius-xl) 0 0 var(--radius-xl);
