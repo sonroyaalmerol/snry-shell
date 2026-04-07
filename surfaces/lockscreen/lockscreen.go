@@ -189,11 +189,22 @@ func (ls *LockScreen) buildWindow(lw *lockWindow) {
 	}
 	overlay.SetChild(lw.bg)
 
-	// Dark dim layer for readability.
+	// Dark dim layer for readability - also captures all clicks to prevent interaction with apps behind.
 	dim := gtk.NewBox(gtk.OrientationVertical, 0)
 	dim.AddCSSClass("lockscreen-dim")
 	dim.SetHExpand(true)
 	dim.SetVExpand(true)
+
+	// Capture all clicks on the dim layer to prevent them passing through
+	dimClick := gtk.NewGestureClick()
+	dimClick.SetButton(0) // All buttons
+	dimClick.SetPropagationLimit(gtk.LimitNone)
+	dimClick.ConnectPressed(func(n int, x, y float64) {
+		// Consume the event but don't do anything - lockscreen is modal
+		dimClick.SetState(gtk.EventSequenceClaimed)
+	})
+	dim.AddController(dimClick)
+
 	overlay.AddOverlay(dim)
 
 	// ── auth card ────────────────────────────────────────────────────────────

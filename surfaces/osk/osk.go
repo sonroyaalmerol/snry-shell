@@ -14,6 +14,7 @@ import (
 	"github.com/sonroyaalmerol/snry-shell/internal/bus"
 	"github.com/sonroyaalmerol/snry-shell/internal/gtkutil"
 	"github.com/sonroyaalmerol/snry-shell/internal/layershell"
+	"github.com/sonroyaalmerol/snry-shell/internal/state"
 	"github.com/sonroyaalmerol/snry-shell/internal/uinput"
 )
 
@@ -31,6 +32,7 @@ type OSK struct {
 	manualMode     bool // true when OSK was manually opened via bar button
 	visible        bool
 	fullscreen     bool
+	screenLocked   bool   // true when lockscreen is active
 	viewMode       string // "keyboard", "emoji", "clipboard"
 	stack          *gtk.Stack
 	keys           []*keyButton           // all character keys, for label updates
@@ -89,6 +91,10 @@ func New(app *gtk.Application, b *bus.Bus) *OSK {
 		switch action {
 		case "toggle-osk":
 			glib.IdleAdd(func() {
+				// Don't allow showing OSK when screen is locked
+				if osk.screenLocked && !osk.visible {
+					return
+				}
 				if osk.visible {
 					osk.manualOff = true
 					osk.manualMode = false
@@ -103,6 +109,10 @@ func New(app *gtk.Application, b *bus.Bus) *OSK {
 		case "toggle-osk-bar":
 			// Manual toggle from bar button - enables manual mode
 			glib.IdleAdd(func() {
+				// Don't allow showing OSK when screen is locked
+				if osk.screenLocked && !osk.visible {
+					return
+				}
 				if osk.visible {
 					osk.manualOff = true
 					osk.manualMode = false
@@ -116,6 +126,10 @@ func New(app *gtk.Application, b *bus.Bus) *OSK {
 			})
 		case "toggle-emoji":
 			glib.IdleAdd(func() {
+				// Don't allow showing emoji picker when screen is locked
+				if osk.screenLocked && !osk.visible {
+					return
+				}
 				if osk.visible && osk.viewMode == "emoji" {
 					osk.switchView("keyboard")
 				} else {
@@ -125,6 +139,10 @@ func New(app *gtk.Application, b *bus.Bus) *OSK {
 			})
 		case "toggle-clipboard":
 			glib.IdleAdd(func() {
+				// Don't allow showing clipboard when screen is locked (security)
+				if osk.screenLocked && !osk.visible {
+					return
+				}
 				if osk.visible && osk.viewMode == "clipboard" {
 					osk.switchView("keyboard")
 				} else {
@@ -176,6 +194,18 @@ func New(app *gtk.Application, b *bus.Bus) *OSK {
 		})
 	})
 
+	// Hide OSK when screen is locked
+	b.Subscribe(bus.TopicScreenLock, func(e bus.Event) {
+		if ls, ok := e.Data.(state.LockScreenState); ok {
+			glib.IdleAdd(func() {
+				osk.screenLocked = ls.Locked
+				if ls.Locked && osk.visible {
+					osk.hide()
+				}
+			})
+		}
+	})
+
 	return osk
 }
 
@@ -219,8 +249,13 @@ func (o *OSK) scheduleFocusUpdate(want bool) {
 		return
 	}
 
+	// Don't auto-show when screen is locked
+	if o.screenLocked {
+		return
+	}
+
 	want = o.tabletMode && want
-	log.Printf("[OSK] focus: want=%v tablet=%v manual=%v", want, o.tabletMode, o.manualMode)
+	log.Printf("[OSK] focus: want=%v tablet=%v manual=%v locked=%v", want, o.tabletMode, o.manualMode, o.screenLocked)
 
 	if o.debounce != nil {
 		o.debounce.Stop()
@@ -240,6 +275,10 @@ func (o *OSK) scheduleFocusUpdate(want bool) {
 }
 
 func (o *OSK) show() {
+	// Don't show if screen is locked
+	if o.screenLocked {
+		return
+	}
 	o.win.SetVisible(true)
 	o.win.Present()
 	o.visible = true
