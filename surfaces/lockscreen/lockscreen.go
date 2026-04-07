@@ -424,16 +424,61 @@ func (ls *LockScreen) resetAuth() {
 
 // ── PAM authentication ────────────────────────────────────────────────────────
 
-// authenticate checks the given password against the system password database
-// using the checkpw helper. Returns nil on success.
+// authenticate checks the given password against the system password database.
+// It tries multiple methods: unix_chkpwd (PAM), then su fallback.
 func authenticate(password string) error {
 	username := currentUser()
-	cmd := exec.Command("checkpw", username)
-	// checkpw reads "username\0password\0" on stdin per the checkpw protocol.
-	cmd.Stdin = strings.NewReader(username + "\x00" + password + "\x00")
+
+	// Try unix_chkpwd first (standard PAM helper)
+	if err := authenticateWithUnixChkpwd(username, password); err == nil {
+		return nil
+	}
+
+	// Fallback to su -S method
+	if err := authenticateWithSu(username, password); err == nil {
+		return nil
+	}
+
+	log.Printf("[LOCKSCREEN] all auth methods failed for %q", username)
+	return fmt.Errorf("authentication failed")
+}
+
+// authenticateWithUnixChkpwd uses the standard PAM unix_chkpwd helper.
+// This is the same mechanism used by login, sudo, etc.
+func authenticateWithUnixChkpwd(username, password string) error {
+	// unix_chkpwd is usually in /sbin or /usr/sbin
+	paths := []string{"/usr/sbin/unix_chkpwd", "/sbin/unix_chkpwd"}
+
+	for _, path := range paths {
+		if _, err := os.Stat(path); err != nil {
+			continue
+		}
+
+		// unix_chkpwd reads "password\n" from stdin and expects the username as argument
+		cmd := exec.Command(path, username, "invoke")
+		cmd.Stdin = strings.NewReader(password + "\n")
+		cmd.Stdout = nil
+		cmd.Stderr = nil
+
+		if err := cmd.Run(); err == nil {
+			return nil
+		}
+	}
+
+	return fmt.Errorf("unix_chkpwd not available or failed")
+}
+
+// authenticateWithSu uses su with stdin password as fallback.
+// This works on systems where su supports -S (read password from stdin).
+func authenticateWithSu(username, password string) error {
+	// Try su with -S flag (read password from stdin)
+	cmd := exec.Command("su", "-", username, "-c", "echo authenticated")
+	cmd.Stdin = strings.NewReader(password + "\n")
+	cmd.Stdout = nil
+	cmd.Stderr = nil
+
 	if err := cmd.Run(); err != nil {
-		log.Printf("[LOCKSCREEN] auth failed for %q: %v", username, err)
-		return err
+		return fmt.Errorf("su auth failed: %w", err)
 	}
 	return nil
 }
