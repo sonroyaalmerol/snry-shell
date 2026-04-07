@@ -6,6 +6,7 @@ package store
 
 import (
 	"encoding/json"
+	"log"
 	"os"
 	"path/filepath"
 	"sort"
@@ -31,7 +32,10 @@ func load() map[string]json.RawMessage {
 		return make(map[string]json.RawMessage)
 	}
 	m := make(map[string]json.RawMessage)
-	_ = json.Unmarshal(data, &m)
+	if err := json.Unmarshal(data, &m); err != nil {
+		log.Printf("[store] corrupt store file, starting fresh: %v", err)
+		return make(map[string]json.RawMessage)
+	}
 	return m
 }
 
