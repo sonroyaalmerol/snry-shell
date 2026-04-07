@@ -1,141 +1,264 @@
 package audio
 
 import (
-	"bufio"
 	"context"
 	"fmt"
 	"log"
-	"strconv"
-	"strings"
 	"time"
 
+	"github.com/jfreymuth/pulse/proto"
 	"github.com/sonroyaalmerol/snry-shell/internal/bus"
-	"github.com/sonroyaalmerol/snry-shell/internal/services/runner"
 	"github.com/sonroyaalmerol/snry-shell/internal/state"
 )
 
+const (
+	defaultSink   = "@DEFAULT_SINK@"
+	defaultSource = "@DEFAULT_SOURCE@"
+)
+
 type Service struct {
-	runner   runner.Runner
-	streamer runner.StreamReader
-	bus      *bus.Bus
+	bus  *bus.Bus
+	last state.AudioSink
 }
 
-func New(r runner.Runner, sr runner.StreamReader, b *bus.Bus) *Service {
-	return &Service{runner: r, streamer: sr, bus: b}
+func New(b *bus.Bus) *Service {
+	return &Service{bus: b}
 }
 
 func NewWithDefaults(b *bus.Bus) *Service {
-	return New(runner.New(), runner.NewStreamReader(), b)
+	return New(b)
 }
 
 func (s *Service) Run(ctx context.Context) error {
-	s.poll()
-
-	rc, err := s.streamer.Stream("pactl", "subscribe")
-	if err != nil {
-		log.Printf("[audio] pactl subscribe unavailable, falling back to polling: %v", err)
-		return runner.PollLoop(ctx, 200*time.Millisecond, s.poll)
+	for {
+		if err := s.run(ctx); err != nil {
+			if ctx.Err() != nil {
+				return ctx.Err()
+			}
+			log.Printf("[audio] connection lost: %v, reconnecting in 2s", err)
+		}
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(2 * time.Second):
+		}
 	}
-	defer rc.Close()
+}
 
-	sc := bufio.NewScanner(rc)
+func (s *Service) run(ctx context.Context) error {
+	client, conn, err := proto.Connect("")
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	updateCh := make(chan struct{}, 8)
+	errCh := make(chan error, 1)
+
+	client.Callback = func(val interface{}) {
+		switch v := val.(type) {
+		case *proto.SubscribeEvent:
+			fac := v.Event.GetFacility()
+			if fac == proto.EventSink || fac == proto.EventSource {
+				select {
+				case updateCh <- struct{}{}:
+				default:
+				}
+			}
+		case *proto.ConnectionClosed:
+			select {
+			case errCh <- fmt.Errorf("PA connection closed"):
+			default:
+			}
+		}
+	}
+
+	if err := client.Request(&proto.SetClientName{Props: proto.PropList{
+		"application.name": proto.PropListString("snry-shell"),
+	}}, nil); err != nil {
+		return err
+	}
+
+	if err := client.Request(&proto.Subscribe{
+		Mask: proto.SubscriptionMaskSink | proto.SubscriptionMaskSource,
+	}, nil); err != nil {
+		return err
+	}
+
+	s.poll(client)
+
 	for {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
-		default:
-		}
-		if !sc.Scan() {
-			if err := sc.Err(); err != nil {
-				return err
+		case err := <-errCh:
+			return err
+		case <-updateCh:
+			// Debounce: drain rapid successive events.
+			time.Sleep(50 * time.Millisecond)
+		drainLoop:
+			for {
+				select {
+				case <-updateCh:
+				default:
+					break drainLoop
+				}
 			}
-			return nil
+			s.poll(client)
 		}
-		line := sc.Text()
-		if !strings.Contains(line, "sink") || !strings.Contains(line, "change") {
-			continue
-		}
-		// Debounce: wait for rapid successive events to settle.
-		time.Sleep(50 * time.Millisecond)
-		// Drain buffered lines.
-		for sc.Scan() {
-			next := sc.Text()
-			if !strings.Contains(next, "sink") || !strings.Contains(next, "change") {
-				break
-			}
-		}
-		s.poll()
 	}
 }
 
-func (s *Service) poll() {
-	sink, err := s.query()
+func (s *Service) poll(client *proto.Client) {
+	sink, err := querySink(client)
 	if err != nil {
+		log.Printf("[audio] query sink: %v", err)
 		return
 	}
-	s.bus.Publish(bus.TopicAudio, sink)
+	if sink.Volume != s.last.Volume || sink.Muted != s.last.Muted {
+		s.last = sink
+		s.bus.Publish(bus.TopicAudio, sink)
+	}
 }
 
-func (s *Service) query() (state.AudioSink, error) {
-	out, err := s.runner.Output("wpctl", "get-volume", "@DEFAULT_SINK@")
-	if err != nil {
+func querySink(client *proto.Client) (state.AudioSink, error) {
+	var reply proto.GetSinkInfoReply
+	if err := client.Request(&proto.GetSinkInfo{
+		SinkIndex: proto.Undefined,
+		SinkName:  defaultSink,
+	}, &reply); err != nil {
 		return state.AudioSink{}, err
 	}
-	return ParseWpctlVolume(string(out))
+
+	vol := channelVolumesToFloat(reply.ChannelVolumes)
+	return state.AudioSink{Volume: vol, Muted: reply.Mute}, nil
 }
 
-// ParseWpctlVolume is exported for tests.
-// Input examples:
-//
-//	"Volume: 0.75"
-//	"Volume: 0.40 [MUTED]"
-func ParseWpctlVolume(output string) (state.AudioSink, error) {
-	output = strings.TrimSpace(output)
-	muted := strings.Contains(output, "[MUTED]")
-	fields := strings.Fields(output)
-	if len(fields) < 2 {
-		return state.AudioSink{}, fmt.Errorf("unexpected wpctl output: %q", output)
+// channelVolumesToFloat converts PA channel volumes to a 0.0–1.5 float.
+func channelVolumesToFloat(cv proto.ChannelVolumes) float64 {
+	if len(cv) == 0 {
+		return 0
 	}
-	vol, err := strconv.ParseFloat(fields[1], 64)
-	if err != nil {
-		return state.AudioSink{}, fmt.Errorf("parse volume: %w", err)
+	var acc int64
+	for _, v := range cv {
+		acc += int64(v)
 	}
-	return state.AudioSink{Volume: vol, Muted: muted}, nil
+	acc /= int64(len(cv))
+	return float64(acc) / float64(proto.VolumeNorm)
 }
 
-// SetVolume sets the default sink volume. v is 0.0-1.0.
-func (s *Service) SetVolume(v float64) error {
-	pct := fmt.Sprintf("%.0f%%", v*100)
-	_, err := s.runner.Output("wpctl", "set-volume", "@DEFAULT_SINK@", pct)
-	return err
+// floatToChannelVolumes converts a 0.0–1.5 float to per-channel PA volumes.
+func floatToChannelVolumes(v float64, channels int) proto.ChannelVolumes {
+	if channels <= 0 {
+		channels = 2
+	}
+	raw := uint32(v * float64(proto.VolumeNorm))
+	if raw > uint32(proto.VolumeMax) {
+		raw = uint32(proto.VolumeMax)
+	}
+	vols := make(proto.ChannelVolumes, channels)
+	for i := range vols {
+		vols[i] = raw
+	}
+	return vols
 }
 
-// AdjustVolume changes the default sink volume by delta (e.g. +0.05 / -0.05),
-// clamping to [0, 1.5] (150% matches wpctl's usual cap).
-func (s *Service) AdjustVolume(delta float64) error {
-	current, err := s.query()
+// withClient opens a short-lived PulseAudio connection and calls fn.
+func withClient(fn func(*proto.Client) error) error {
+	client, conn, err := proto.Connect("")
 	if err != nil {
 		return err
 	}
-	next := current.Volume + delta
-	if next < 0 {
-		next = 0
+	defer conn.Close()
+	if err := client.Request(&proto.SetClientName{Props: proto.PropList{
+		"application.name": proto.PropListString("snry-shell"),
+	}}, nil); err != nil {
+		return err
 	}
-	if next > 1.5 {
-		next = 1.5
+	return fn(client)
+}
+
+// SetVolume sets the default sink volume. v is 0.0–1.5.
+func (s *Service) SetVolume(v float64) error {
+	if v < 0 {
+		v = 0
 	}
-	return s.SetVolume(next)
+	if v > 1.5 {
+		v = 1.5
+	}
+	return withClient(func(c *proto.Client) error {
+		var reply proto.GetSinkInfoReply
+		if err := c.Request(&proto.GetSinkInfo{
+			SinkIndex: proto.Undefined,
+			SinkName:  defaultSink,
+		}, &reply); err != nil {
+			return err
+		}
+		return c.Request(&proto.SetSinkVolume{
+			SinkIndex:      proto.Undefined,
+			SinkName:       defaultSink,
+			ChannelVolumes: floatToChannelVolumes(v, len(reply.ChannelVolumes)),
+		}, nil)
+	})
+}
+
+// AdjustVolume changes the default sink volume by delta, clamped to [0, 1.5].
+func (s *Service) AdjustVolume(delta float64) error {
+	return withClient(func(c *proto.Client) error {
+		var reply proto.GetSinkInfoReply
+		if err := c.Request(&proto.GetSinkInfo{
+			SinkIndex: proto.Undefined,
+			SinkName:  defaultSink,
+		}, &reply); err != nil {
+			return err
+		}
+		next := channelVolumesToFloat(reply.ChannelVolumes) + delta
+		if next < 0 {
+			next = 0
+		}
+		if next > 1.5 {
+			next = 1.5
+		}
+		return c.Request(&proto.SetSinkVolume{
+			SinkIndex:      proto.Undefined,
+			SinkName:       defaultSink,
+			ChannelVolumes: floatToChannelVolumes(next, len(reply.ChannelVolumes)),
+		}, nil)
+	})
 }
 
 // ToggleMute toggles mute on the default audio sink.
 func (s *Service) ToggleMute() error {
-	_, err := s.runner.Output("wpctl", "set-mute", "@DEFAULT_SINK@", "toggle")
-	return err
+	return withClient(func(c *proto.Client) error {
+		var reply proto.GetSinkInfoReply
+		if err := c.Request(&proto.GetSinkInfo{
+			SinkIndex: proto.Undefined,
+			SinkName:  defaultSink,
+		}, &reply); err != nil {
+			return err
+		}
+		return c.Request(&proto.SetSinkMute{
+			SinkIndex: proto.Undefined,
+			SinkName:  defaultSink,
+			Mute:      !reply.Mute,
+		}, nil)
+	})
 }
 
 // ToggleMicMute toggles mute on the default audio source (microphone).
 func (s *Service) ToggleMicMute() error {
-	_, err := s.runner.Output("wpctl", "set-mute", "@DEFAULT_SOURCE@", "toggle")
-	return err
+	return withClient(func(c *proto.Client) error {
+		var reply proto.GetSourceInfoReply
+		if err := c.Request(&proto.GetSourceInfo{
+			SourceIndex: proto.Undefined,
+			SourceName:  defaultSource,
+		}, &reply); err != nil {
+			return err
+		}
+		return c.Request(&proto.SetSourceMute{
+			SourceIndex: proto.Undefined,
+			SourceName:  defaultSource,
+			Mute:        !reply.Mute,
+		}, nil)
+	})
 }
-

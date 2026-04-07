@@ -1,87 +1,42 @@
-package audio_test
+package audio
 
 import (
-	"context"
-	"io"
-	"strings"
 	"testing"
-	"time"
 
-	"github.com/sonroyaalmerol/snry-shell/internal/bus"
-	"github.com/sonroyaalmerol/snry-shell/internal/services/audio"
-	"github.com/sonroyaalmerol/snry-shell/internal/state"
+	"github.com/jfreymuth/pulse/proto"
 )
 
-func TestParseWpctlVolume(t *testing.T) {
+func TestChannelVolumesToFloat(t *testing.T) {
 	tests := []struct {
-		input string
-		vol   float64
-		muted bool
+		volumes []uint32
+		want    float64
 	}{
-		{"Volume: 0.75", 0.75, false},
-		{"Volume: 0.40 [MUTED]", 0.40, true},
-		{"Volume: 1.00", 1.00, false},
-		{"Volume: 0.00 [MUTED]", 0.00, true},
+		{[]uint32{uint32(proto.VolumeNorm)}, 1.0},
+		{[]uint32{0}, 0.0},
+		{[]uint32{uint32(proto.VolumeNorm / 2), uint32(proto.VolumeNorm / 2)}, 0.5},
 	}
 	for _, tt := range tests {
-		got, err := audio.ParseWpctlVolume(tt.input)
-		if err != nil {
-			t.Fatalf("input %q: unexpected error: %v", tt.input, err)
-		}
-		if got.Volume != tt.vol {
-			t.Fatalf("input %q: expected volume %f, got %f", tt.input, tt.vol, got.Volume)
-		}
-		if got.Muted != tt.muted {
-			t.Fatalf("input %q: expected muted %v, got %v", tt.input, tt.muted, got.Muted)
+		got := channelVolumesToFloat(proto.ChannelVolumes(tt.volumes))
+		if got != tt.want {
+			t.Errorf("channelVolumesToFloat(%v) = %f, want %f", tt.volumes, got, tt.want)
 		}
 	}
 }
 
-func TestParseWpctlVolumeInvalid(t *testing.T) {
-	_, err := audio.ParseWpctlVolume("garbage")
-	if err == nil {
-		t.Fatal("expected error for invalid input")
+func TestFloatToChannelVolumes(t *testing.T) {
+	vols := floatToChannelVolumes(0.75, 2)
+	if len(vols) != 2 {
+		t.Fatalf("expected 2 channels, got %d", len(vols))
+	}
+	want := uint32(0.75 * float64(proto.VolumeNorm))
+	if vols[0] != want || vols[1] != want {
+		t.Errorf("floatToChannelVolumes(0.75, 2) = %v, want [%d %d]", vols, want, want)
 	}
 }
 
-type fakeRunner struct {
-	output string
-}
-
-func (f *fakeRunner) Output(args ...string) ([]byte, error) {
-	return []byte(f.output), nil
-}
-
-func (f *fakeRunner) Run(args ...string) error { return nil }
-
-type fakeStreamReader struct {
-	data string
-	err  error
-}
-
-func (f *fakeStreamReader) Stream(args ...string) (io.ReadCloser, error) {
-	if f.err != nil {
-		return nil, f.err
-	}
-	return io.NopCloser(strings.NewReader(f.data)), nil
-}
-
-func TestServicePublishesAudioEvent(t *testing.T) {
-	b := bus.New()
-	var got state.AudioSink
-	b.Subscribe(bus.TopicAudio, func(e bus.Event) {
-		got = e.Data.(state.AudioSink)
-	})
-
-	runner := &fakeRunner{output: "Volume: 0.60"}
-	streamer := &fakeStreamReader{data: ""}
-	svc := audio.New(runner, streamer, b)
-
-	ctx, cancel := context.WithTimeout(context.Background(), 200*time.Millisecond)
-	defer cancel()
-	svc.Run(ctx) //nolint:errcheck
-
-	if got.Volume != 0.60 {
-		t.Fatalf("expected 0.60, got %f", got.Volume)
+func TestFloatToChannelVolumesClamp(t *testing.T) {
+	vols := floatToChannelVolumes(2.0, 1)
+	if vols[0] > uint32(proto.VolumeMax) {
+		t.Errorf("expected clamped to VolumeMax, got %d", vols[0])
 	}
 }
