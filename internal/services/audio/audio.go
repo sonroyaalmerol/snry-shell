@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"sync"
 	"time"
 
 	"github.com/jfreymuth/pulse/proto"
@@ -18,6 +19,7 @@ const (
 
 type Service struct {
 	bus  *bus.Bus
+	mu   sync.Mutex
 	last state.AudioSink
 }
 
@@ -110,28 +112,42 @@ func (s *Service) run(ctx context.Context) error {
 }
 
 func (s *Service) poll(client *proto.Client) {
-	sink, err := querySink(client)
+	sink, err := queryAudio(client)
 	if err != nil {
-		log.Printf("[audio] query sink: %v", err)
+		log.Printf("[audio] query: %v", err)
 		return
 	}
-	if sink.Volume != s.last.Volume || sink.Muted != s.last.Muted {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if sink.Volume != s.last.Volume || sink.Muted != s.last.Muted || sink.MicMuted != s.last.MicMuted {
 		s.last = sink
 		s.bus.Publish(bus.TopicAudio, sink)
 	}
 }
 
-func querySink(client *proto.Client) (state.AudioSink, error) {
-	var reply proto.GetSinkInfoReply
+func queryAudio(client *proto.Client) (state.AudioSink, error) {
+	var sinkReply proto.GetSinkInfoReply
 	if err := client.Request(&proto.GetSinkInfo{
 		SinkIndex: proto.Undefined,
 		SinkName:  defaultSink,
-	}, &reply); err != nil {
+	}, &sinkReply); err != nil {
 		return state.AudioSink{}, err
 	}
 
-	vol := channelVolumesToFloat(reply.ChannelVolumes)
-	return state.AudioSink{Volume: vol, Muted: reply.Mute}, nil
+	var sourceReply proto.GetSourceInfoReply
+	if err := client.Request(&proto.GetSourceInfo{
+		SourceIndex: proto.Undefined,
+		SourceName:  defaultSource,
+	}, &sourceReply); err != nil {
+		return state.AudioSink{}, err
+	}
+
+	vol := channelVolumesToFloat(sinkReply.ChannelVolumes)
+	return state.AudioSink{
+		Volume:   vol,
+		Muted:    sinkReply.Mute,
+		MicMuted: sourceReply.Mute,
+	}, nil
 }
 
 // channelVolumesToFloat converts PA channel volumes to a 0.0–1.5 float.
@@ -186,7 +202,7 @@ func (s *Service) SetVolume(v float64) error {
 	if v > 1.5 {
 		v = 1.5
 	}
-	return withClient(func(c *proto.Client) error {
+	err := withClient(func(c *proto.Client) error {
 		var reply proto.GetSinkInfoReply
 		if err := c.Request(&proto.GetSinkInfo{
 			SinkIndex: proto.Undefined,
@@ -200,11 +216,15 @@ func (s *Service) SetVolume(v float64) error {
 			ChannelVolumes: floatToChannelVolumes(v, len(reply.ChannelVolumes)),
 		}, nil)
 	})
+	if err == nil {
+		s.triggerPoll()
+	}
+	return err
 }
 
 // AdjustVolume changes the default sink volume by delta, clamped to [0, 1.5].
 func (s *Service) AdjustVolume(delta float64) error {
-	return withClient(func(c *proto.Client) error {
+	err := withClient(func(c *proto.Client) error {
 		var reply proto.GetSinkInfoReply
 		if err := c.Request(&proto.GetSinkInfo{
 			SinkIndex: proto.Undefined,
@@ -225,11 +245,15 @@ func (s *Service) AdjustVolume(delta float64) error {
 			ChannelVolumes: floatToChannelVolumes(next, len(reply.ChannelVolumes)),
 		}, nil)
 	})
+	if err == nil {
+		s.triggerPoll()
+	}
+	return err
 }
 
 // ToggleMute toggles mute on the default audio sink.
 func (s *Service) ToggleMute() error {
-	return withClient(func(c *proto.Client) error {
+	err := withClient(func(c *proto.Client) error {
 		var reply proto.GetSinkInfoReply
 		if err := c.Request(&proto.GetSinkInfo{
 			SinkIndex: proto.Undefined,
@@ -243,11 +267,15 @@ func (s *Service) ToggleMute() error {
 			Mute:      !reply.Mute,
 		}, nil)
 	})
+	if err == nil {
+		s.triggerPoll()
+	}
+	return err
 }
 
 // ToggleMicMute toggles mute on the default audio source (microphone).
 func (s *Service) ToggleMicMute() error {
-	return withClient(func(c *proto.Client) error {
+	err := withClient(func(c *proto.Client) error {
 		var reply proto.GetSourceInfoReply
 		if err := c.Request(&proto.GetSourceInfo{
 			SourceIndex: proto.Undefined,
@@ -260,5 +288,16 @@ func (s *Service) ToggleMicMute() error {
 			SourceName:  defaultSource,
 			Mute:        !reply.Mute,
 		}, nil)
+	})
+	if err == nil {
+		s.triggerPoll()
+	}
+	return err
+}
+
+func (s *Service) triggerPoll() {
+	go withClient(func(c *proto.Client) error {
+		s.poll(c)
+		return nil
 	})
 }

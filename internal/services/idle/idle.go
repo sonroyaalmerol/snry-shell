@@ -13,7 +13,6 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"os"
 	"os/exec"
 	"sync"
 	"time"
@@ -21,6 +20,7 @@ import (
 	"github.com/godbus/dbus/v5"
 	"github.com/rajveermalviya/go-wayland/wayland/client"
 	"github.com/sonroyaalmerol/snry-shell/internal/bus"
+	"github.com/sonroyaalmerol/snry-shell/internal/dbusutil"
 	protocol "github.com/sonroyaalmerol/snry-shell/internal/services/idle/protocol"
 	"github.com/sonroyaalmerol/snry-shell/internal/state"
 	"github.com/sonroyaalmerol/snry-shell/internal/waylandutil"
@@ -47,13 +47,6 @@ func DefaultConfig() Config {
 		SuspendTimeout:    0,
 	}
 }
-
-const (
-	logindDest    = "org.freedesktop.login1"
-	logindManager = "/org/freedesktop/login1"
-	managerIface  = "org.freedesktop.login1.Manager"
-	sessionIface  = "org.freedesktop.login1.Session"
-)
 
 // Service detects user inactivity and triggers locking and optional suspend.
 type Service struct {
@@ -360,7 +353,7 @@ func (s *Service) tick() {
 		s.mu.Lock()
 		s.idleStarted = time.Time{}
 		s.mu.Unlock()
-		go logindSuspend(s.conn)
+		go dbusutil.LogindSuspend(s.conn)
 	}
 }
 
@@ -381,20 +374,20 @@ func (s *Service) doLock() {
 
 func (s *Service) monitorLogind(ctx context.Context) {
 	if err := s.conn.AddMatchSignal(
-		dbus.WithMatchInterface(managerIface),
+		dbus.WithMatchInterface(dbusutil.LogindManager),
 		dbus.WithMatchMember("PrepareForSleep"),
 	); err != nil {
 		log.Printf("[IDLE] logind PrepareForSleep match: %v", err)
 	}
 
-	session, err := resolveSession(s.conn)
+	session, err := dbusutil.GetSessionPath(s.conn)
 	if err != nil {
 		log.Printf("[IDLE] cannot resolve logind session: %v", err)
 	}
 	if session != "" {
 		for _, member := range []string{"Lock", "Unlock"} {
 			_ = s.conn.AddMatchSignal(
-				dbus.WithMatchObjectPath(dbus.ObjectPath(session)),
+				dbus.WithMatchObjectPath(session),
 				dbus.WithMatchMember(member),
 			)
 		}
@@ -413,7 +406,7 @@ func (s *Service) monitorLogind(ctx context.Context) {
 				return
 			}
 			switch sig.Name {
-			case managerIface + ".PrepareForSleep":
+			case dbusutil.LogindManager + ".PrepareForSleep":
 				if len(sig.Body) > 0 {
 					if before, ok := sig.Body[0].(bool); ok {
 						if before {
@@ -428,9 +421,9 @@ func (s *Service) monitorLogind(ctx context.Context) {
 						}
 					}
 				}
-			case sessionIface + ".Lock":
+			case dbusutil.LogindSession + ".Lock":
 				s.doLock()
-			case sessionIface + ".Unlock":
+			case dbusutil.LogindSession + ".Unlock":
 				s.mu.Lock()
 				s.locked = false
 				s.idleStarted = time.Time{}
@@ -439,18 +432,6 @@ func (s *Service) monitorLogind(ctx context.Context) {
 			}
 		}
 	}
-}
-
-func resolveSession(conn *dbus.Conn) (string, error) {
-	if id := os.Getenv("XDG_SESSION_ID"); id != "" {
-		return "/org/freedesktop/login1/session_" + id, nil
-	}
-	mgr := conn.Object(logindDest, logindManager)
-	var path dbus.ObjectPath
-	if err := mgr.Call(managerIface+".GetSessionByPID", 0, uint32(os.Getpid())).Store(&path); err != nil {
-		return "", err
-	}
-	return string(path), nil
 }
 
 // ── ScreenSaver D-Bus implementation ──────────────────────────────────────────

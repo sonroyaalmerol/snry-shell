@@ -84,34 +84,40 @@ func (s *Service) SetBrightness(v float64) error {
 		v = 1
 	}
 
+	var err error
 	// Try DDC first.
-	if val, err := ddc.GetVCP(0x10); err == nil {
+	if val, ddcErr := ddc.GetVCP(0x10); ddcErr == nil {
 		raw := int(v * float64(val.Max))
 		if raw > int(val.Max) {
 			raw = int(val.Max)
 		}
-		return ddc.SetVCP(0x10, uint16(raw))
+		err = ddc.SetVCP(0x10, uint16(raw))
+	} else {
+		// Fall back to backlight sysfs.
+		dev := backlightDevice()
+		if dev == "" {
+			return fmt.Errorf("no DDC or backlight device available")
+		}
+		_, max, bErr := backlightGet(dev)
+		if bErr != nil {
+			return bErr
+		}
+		err = backlightSet(dev, int(v*float64(max)))
 	}
 
-	// Fall back to backlight sysfs.
-	dev := backlightDevice()
-	if dev == "" {
-		return fmt.Errorf("no DDC or backlight device available")
+	if err == nil {
+		go s.poll()
 	}
-	_, max, err := backlightGet(dev)
-	if err != nil {
-		return err
-	}
-	return backlightSet(dev, int(v*float64(max)))
+	return err
 }
 
 // AdjustBrightness changes brightness by delta (e.g. +0.05 / -0.05), clamped to [0, 1].
 func (s *Service) AdjustBrightness(delta float64) error {
-	var current, max int
+	var err error
 
-	if val, err := ddc.GetVCP(0x10); err == nil {
-		current = int(val.Current)
-		max = int(val.Max)
+	if val, ddcErr := ddc.GetVCP(0x10); ddcErr == nil {
+		current := int(val.Current)
+		max := int(val.Max)
 		if max == 0 {
 			return fmt.Errorf("DDC max brightness is 0")
 		}
@@ -122,28 +128,33 @@ func (s *Service) AdjustBrightness(delta float64) error {
 		if next > 1 {
 			next = 1
 		}
-		return ddc.SetVCP(0x10, uint16(next*float64(max)))
+		err = ddc.SetVCP(0x10, uint16(next*float64(max)))
+	} else {
+		dev := backlightDevice()
+		if dev == "" {
+			return fmt.Errorf("no DDC or backlight device available")
+		}
+		current, max, bErr := backlightGet(dev)
+		if bErr != nil {
+			return bErr
+		}
+		if max == 0 {
+			return fmt.Errorf("backlight max is 0")
+		}
+		next := float64(current)/float64(max) + delta
+		if next < 0 {
+			next = 0
+		}
+		if next > 1 {
+			next = 1
+		}
+		err = backlightSet(dev, int(next*float64(max)))
 	}
 
-	dev := backlightDevice()
-	if dev == "" {
-		return fmt.Errorf("no DDC or backlight device available")
+	if err == nil {
+		go s.poll()
 	}
-	current, max, err := backlightGet(dev)
-	if err != nil {
-		return err
-	}
-	if max == 0 {
-		return fmt.Errorf("backlight max is 0")
-	}
-	next := float64(current)/float64(max) + delta
-	if next < 0 {
-		next = 0
-	}
-	if next > 1 {
-		next = 1
-	}
-	return backlightSet(dev, int(next*float64(max)))
+	return err
 }
 
 // ── backlight sysfs helpers ───────────────────────────────────────────────────

@@ -14,6 +14,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/binary"
+	"fmt"
 	"log"
 	"os"
 	"strings"
@@ -27,8 +28,6 @@ import (
 )
 
 const (
-	logindDest  = "org.freedesktop.login1"
-	logindIface = "org.freedesktop.login1.Session"
 	logindProp  = "TabletMode"
 
 	kbInactivityTimeout = 30 * time.Second
@@ -209,26 +208,25 @@ func (s *Service) monitorLogind(ctx context.Context) {
 }
 
 func (s *Service) resolveSession() (string, error) {
-	if id := os.Getenv("XDG_SESSION_ID"); id != "" {
-		path := "/org/freedesktop/login1/session_" + id
-		if s.conn.Object(logindDest, dbus.ObjectPath(path)) != nil {
-			return path, nil
-		}
+	// Re-using dbusutil logic
+	// We need to cast back to string since inputmode uses string for session path
+	realConn, ok := s.conn.(*dbusutil.RealConn)
+	if !ok || realConn.Conn == nil {
+		return "", fmt.Errorf("not a real connection")
 	}
-	mgr := s.conn.Object(logindDest, "/org/freedesktop/login1")
-	var sessionPath dbus.ObjectPath
-	if err := mgr.Call("org.freedesktop.login1.Manager.GetSessionByPID", 0, uint32(os.Getpid())).Store(&sessionPath); err != nil {
+	path, err := dbusutil.GetSessionPath(realConn.Conn)
+	if err != nil {
 		return "", err
 	}
-	return string(sessionPath), nil
+	return string(path), nil
 }
 
 func (s *Service) queryLogind() {
 	if s.conn == nil || s.session == "" {
 		return
 	}
-	obj := s.conn.Object(logindDest, dbus.ObjectPath(s.session))
-	v, err := obj.GetProperty(logindIface + "." + logindProp)
+	obj := s.conn.Object(dbusutil.LogindDest, dbus.ObjectPath(s.session))
+	v, err := obj.GetProperty(dbusutil.LogindSession + "." + logindProp)
 	if err != nil {
 		s.mu.Lock()
 		s.logindMode = "indeterminate"

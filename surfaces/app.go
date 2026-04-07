@@ -174,22 +174,19 @@ func Run() int {
 		}
 	})
 
-	// System power actions from session menu or CLI — use logind D-Bus.
+	// System power actions from session menu or CLI — use logind D-Bus via SystemHandler.
 	b.Subscribe(bus.TopicSystemControls, func(e bus.Event) {
 		cmd, ok := e.Data.(string)
-		if !ok || sysConn == nil {
+		if !ok || refs.SystemHandler == nil {
 			return
 		}
-		mgr := sysConn.Object("org.freedesktop.login1", "/org/freedesktop/login1")
-		const iface = "org.freedesktop.login1.Manager"
 		switch cmd {
 		case "system-suspend":
-			b.Publish(bus.TopicScreenLock, state.LockScreenState{Locked: true})
-			go mgr.Call(iface+".Suspend", 0, false)
+			refs.SystemHandler.Suspend()
 		case "system-reboot":
-			go mgr.Call(iface+".Reboot", 0, false)
+			refs.SystemHandler.Reboot()
 		case "system-poweroff":
-			go mgr.Call(iface+".PowerOff", 0, false)
+			refs.SystemHandler.PowerOff()
 		case "system-logout":
 			go refs.Hyprland.SetKeyword("dispatch", "exit")
 		}

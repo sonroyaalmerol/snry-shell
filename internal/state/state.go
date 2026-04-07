@@ -14,9 +14,10 @@ type ActiveWindow struct {
 	Title string
 }
 type AudioSink struct {
-	Name   string
-	Volume float64
-	Muted  bool
+	Name     string
+	Volume   float64
+	Muted    bool
+	MicMuted bool
 }
 type BatteryState struct {
 	Percentage float64

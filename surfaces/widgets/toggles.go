@@ -252,7 +252,7 @@ func NewQuickToggles(b *bus.Bus, refs *servicerefs.ServiceRefs) gtk.Widgetter {
 				}
 			}()
 		}},
-		{icon: "mic", label: "Mic Mute", toggle: func(_ bool) {
+		{icon: "mic", label: "Mic Mute", topic: bus.TopicAudio, toggle: func(_ bool) {
 			b.Publish(bus.TopicSystemControls, "mic-mute")
 		}},
 		{icon: "equalizer", label: "EasyEffects", requires: "easyeffects", toggle: func(_ bool) {
@@ -388,6 +388,12 @@ func NewQuickToggles(b *bus.Bus, refs *servicerefs.ServiceRefs) gtk.Widgetter {
 							tb.SetActive(v.WirelessEnabled)
 						case state.BluetoothState:
 							tb.SetActive(v.Powered)
+						case state.AudioSink:
+							if toggle.label == "Mic Mute" {
+								tb.SetActive(v.MicMuted)
+							} else {
+								tb.SetActive(v.Muted)
+							}
 						case bool:
 							tb.SetActive(v)
 						}
@@ -436,11 +442,27 @@ func NewQuickToggles(b *bus.Bus, refs *servicerefs.ServiceRefs) gtk.Widgetter {
 	})
 
 	// Volume slider row.
-	volumeRow, _, volumeScale := gtkutil.SliderRow("volume_up", "Volume", 0, 1, 0.01, "quick-slider-icon", "quick-slider-label")
+	volumeRow, _, volumeScale := gtkutil.SliderRow("volume_up", "Volume", 0, 1.5, 0.01, "quick-slider-icon", "quick-slider-label")
 	volumeScale.AddCSSClass("quick-slider")
+
+	settingVolume := false
 	volumeScale.ConnectChangeValue(func(_ gtk.ScrollType, value float64) bool {
-		refs.Audio.SetVolume(value)
+		if !settingVolume {
+			refs.Audio.SetVolume(value)
+		}
 		return false
+	})
+
+	b.Subscribe(bus.TopicAudio, func(e bus.Event) {
+		as, ok := e.Data.(state.AudioSink)
+		if !ok {
+			return
+		}
+		glib.IdleAdd(func() {
+			settingVolume = true
+			volumeScale.SetValue(as.Volume)
+			settingVolume = false
+		})
 	})
 
 	sliderBox := gtk.NewBox(gtk.OrientationVertical, 8)

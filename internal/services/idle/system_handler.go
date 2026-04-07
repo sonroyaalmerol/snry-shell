@@ -8,6 +8,7 @@ import (
 
 	"github.com/godbus/dbus/v5"
 	"github.com/sonroyaalmerol/snry-shell/internal/bus"
+	"github.com/sonroyaalmerol/snry-shell/internal/dbusutil"
 	"github.com/sonroyaalmerol/snry-shell/internal/state"
 )
 
@@ -52,13 +53,11 @@ func (h *SystemHandler) Run(ctx context.Context) error {
 	// The actual detection is done via Hyprland bindl keybindings set up by
 	// SetupHyprlandBinds, which send toggle-power-action / toggle-lid-action
 	// through the control socket.
-	err := h.conn.Object("org.freedesktop.login1", "/org/freedesktop/login1").
-		Call("org.freedesktop.login1.Manager.Inhibit", 0,
-			"handle-power-key:handle-lid-switch", "snry-shell", "Shell handling system buttons", "block").
-		Store(&h.lockFD)
+	fd, err := dbusutil.LogindInhibit(h.conn, "handle-power-key:handle-lid-switch", "snry-shell", "Shell handling system buttons", "block")
 	if err != nil {
 		log.Printf("[SYSTEM] failed to inhibit logind: %v", err)
 	} else {
+		h.lockFD = fd
 		log.Printf("[SYSTEM] logind button handling inhibited (block mode)")
 	}
 
@@ -87,6 +86,25 @@ func (h *SystemHandler) Run(ctx context.Context) error {
 	return ctx.Err()
 }
 
+func (h *SystemHandler) Suspend() {
+	h.bus.Publish(bus.TopicScreenLock, state.LockScreenState{Locked: true})
+	if err := dbusutil.LogindSuspend(h.conn); err != nil {
+		log.Printf("[SYSTEM] logind Suspend: %v", err)
+	}
+}
+
+func (h *SystemHandler) Reboot() {
+	if err := dbusutil.LogindReboot(h.conn); err != nil {
+		log.Printf("[SYSTEM] logind Reboot: %v", err)
+	}
+}
+
+func (h *SystemHandler) PowerOff() {
+	if err := dbusutil.LogindPowerOff(h.conn); err != nil {
+		log.Printf("[SYSTEM] logind PowerOff: %v", err)
+	}
+}
+
 func (h *SystemHandler) executeAction(action string) {
 	if action == "ignore" {
 		return
@@ -97,43 +115,10 @@ func (h *SystemHandler) executeAction(action string) {
 	case "lock":
 		h.bus.Publish(bus.TopicScreenLock, state.LockScreenState{Locked: true})
 	case "suspend":
-		h.bus.Publish(bus.TopicScreenLock, state.LockScreenState{Locked: true})
-		go logindSuspend(h.conn)
+		h.Suspend()
 	case "shutdown":
-		go logindPowerOff(h.conn)
+		h.PowerOff()
 	case "session-menu":
 		h.bus.Publish(bus.TopicSystemControls, "toggle-session")
-	}
-}
-
-// ── logind D-Bus helpers ──────────────────────────────────────────────────────
-
-func logindSuspend(conn *dbus.Conn) {
-	if conn == nil {
-		return
-	}
-	if err := conn.Object(logindDest, logindManager).
-		Call(managerIface+".Suspend", 0, false).Err; err != nil {
-		log.Printf("[SYSTEM] logind Suspend: %v", err)
-	}
-}
-
-func logindReboot(conn *dbus.Conn) {
-	if conn == nil {
-		return
-	}
-	if err := conn.Object(logindDest, logindManager).
-		Call(managerIface+".Reboot", 0, false).Err; err != nil {
-		log.Printf("[SYSTEM] logind Reboot: %v", err)
-	}
-}
-
-func logindPowerOff(conn *dbus.Conn) {
-	if conn == nil {
-		return
-	}
-	if err := conn.Object(logindDest, logindManager).
-		Call(managerIface+".PowerOff", 0, false).Err; err != nil {
-		log.Printf("[SYSTEM] logind PowerOff: %v", err)
 	}
 }
