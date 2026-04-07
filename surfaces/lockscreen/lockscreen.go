@@ -163,7 +163,7 @@ func (ls *LockScreen) newWindow(mon *gdk.Monitor) *lockWindow {
 		Name:          "snry-lockscreen",
 		Layer:         layershell.LayerOverlay,
 		Anchors:       layershell.FullscreenAnchors(),
-		KeyboardMode:  layershell.KeyboardModeExclusive,
+		KeyboardMode:  layershell.KeyboardModeOnDemand,
 		ExclusiveZone: -1,
 		Namespace:     "snry-lockscreen",
 		Monitor:       mon,
@@ -303,6 +303,8 @@ func (ls *LockScreen) setVisible(visible bool) {
 		if visible {
 			w.entry.SetText("")
 			w.entry.RemoveCSSClass("error")
+			// Grab focus on the password entry
+			w.entry.GrabFocus()
 		}
 	}
 }
