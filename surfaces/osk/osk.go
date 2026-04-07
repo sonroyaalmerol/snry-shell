@@ -184,13 +184,19 @@ func New(app *gtk.Application, b *bus.Bus) *OSK {
 			glib.IdleAdd(func() {
 				osk.screenLocked = ls.Locked
 				if ls.Locked {
-					// Move OSK to Top layer so it appears above lockscreen
-					layershell.SetLayer(osk.win, layershell.LayerTop)
-					log.Printf("[OSK] moved to Top layer for lockscreen")
-				} else {
-					// Move back to Overlay layer when unlocked
+					// Both lockscreen and OSK need to be on LayerOverlay (highest)
+					// The key is that the OSK must be shown/raised AFTER the lockscreen
+					// to be on top within the same layer
 					layershell.SetLayer(osk.win, layershell.LayerOverlay)
-					log.Printf("[OSK] moved back to Overlay layer")
+					// Drop exclusive zone so OSK overlays on top of lockscreen
+					layershell.SetExclusiveZone(osk.win, -1)
+					// Raise the window to make sure it's on top
+					osk.win.Present()
+					log.Printf("[OSK] configured for lockscreen: LayerOverlay, exclusive=-1")
+				} else {
+					// Restore exclusive zone when unlocked
+					osk.updateExclusiveZone()
+					log.Printf("[OSK] restored exclusive zone (unlocked)")
 				}
 			})
 		}
