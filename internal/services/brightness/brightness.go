@@ -7,6 +7,7 @@ import (
 
 	"github.com/sonroyaalmerol/snry-shell/internal/bus"
 	"github.com/sonroyaalmerol/snry-shell/internal/ddc"
+	"github.com/sonroyaalmerol/snry-shell/internal/services/runner"
 	"github.com/sonroyaalmerol/snry-shell/internal/state"
 )
 
@@ -25,22 +26,7 @@ func NewWithDefaults(b *bus.Bus) *Service {
 }
 
 func (s *Service) Run(ctx context.Context) error {
-	s.poll()
-	return pollLoop(ctx, 2*time.Second, s.poll)
-}
-
-func pollLoop(ctx context.Context, interval time.Duration, poll func()) error {
-	poll()
-	ticker := time.NewTicker(interval)
-	defer ticker.Stop()
-	for {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case <-ticker.C:
-			poll()
-		}
-	}
+	return runner.PollLoop(ctx, 2*time.Second, s.poll)
 }
 
 func (s *Service) poll() {

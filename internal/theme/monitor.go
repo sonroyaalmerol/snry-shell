@@ -210,13 +210,3 @@ func getFehWallpaper() string {
 	path := strings.TrimSpace(string(out))
 	return path
 }
-
-// Preview generates a theme preview from a wallpaper path without setting it
-func (m *Monitor) Preview(wallpaperPath string) (*ColorScheme, error) {
-	gen := New()
-	if err := gen.SetWallpaper(wallpaperPath); err != nil {
-		return nil, err
-	}
-	// Read the generated colors back
-	return nil, nil // TODO: parse generated CSS if needed
-}
