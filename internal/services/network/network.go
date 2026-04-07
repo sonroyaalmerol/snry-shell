@@ -283,6 +283,8 @@ func (s *Service) ConnectWiFi(ssid string) error {
 		return fmt.Errorf("no connections found")
 	}
 
+	// Find the connection for the requested SSID
+	var targetConn dbus.ObjectPath
 	for _, cp := range connPaths {
 		connObj := s.conn.Object(nmDest, cp)
 		var settings map[string]map[string]dbus.Variant
@@ -292,14 +294,55 @@ func (s *Service) ConnectWiFi(ssid string) error {
 		if wireless, ok := settings["802-11-wireless"]; ok {
 			if sv, ok := wireless["ssid"]; ok {
 				if ssidBytes, ok := sv.Value().([]byte); ok && string(ssidBytes) == ssid {
-					s.conn.Object(nmDest, nmPath).Call(nmIface+".ActivateConnection", 0, cp, dbus.ObjectPath("/"))
-					return nil
+					targetConn = cp
+					break
 				}
 			}
 		}
 	}
 
-	return fmt.Errorf("no existing connection for SSID %q", ssid)
+	if targetConn == "" {
+		return fmt.Errorf("no existing connection for SSID %q", ssid)
+	}
+
+	// Find the wireless device to use
+	nmObj := s.conn.Object(nmDest, nmPath)
+	devicesV, err := nmObj.GetProperty(nmIface + ".Devices")
+	if err != nil {
+		return fmt.Errorf("failed to get devices: %w", err)
+	}
+
+	devicePaths, ok := devicesV.Value().([]dbus.ObjectPath)
+	if !ok || len(devicePaths) == 0 {
+		return fmt.Errorf("no network devices found")
+	}
+
+	// Find the first wireless device
+	var wirelessDevice dbus.ObjectPath
+	for _, devPath := range devicePaths {
+		devObj := s.conn.Object(nmDest, devPath)
+		dtV, err := devObj.GetProperty(nmIface + ".Device.DeviceType")
+		if err != nil {
+			continue
+		}
+		if dt, ok := dtV.Value().(uint32); ok && dt == 2 { // 2 = NM_DEVICE_TYPE_WIFI
+			wirelessDevice = devPath
+			break
+		}
+	}
+
+	if wirelessDevice == "" {
+		return fmt.Errorf("no wireless device found")
+	}
+
+	// Activate the connection on the specific device
+	// This properly switches from one network to another
+	call := nmObj.Call(nmIface+".ActivateConnection", 0, targetConn, wirelessDevice, dbus.ObjectPath("/"))
+	if call.Err != nil {
+		return fmt.Errorf("failed to activate connection: %w", call.Err)
+	}
+
+	return nil
 }
 
 // DisconnectWiFi deactivates the current WiFi connection.
