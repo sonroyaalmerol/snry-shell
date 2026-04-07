@@ -5,11 +5,15 @@ import (
 )
 
 const (
-	keyDarkMode            = "dark_mode"
-	keyDoNotDisturb        = "do_not_disturb"
-	keyInputMode           = "input_mode"
-	keyIdleLockTimeout     = "idle_lock_timeout"    // seconds; 0 = disabled
-	keyIdleSuspendTimeout  = "idle_suspend_timeout" // seconds after lock; 0 = disabled
+	keyDarkMode           = "dark_mode"
+	keyDoNotDisturb       = "do_not_disturb"
+	keyInputMode          = "input_mode"
+	keyIdleLockTimeout    = "idle_lock_timeout"    // seconds; 0 = disabled
+	keyIdleSuspendTimeout = "idle_suspend_timeout" // seconds after lock; 0 = disabled
+	keyLockMaxAttempts    = "lock_max_attempts"    // max password attempts before lockout
+	keyLockoutDuration    = "lockout_duration"     // seconds to lock out after max attempts
+	keyLockShowClock      = "lock_show_clock"      // show clock on lockscreen
+	keyLockShowUser       = "lock_show_user"       // show username on lockscreen
 )
 
 type Config struct {
@@ -18,6 +22,10 @@ type Config struct {
 	InputMode          string // "auto", "tablet", "desktop"
 	IdleLockTimeout    int    // seconds before locking; 0 = disabled
 	IdleSuspendTimeout int    // additional seconds after lock before suspend; 0 = disabled
+	LockMaxAttempts    int    // max password attempts before lockout
+	LockoutDuration    int    // seconds to lock out after max attempts
+	LockShowClock      bool   // show clock on lockscreen
+	LockShowUser       bool   // show username on lockscreen
 }
 
 func DefaultConfig() Config {
@@ -27,6 +35,10 @@ func DefaultConfig() Config {
 		InputMode:          "auto",
 		IdleLockTimeout:    300,
 		IdleSuspendTimeout: 0,
+		LockMaxAttempts:    3,
+		LockoutDuration:    30,
+		LockShowClock:      true,
+		LockShowUser:       true,
 	}
 }
 
@@ -38,6 +50,10 @@ func Load() (Config, error) {
 		InputMode:          store.LookupOr(keyInputMode, d.InputMode),
 		IdleLockTimeout:    store.LookupOr(keyIdleLockTimeout, d.IdleLockTimeout),
 		IdleSuspendTimeout: store.LookupOr(keyIdleSuspendTimeout, d.IdleSuspendTimeout),
+		LockMaxAttempts:    store.LookupOr(keyLockMaxAttempts, d.LockMaxAttempts),
+		LockoutDuration:    store.LookupOr(keyLockoutDuration, d.LockoutDuration),
+		LockShowClock:      store.LookupOr(keyLockShowClock, d.LockShowClock),
+		LockShowUser:       store.LookupOr(keyLockShowUser, d.LockShowUser),
 	}, nil
 }
 
@@ -48,5 +64,9 @@ func Save(cfg Config) error {
 		keyInputMode:          cfg.InputMode,
 		keyIdleLockTimeout:    cfg.IdleLockTimeout,
 		keyIdleSuspendTimeout: cfg.IdleSuspendTimeout,
+		keyLockMaxAttempts:    cfg.LockMaxAttempts,
+		keyLockoutDuration:    cfg.LockoutDuration,
+		keyLockShowClock:      cfg.LockShowClock,
+		keyLockShowUser:       cfg.LockShowUser,
 	})
 }

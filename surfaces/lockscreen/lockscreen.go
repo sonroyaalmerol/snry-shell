@@ -19,14 +19,15 @@ import (
 	"github.com/sonroyaalmerol/snry-shell/internal/bus"
 	"github.com/sonroyaalmerol/snry-shell/internal/gtkutil"
 	"github.com/sonroyaalmerol/snry-shell/internal/layershell"
+	"github.com/sonroyaalmerol/snry-shell/internal/settings"
 	"github.com/sonroyaalmerol/snry-shell/internal/state"
 	"github.com/sonroyaalmerol/snry-shell/internal/store"
 )
 
 const (
-	wallpaperStoreKey = "theme.wallpaper"
-	maxAttempts       = 3
-	lockoutDuration   = 30 * time.Second
+	wallpaperStoreKey      = "theme.wallpaper"
+	defaultMaxAttempts     = 3
+	defaultLockoutDuration = 30 * time.Second
 )
 
 // LockScreen manages one lock window per monitor.
@@ -35,10 +36,16 @@ type LockScreen struct {
 	bus *bus.Bus
 
 	// shared auth state
-	mu       sync.Mutex
-	inAuth   bool
-	attempts int
+	mu        sync.Mutex
+	inAuth    bool
+	attempts  int
 	lockedOut bool
+
+	// configurable settings
+	maxAttempts     int
+	lockoutDuration time.Duration
+	showClock       bool
+	showUser        bool
 
 	windows []*lockWindow
 }
@@ -57,7 +64,14 @@ type lockWindow struct {
 // New creates and returns the lockscreen manager. Windows are spawned per
 // monitor at construction; monitor hotplug is handled internally.
 func New(app *gtk.Application, b *bus.Bus) *LockScreen {
-	ls := &LockScreen{app: app, bus: b}
+	ls := &LockScreen{
+		app:             app,
+		bus:             b,
+		maxAttempts:     defaultMaxAttempts,
+		lockoutDuration: defaultLockoutDuration,
+		showClock:       true,
+		showUser:        true,
+	}
 
 	ls.refreshMonitors()
 
@@ -89,7 +103,35 @@ func New(app *gtk.Application, b *bus.Bus) *LockScreen {
 		glib.IdleAdd(ls.updateWallpaper)
 	})
 
+	// Listen for settings changes
+	b.Subscribe(bus.TopicSettingsChanged, func(e bus.Event) {
+		if cfg, ok := e.Data.(settings.Config); ok {
+			glib.IdleAdd(func() {
+				ls.UpdateSettings(cfg)
+			})
+		}
+	})
+
 	return ls
+}
+
+// UpdateSettings updates the lockscreen configuration
+func (ls *LockScreen) UpdateSettings(cfg settings.Config) {
+	ls.mu.Lock()
+	defer ls.mu.Unlock()
+
+	ls.maxAttempts = cfg.LockMaxAttempts
+	if ls.maxAttempts < 1 {
+		ls.maxAttempts = 1
+	}
+
+	ls.lockoutDuration = time.Duration(cfg.LockoutDuration) * time.Second
+	if ls.lockoutDuration < 5*time.Second {
+		ls.lockoutDuration = 5 * time.Second
+	}
+
+	ls.showClock = cfg.LockShowClock
+	ls.showUser = cfg.LockShowUser
 }
 
 // refreshMonitors tears down existing windows and creates one per connected
@@ -323,10 +365,10 @@ func (ls *LockScreen) unlock(lw *lockWindow) {
 				})
 			}
 
-			if attempts >= maxAttempts {
+			if attempts >= ls.maxAttempts {
 				ls.startLockout()
 			} else {
-				remaining := maxAttempts - attempts
+				remaining := ls.maxAttempts - attempts
 				ls.setStatus(fmt.Sprintf("Incorrect password. %d attempt(s) remaining.", remaining))
 			}
 		})
@@ -340,7 +382,7 @@ func (ls *LockScreen) startLockout() {
 
 	ls.setLockoutButtons(true)
 
-	deadline := time.Now().Add(lockoutDuration)
+	deadline := time.Now().Add(ls.lockoutDuration)
 	glib.TimeoutAdd(1000, func() bool {
 		remaining := time.Until(deadline)
 		if remaining <= 0 {

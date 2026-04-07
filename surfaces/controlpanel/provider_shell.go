@@ -191,6 +191,60 @@ func (s *shellConfigProvider) buildIdleSection() gtk.Widgetter {
 	card.Append(suspendTimeoutRow)
 
 	section.Append(card)
+
+	// Lock Screen settings card
+	lockCard := gtk.NewBox(gtk.OrientationVertical, 0)
+	lockCard.AddCSSClass("system-controls")
+	lockCard.SetMarginTop(16)
+
+	// Max attempts before lockout
+	maxAttemptsRow := s.buildSpinRow(
+		"Max password attempts", "Attempts before temporary lockout",
+		1, 10, s.cfg.LockMaxAttempts,
+		func(v int) {
+			s.cfg.LockMaxAttempts = v
+			if err := s.Save(); err != nil {
+				log.Printf("[CONTROLPANEL] save lock max attempts: %v", err)
+			}
+		},
+	)
+	lockCard.Append(maxAttemptsRow)
+	lockCard.Append(gtkutil.M3Divider())
+
+	// Lockout duration (seconds)
+	lockoutDurationRow := s.buildSpinRow(
+		"Lockout duration", "Seconds to lock out after max attempts",
+		5, 300, s.cfg.LockoutDuration,
+		func(v int) {
+			s.cfg.LockoutDuration = v
+			if err := s.Save(); err != nil {
+				log.Printf("[CONTROLPANEL] save lockout duration: %v", err)
+			}
+		},
+	)
+	lockCard.Append(lockoutDurationRow)
+	lockCard.Append(gtkutil.M3Divider())
+
+	// Show clock toggle
+	showClockRow := s.buildSwitchRow("Show clock", "Display clock on lockscreen", s.cfg.LockShowClock, func(active bool) {
+		s.cfg.LockShowClock = active
+		if err := s.Save(); err != nil {
+			log.Printf("[CONTROLPANEL] save lock show clock: %v", err)
+		}
+	})
+	lockCard.Append(showClockRow)
+	lockCard.Append(gtkutil.M3Divider())
+
+	// Show user toggle
+	showUserRow := s.buildSwitchRow("Show username", "Display username on lockscreen", s.cfg.LockShowUser, func(active bool) {
+		s.cfg.LockShowUser = active
+		if err := s.Save(); err != nil {
+			log.Printf("[CONTROLPANEL] save lock show user: %v", err)
+		}
+	})
+	lockCard.Append(showUserRow)
+
+	section.Append(lockCard)
 	return section
 }
 

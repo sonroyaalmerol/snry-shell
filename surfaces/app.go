@@ -25,11 +25,11 @@ import (
 	serviceclipboard "github.com/sonroyaalmerol/snry-shell/internal/services/clipboard"
 	"github.com/sonroyaalmerol/snry-shell/internal/services/darkmode"
 	"github.com/sonroyaalmerol/snry-shell/internal/services/hyprland"
+	"github.com/sonroyaalmerol/snry-shell/internal/services/idle"
 	"github.com/sonroyaalmerol/snry-shell/internal/services/inputmode"
 	"github.com/sonroyaalmerol/snry-shell/internal/services/mpris"
 	"github.com/sonroyaalmerol/snry-shell/internal/services/network"
 	"github.com/sonroyaalmerol/snry-shell/internal/services/nightmode"
-	"github.com/sonroyaalmerol/snry-shell/internal/services/idle"
 	"github.com/sonroyaalmerol/snry-shell/internal/services/notifications"
 	"github.com/sonroyaalmerol/snry-shell/internal/services/pomodoro"
 	"github.com/sonroyaalmerol/snry-shell/internal/services/resources"
@@ -302,7 +302,11 @@ func Run() int {
 		osd.New(app, b)
 		session.New(app, b)
 		crosshair.New(app, b)
-		lockscreen.New(app, b)
+		ls := lockscreen.New(app, b)
+		// Load initial lockscreen settings
+		if cfg, err := shellsettings.Load(); err == nil {
+			ls.UpdateSettings(cfg)
+		}
 		mediaoverlay.New(app, b, refs.Mpris)
 		notifpopup.New(app, b)
 		osk.New(app, b)
