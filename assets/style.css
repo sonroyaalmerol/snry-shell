@@ -1936,6 +1936,71 @@ popover.menu list row:selected {
     margin: 4px;
 }
 
+/* Dialog styling for control panel */
+.popup-panel {
+    background-color: @col_surface;
+    border-radius: var(--radius-xl);
+}
+
+.popup-panel .settings-stack {
+    padding: 0;
+}
+
+.popup-panel .settings-title {
+    font-size: var(--typescale-headline-sm);
+    font-weight: 600;
+    color: @col_on_surface;
+    margin-bottom: 8px;
+}
+
+.popup-panel .settings-entry {
+    background-color: @col_surface_container;
+    border-radius: var(--radius-md);
+    border: 1px solid alpha(@col_outline, 0.2);
+    padding: 10px 14px;
+    font-size: var(--typescale-body-md);
+}
+
+.popup-panel .settings-entry:focus {
+    border-color: @col_primary;
+    box-shadow: 0 0 0 2px alpha(@col_primary, 0.2);
+}
+
+.popup-panel .m3-text-btn {
+    background-color: transparent;
+    color: @col_primary;
+    border: none;
+    border-radius: var(--radius-pill);
+    padding: 10px 24px;
+    font-size: var(--typescale-body-lg);
+    font-weight: 500;
+}
+
+.popup-panel .m3-text-btn:hover {
+    background-color: alpha(@col_primary, var(--state-hover));
+}
+
+.popup-panel .m3-filled-btn {
+    background-color: @col_primary;
+    color: @col_on_primary;
+    border: none;
+    border-radius: var(--radius-pill);
+    padding: 10px 24px;
+    font-size: var(--typescale-body-lg);
+    font-weight: 500;
+}
+
+.popup-panel .m3-filled-btn:hover {
+    background-color: alpha(@col_primary, 0.9);
+    box-shadow: var(--elevation-1);
+}
+
+.popup-panel .settings-dropdown {
+    background-color: @col_surface_container;
+    border-radius: var(--radius-md);
+    border: 1px solid alpha(@col_outline, 0.2);
+}
+
 .settings-nav {
     background-color: @col_surface_container_low;
     border-radius: var(--radius-xl) 0 0 var(--radius-xl);

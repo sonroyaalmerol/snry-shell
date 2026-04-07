@@ -761,43 +761,58 @@ func (n *nmConfigProvider) showWiFiPasswordDialog(ssid string) {
 	dialog.SetTitle(fmt.Sprintf("Connect to %s", ssid))
 	dialog.SetTransientFor(nil)
 	dialog.SetModal(true)
-	dialog.SetDefaultSize(350, 150)
+	dialog.SetDefaultSize(400, 200)
+	dialog.AddCSSClass("popup-panel")
 
 	content := dialog.ContentArea()
-	content.SetMarginTop(12)
-	content.SetMarginBottom(12)
-	content.SetMarginStart(12)
-	content.SetMarginEnd(12)
+	content.AddCSSClass("settings-stack")
+	content.SetMarginTop(24)
+	content.SetMarginBottom(24)
+	content.SetMarginStart(24)
+	content.SetMarginEnd(24)
 
-	label := gtk.NewLabel(fmt.Sprintf("Enter password for %s:", ssid))
-	label.SetHAlign(gtk.AlignStart)
-	content.Append(label)
+	title := gtk.NewLabel(fmt.Sprintf("Connect to %s", ssid))
+	title.AddCSSClass("settings-title")
+	title.SetHAlign(gtk.AlignStart)
+	content.Append(title)
 
-	entry := gtk.NewEntry()
-	entry.SetVisibility(false)
-	entry.SetInputPurpose(gtk.InputPurposePassword)
-	entry.SetMarginTop(8)
-	content.Append(entry)
+	passBox := gtk.NewBox(gtk.OrientationVertical, 8)
+	passBox.SetMarginTop(16)
+	passLabel := gtk.NewLabel("Password")
+	passLabel.AddCSSClass("settings-subtitle")
+	passLabel.SetHAlign(gtk.AlignStart)
+	passEntry := gtk.NewEntry()
+	passEntry.AddCSSClass("settings-entry")
+	passEntry.SetVisibility(false)
+	passEntry.SetInputPurpose(gtk.InputPurposePassword)
+	passBox.Append(passLabel)
+	passBox.Append(passEntry)
+	content.Append(passBox)
+
+	buttonBox := gtk.NewBox(gtk.OrientationHorizontal, 12)
+	buttonBox.SetHAlign(gtk.AlignEnd)
+	buttonBox.SetMarginTop(24)
+
+	cancelBtn := gtk.NewButtonWithLabel("Cancel")
+	cancelBtn.AddCSSClass("m3-text-btn")
+	cancelBtn.ConnectClicked(func() {
+		dialog.Close()
+	})
+	buttonBox.Append(cancelBtn)
 
 	connectBtn := gtk.NewButtonWithLabel("Connect")
 	connectBtn.AddCSSClass("m3-filled-btn")
 	connectBtn.ConnectClicked(func() {
-		password := entry.Text()
+		password := passEntry.Text()
 		if err := n.manager.ConnectWiFiWithPassword(ssid, password); err != nil {
 			log.Printf("[CONTROLPANEL] failed to connect: %v", err)
 			gtkutil.ErrorDialog(nil, "Connection Failed", err.Error())
 		}
 		dialog.Close()
 	})
-	dialog.AddActionWidget(connectBtn, int(gtk.ResponseAccept))
+	buttonBox.Append(connectBtn)
 
-	cancelBtn := gtk.NewButtonWithLabel("Cancel")
-	cancelBtn.ConnectClicked(func() {
-		dialog.Close()
-	})
-	cancelBtn.ConnectClicked(func() { dialog.Close() })
-	dialog.AddActionWidget(cancelBtn, int(gtk.ResponseCancel))
-
+	content.Append(buttonBox)
 	dialog.Show()
 }
 
@@ -806,8 +821,10 @@ func (n *nmConfigProvider) showDeleteConfirmDialog(conn state.NMConnection) {
 	dialog.SetTitle("Confirm Delete")
 	dialog.SetTransientFor(nil)
 	dialog.SetModal(true)
+	dialog.AddCSSClass("popup-panel")
 
 	content := dialog.ContentArea()
+	content.AddCSSClass("settings-stack")
 	content.SetMarginTop(24)
 	content.SetMarginBottom(24)
 	content.SetMarginStart(24)
@@ -820,20 +837,25 @@ func (n *nmConfigProvider) showDeleteConfirmDialog(conn state.NMConnection) {
 	content.Append(label)
 	content.Append(sublabel)
 
-	dialog.AddButton("Cancel", int(gtk.ResponseCancel))
-	dialog.AddButton("Delete", int(gtk.ResponseAccept))
-
-	dialog.ConnectResponse(func(response int) {
-		if response == int(gtk.ResponseAccept) {
-			if err := n.manager.DeleteConnection(conn.Path); err != nil {
-				log.Printf("[CONTROLPANEL] failed to delete connection: %v", err)
-				gtkutil.ErrorDialog(nil, "Error", fmt.Sprintf("Failed to delete: %v", err))
-			} else {
-				n.refreshConnectionsList()
-			}
-		}
+	cancelBtn := gtk.NewButtonWithLabel("Cancel")
+	cancelBtn.AddCSSClass("m3-text-btn")
+	cancelBtn.ConnectClicked(func() {
 		dialog.Close()
 	})
+	content.Append(cancelBtn)
+
+	deleteBtn := gtk.NewButtonWithLabel("Delete")
+	deleteBtn.AddCSSClass("m3-filled-btn")
+	deleteBtn.ConnectClicked(func() {
+		if err := n.manager.DeleteConnection(conn.Path); err != nil {
+			log.Printf("[CONTROLPANEL] failed to delete connection: %v", err)
+			gtkutil.ErrorDialog(nil, "Error", fmt.Sprintf("Failed to delete: %v", err))
+		} else {
+			n.refreshConnectionsList()
+			dialog.Close()
+		}
+	})
+	content.Append(deleteBtn)
 
 	dialog.Show()
 }
@@ -844,53 +866,73 @@ func (n *nmConfigProvider) showEditConnectionDialog(conn state.NMConnection) {
 	dialog.SetTransientFor(nil)
 	dialog.SetModal(true)
 	dialog.SetDefaultSize(450, 400)
+	dialog.AddCSSClass("popup-panel")
 
 	content := dialog.ContentArea()
-	content.SetMarginTop(12)
-	content.SetMarginBottom(12)
-	content.SetMarginStart(12)
-	content.SetMarginEnd(12)
+	content.AddCSSClass("settings-stack")
+	content.SetMarginTop(24)
+	content.SetMarginBottom(24)
+	content.SetMarginStart(24)
+	content.SetMarginEnd(24)
 
 	scroll := gtk.NewScrolledWindow()
 	scroll.SetVExpand(true)
 
-	box := gtk.NewBox(gtk.OrientationVertical, 12)
+	box := gtk.NewBox(gtk.OrientationVertical, 16)
+	box.AddCSSClass("settings-page")
+
+	// Title
+	title := gtk.NewLabel("Edit Connection")
+	title.AddCSSClass("settings-title")
+	title.SetHAlign(gtk.AlignStart)
+	box.Append(title)
 
 	// Connection name
-	nameRow := n.buildFormRow("Connection Name:", conn.Name)
-	box.Append(nameRow)
+	nameBox := gtk.NewBox(gtk.OrientationVertical, 8)
+	nameLabel := gtk.NewLabel("Connection Name")
+	nameLabel.AddCSSClass("settings-subtitle")
+	nameLabel.SetHAlign(gtk.AlignStart)
+	nameEntry := gtk.NewEntry()
+	nameEntry.AddCSSClass("settings-entry")
+	nameEntry.SetText(conn.Name)
+	nameBox.Append(nameLabel)
+	nameBox.Append(nameEntry)
+	box.Append(nameBox)
 
 	// Connection type (read-only)
-	typeRow := n.buildFormRow("Type:", conn.TypeLabel)
-	box.Append(typeRow)
+	typeBox := gtk.NewBox(gtk.OrientationHorizontal, 8)
+	typeLabel := gtk.NewLabel("Type:")
+	typeLabel.AddCSSClass("settings-subtitle")
+	typeValue := gtk.NewLabel(conn.TypeLabel)
+	typeValue.AddCSSClass("settings-label")
+	typeBox.Append(typeLabel)
+	typeBox.Append(typeValue)
+	box.Append(typeBox)
 
 	// IPv4 Method
-	ipv4Box := gtk.NewBox(gtk.OrientationHorizontal, 8)
-	ipv4Label := gtk.NewLabel("IPv4 Method:")
-	ipv4Label.SetSizeRequest(120, -1)
+	ipv4Box := gtk.NewBox(gtk.OrientationVertical, 8)
+	ipv4Label := gtk.NewLabel("IPv4 Method")
+	ipv4Label.AddCSSClass("settings-subtitle")
 	ipv4Label.SetHAlign(gtk.AlignStart)
-
 	ipv4Dropdown := gtk.NewDropDownFromStrings([]string{"auto", "manual", "disabled"})
-	ipv4Dropdown.SetSelected(0) // Default to auto
+	ipv4Dropdown.AddCSSClass("settings-dropdown")
 	if conn.IPv4Method == "manual" {
 		ipv4Dropdown.SetSelected(1)
 	} else if conn.IPv4Method == "disabled" {
 		ipv4Dropdown.SetSelected(2)
 	}
-
 	ipv4Box.Append(ipv4Label)
 	ipv4Box.Append(ipv4Dropdown)
 	box.Append(ipv4Box)
 
 	// Autoconnect
-	autoBox := gtk.NewBox(gtk.OrientationHorizontal, 8)
-	autoLabel := gtk.NewLabel("Auto-connect:")
-	autoLabel.SetSizeRequest(120, -1)
+	autoBox := gtk.NewBox(gtk.OrientationHorizontal, 12)
+	autoLabel := gtk.NewLabel("Auto-connect")
+	autoLabel.AddCSSClass("settings-subtitle")
+	autoLabel.SetHExpand(true)
 	autoLabel.SetHAlign(gtk.AlignStart)
-
 	autoSwitch := gtk.NewSwitch()
 	autoSwitch.SetActive(conn.Autoconnect)
-
 	autoBox.Append(autoLabel)
 	autoBox.Append(autoSwitch)
 	box.Append(autoBox)
@@ -898,11 +940,21 @@ func (n *nmConfigProvider) showEditConnectionDialog(conn state.NMConnection) {
 	scroll.SetChild(box)
 	content.Append(scroll)
 
-	// Save button
+	// Button row
+	buttonBox := gtk.NewBox(gtk.OrientationHorizontal, 12)
+	buttonBox.SetHAlign(gtk.AlignEnd)
+	buttonBox.SetMarginTop(16)
+
+	cancelBtn := gtk.NewButtonWithLabel("Cancel")
+	cancelBtn.AddCSSClass("m3-text-btn")
+	cancelBtn.ConnectClicked(func() {
+		dialog.Close()
+	})
+	buttonBox.Append(cancelBtn)
+
 	saveBtn := gtk.NewButtonWithLabel("Save")
 	saveBtn.AddCSSClass("m3-filled-btn")
 	saveBtn.ConnectClicked(func() {
-		// Build updated settings
 		settings := map[string]map[string]dbus.Variant{
 			"connection": {
 				"autoconnect": dbus.MakeVariant(autoSwitch.Active()),
@@ -920,15 +972,9 @@ func (n *nmConfigProvider) showEditConnectionDialog(conn state.NMConnection) {
 			dialog.Close()
 		}
 	})
-	dialog.AddActionWidget(saveBtn, int(gtk.ResponseAccept))
+	buttonBox.Append(saveBtn)
 
-	cancelBtn := gtk.NewButtonWithLabel("Cancel")
-	cancelBtn.ConnectClicked(func() {
-		dialog.Close()
-	})
-	cancelBtn.ConnectClicked(func() { dialog.Close() })
-	dialog.AddActionWidget(cancelBtn, int(gtk.ResponseCancel))
-
+	content.Append(buttonBox)
 	dialog.Show()
 }
 
@@ -1010,41 +1056,53 @@ func (n *nmConfigProvider) showAddWiFiDialog() {
 	dialog.SetTitle("Add Wi-Fi Connection")
 	dialog.SetTransientFor(nil)
 	dialog.SetModal(true)
-	dialog.SetDefaultSize(350, 250)
+	dialog.SetDefaultSize(400, 350)
+	dialog.AddCSSClass("popup-panel")
 
 	content := dialog.ContentArea()
-	content.SetMarginTop(12)
-	content.SetMarginBottom(12)
-	content.SetMarginStart(12)
-	content.SetMarginEnd(12)
+	content.AddCSSClass("settings-stack")
+	content.SetMarginTop(24)
+	content.SetMarginBottom(24)
+	content.SetMarginStart(24)
+	content.SetMarginEnd(24)
+
+	title := gtk.NewLabel("Add Wi-Fi Connection")
+	title.AddCSSClass("settings-title")
+	title.SetHAlign(gtk.AlignStart)
+	content.Append(title)
 
 	// SSID
-	ssidRow := gtk.NewBox(gtk.OrientationHorizontal, 8)
-	ssidLabel := gtk.NewLabel("Network Name (SSID):")
+	ssidBox := gtk.NewBox(gtk.OrientationVertical, 8)
+	ssidBox.SetMarginTop(16)
+	ssidLabel := gtk.NewLabel("Network Name (SSID)")
+	ssidLabel.AddCSSClass("settings-subtitle")
 	ssidLabel.SetHAlign(gtk.AlignStart)
 	ssidEntry := gtk.NewEntry()
-	ssidEntry.SetHExpand(true)
-	ssidRow.Append(ssidLabel)
-	ssidRow.Append(ssidEntry)
-	content.Append(ssidRow)
+	ssidEntry.AddCSSClass("settings-entry")
+	ssidBox.Append(ssidLabel)
+	ssidBox.Append(ssidEntry)
+	content.Append(ssidBox)
 
 	// Password
-	passRow := gtk.NewBox(gtk.OrientationHorizontal, 8)
-	passRow.SetMarginTop(12)
-	passLabel := gtk.NewLabel("Password:")
+	passBox := gtk.NewBox(gtk.OrientationVertical, 8)
+	passBox.SetMarginTop(16)
+	passLabel := gtk.NewLabel("Password")
+	passLabel.AddCSSClass("settings-subtitle")
 	passLabel.SetHAlign(gtk.AlignStart)
 	passEntry := gtk.NewEntry()
+	passEntry.AddCSSClass("settings-entry")
 	passEntry.SetVisibility(false)
 	passEntry.SetInputPurpose(gtk.InputPurposePassword)
-	passEntry.SetHExpand(true)
-	passRow.Append(passLabel)
-	passRow.Append(passEntry)
-	content.Append(passRow)
+	passBox.Append(passLabel)
+	passBox.Append(passEntry)
+	content.Append(passBox)
 
 	// Auto-connect
-	autoBox := gtk.NewBox(gtk.OrientationHorizontal, 8)
-	autoBox.SetMarginTop(12)
-	autoLabel := gtk.NewLabel("Auto-connect:")
+	autoBox := gtk.NewBox(gtk.OrientationHorizontal, 12)
+	autoBox.SetMarginTop(16)
+	autoLabel := gtk.NewLabel("Auto-connect")
+	autoLabel.AddCSSClass("settings-subtitle")
+	autoLabel.SetHExpand(true)
 	autoLabel.SetHAlign(gtk.AlignStart)
 	autoSwitch := gtk.NewSwitch()
 	autoSwitch.SetActive(true)
@@ -1052,7 +1110,18 @@ func (n *nmConfigProvider) showAddWiFiDialog() {
 	autoBox.Append(autoSwitch)
 	content.Append(autoBox)
 
-	// Add button
+	// Button row
+	buttonBox := gtk.NewBox(gtk.OrientationHorizontal, 12)
+	buttonBox.SetHAlign(gtk.AlignEnd)
+	buttonBox.SetMarginTop(24)
+
+	cancelBtn := gtk.NewButtonWithLabel("Cancel")
+	cancelBtn.AddCSSClass("m3-text-btn")
+	cancelBtn.ConnectClicked(func() {
+		dialog.Close()
+	})
+	buttonBox.Append(cancelBtn)
+
 	addBtn := gtk.NewButtonWithLabel("Add")
 	addBtn.AddCSSClass("m3-filled-btn")
 	addBtn.ConnectClicked(func() {
@@ -1098,15 +1167,9 @@ func (n *nmConfigProvider) showAddWiFiDialog() {
 			dialog.Close()
 		}
 	})
-	dialog.AddActionWidget(addBtn, int(gtk.ResponseAccept))
+	buttonBox.Append(addBtn)
 
-	cancelBtn := gtk.NewButtonWithLabel("Cancel")
-	cancelBtn.ConnectClicked(func() {
-		dialog.Close()
-	})
-	cancelBtn.ConnectClicked(func() { dialog.Close() })
-	dialog.AddActionWidget(cancelBtn, int(gtk.ResponseCancel))
-
+	content.Append(buttonBox)
 	dialog.Show()
 }
 
@@ -1115,28 +1178,39 @@ func (n *nmConfigProvider) showAddEthernetDialog() {
 	dialog.SetTitle("Add Ethernet Connection")
 	dialog.SetTransientFor(nil)
 	dialog.SetModal(true)
-	dialog.SetDefaultSize(350, 200)
+	dialog.SetDefaultSize(400, 280)
+	dialog.AddCSSClass("popup-panel")
 
 	content := dialog.ContentArea()
-	content.SetMarginTop(12)
-	content.SetMarginBottom(12)
-	content.SetMarginStart(12)
-	content.SetMarginEnd(12)
+	content.AddCSSClass("settings-stack")
+	content.SetMarginTop(24)
+	content.SetMarginBottom(24)
+	content.SetMarginStart(24)
+	content.SetMarginEnd(24)
+
+	title := gtk.NewLabel("Add Ethernet Connection")
+	title.AddCSSClass("settings-title")
+	title.SetHAlign(gtk.AlignStart)
+	content.Append(title)
 
 	// Connection name
-	nameRow := gtk.NewBox(gtk.OrientationHorizontal, 8)
-	nameLabel := gtk.NewLabel("Connection Name:")
+	nameBox := gtk.NewBox(gtk.OrientationVertical, 8)
+	nameBox.SetMarginTop(16)
+	nameLabel := gtk.NewLabel("Connection Name")
+	nameLabel.AddCSSClass("settings-subtitle")
 	nameLabel.SetHAlign(gtk.AlignStart)
 	nameEntry := gtk.NewEntry()
-	nameEntry.SetHExpand(true)
-	nameRow.Append(nameLabel)
-	nameRow.Append(nameEntry)
-	content.Append(nameRow)
+	nameEntry.AddCSSClass("settings-entry")
+	nameBox.Append(nameLabel)
+	nameBox.Append(nameEntry)
+	content.Append(nameBox)
 
 	// Auto-connect
-	autoBox := gtk.NewBox(gtk.OrientationHorizontal, 8)
-	autoBox.SetMarginTop(12)
-	autoLabel := gtk.NewLabel("Auto-connect:")
+	autoBox := gtk.NewBox(gtk.OrientationHorizontal, 12)
+	autoBox.SetMarginTop(16)
+	autoLabel := gtk.NewLabel("Auto-connect")
+	autoLabel.AddCSSClass("settings-subtitle")
+	autoLabel.SetHExpand(true)
 	autoLabel.SetHAlign(gtk.AlignStart)
 	autoSwitch := gtk.NewSwitch()
 	autoSwitch.SetActive(true)
@@ -1144,7 +1218,18 @@ func (n *nmConfigProvider) showAddEthernetDialog() {
 	autoBox.Append(autoSwitch)
 	content.Append(autoBox)
 
-	// Add button
+	// Button row
+	buttonBox := gtk.NewBox(gtk.OrientationHorizontal, 12)
+	buttonBox.SetHAlign(gtk.AlignEnd)
+	buttonBox.SetMarginTop(24)
+
+	cancelBtn := gtk.NewButtonWithLabel("Cancel")
+	cancelBtn.AddCSSClass("m3-text-btn")
+	cancelBtn.ConnectClicked(func() {
+		dialog.Close()
+	})
+	buttonBox.Append(cancelBtn)
+
 	addBtn := gtk.NewButtonWithLabel("Add")
 	addBtn.AddCSSClass("m3-filled-btn")
 	addBtn.ConnectClicked(func() {
@@ -1178,14 +1263,8 @@ func (n *nmConfigProvider) showAddEthernetDialog() {
 			dialog.Close()
 		}
 	})
-	dialog.AddActionWidget(addBtn, int(gtk.ResponseAccept))
+	buttonBox.Append(addBtn)
 
-	cancelBtn := gtk.NewButtonWithLabel("Cancel")
-	cancelBtn.ConnectClicked(func() {
-		dialog.Close()
-	})
-	cancelBtn.ConnectClicked(func() { dialog.Close() })
-	dialog.AddActionWidget(cancelBtn, int(gtk.ResponseCancel))
-
+	content.Append(buttonBox)
 	dialog.Show()
 }
