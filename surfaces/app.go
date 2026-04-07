@@ -67,11 +67,17 @@ func Run() int {
 	b := bus.New()
 	app := gtk.NewApplication("sh.snry.shell", 0)
 
-	sysConn, _ := dbus.ConnectSystemBus()
+	sysConn, err := dbus.ConnectSystemBus()
+	if err != nil {
+		log.Printf("[SHELL] system bus: %v", err)
+	}
 	if sysConn != nil {
 		defer sysConn.Close()
 	}
-	sesConn, _ := dbus.ConnectSessionBus()
+	sesConn, err := dbus.ConnectSessionBus()
+	if err != nil {
+		log.Printf("[SHELL] session bus: %v", err)
+	}
 	if sesConn != nil {
 		defer sesConn.Close()
 	}
@@ -158,7 +164,9 @@ func Run() int {
 	})
 
 	// Hyprland event stream.
-	if conn, err := net.Dial("unix", hyprland.SocketPath()); err == nil {
+	if conn, err := net.Dial("unix", hyprland.SocketPath()); err != nil {
+		log.Printf("[SHELL] hyprland socket: %v (window events disabled)", err)
+	} else {
 		svc := hyprland.New(hyprland.NewSocketReader(conn), b)
 		if clients, err := refs.Hyprland.Clients(); err == nil {
 			svc.SeedClients(clients)
