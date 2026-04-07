@@ -184,24 +184,25 @@ func New(app *gtk.Application, b *bus.Bus) *OSK {
 			glib.IdleAdd(func() {
 				osk.screenLocked = ls.Locked
 				if ls.Locked {
-					// Both lockscreen and OSK need to be on LayerOverlay (highest)
-					// The key is that the OSK must be shown/raised AFTER the lockscreen
-					// to be on top within the same layer
-					layershell.SetLayer(osk.win, layershell.LayerOverlay)
-					// Drop exclusive zone so OSK overlays on top of lockscreen
+					// Move OSK to LayerTop (above lockscreen's LayerOverlay)
+					// LayerTop is actually below Overlay in the stack, but since
+					// lockscreen uses KeyboardModeExclusive on Overlay, we need
+					// to be on a different layer to receive input
+					layershell.SetLayer(osk.win, layershell.LayerTop)
+					// Drop exclusive zone so OSK overlays freely
 					layershell.SetExclusiveZone(osk.win, -1)
-					// Hide and re-show to force it to the top of the stacking order
-					wasVisible := osk.win.Visible()
-					if wasVisible {
-						osk.win.SetVisible(false)
-					}
+					// Set keyboard mode to on-demand so it can receive input
+					layershell.SetKeyboardMode(osk.win, layershell.KeyboardModeOnDemand)
+					// Ensure it's visible and on top
 					osk.win.SetVisible(true)
 					osk.win.Present()
-					log.Printf("[OSK] configured for lockscreen: LayerOverlay, exclusive=-1, raised")
+					log.Printf("[OSK] configured for lockscreen: LayerTop, exclusive=-1, mode=on-demand")
 				} else {
-					// Restore exclusive zone when unlocked
+					// Restore normal settings when unlocked
+					layershell.SetLayer(osk.win, layershell.LayerOverlay)
+					layershell.SetKeyboardMode(osk.win, layershell.KeyboardModeNone)
 					osk.updateExclusiveZone()
-					log.Printf("[OSK] restored exclusive zone (unlocked)")
+					log.Printf("[OSK] restored normal settings (unlocked)")
 				}
 			})
 		}
