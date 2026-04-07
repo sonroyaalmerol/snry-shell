@@ -2001,6 +2001,80 @@ popover.menu list row:selected {
     border: 1px solid alpha(@col_outline, 0.2);
 }
 
+/* Material 3 Outlined Text Fields */
+.m3-outlined-field {
+    background-color: transparent;
+    border: 1px solid alpha(@col_outline, 0.6);
+    border-radius: var(--radius-sm);
+    padding: 8px 16px;
+    margin-top: 4px;
+}
+
+.m3-outlined-field:focus-within {
+    border-color: @col_primary;
+    border-width: 2px;
+    padding: 7px 15px;
+}
+
+.m3-field-label {
+    font-size: var(--typescale-body-sm);
+    color: alpha(@col_on_surface, 0.6);
+    margin-bottom: 4px;
+}
+
+.m3-outlined-field:focus-within .m3-field-label {
+    color: @col_primary;
+}
+
+.m3-outlined-input {
+    background-color: transparent;
+    border: none;
+    color: @col_on_surface;
+    font-size: var(--typescale-body-lg);
+    padding: 0;
+}
+
+.m3-outlined-input:focus {
+    outline: none;
+}
+
+/* Material 3 Dropdown Field */
+.m3-dropdown-field {
+    background-color: @col_surface_container;
+    border: 1px solid alpha(@col_outline, 0.6);
+    border-radius: var(--radius-sm);
+    padding: 12px 16px;
+    font-size: var(--typescale-body-lg);
+}
+
+.m3-dropdown-field:hover {
+    border-color: alpha(@col_on_surface, 0.8);
+}
+
+/* Material 3 Assist Chip */
+.m3-assist-chip {
+    background-color: @col_surface_container;
+    border-radius: var(--radius-pill);
+    padding: 6px 16px;
+    font-size: var(--typescale-body-sm);
+    color: @col_on_surface;
+}
+
+/* Material 3 Switch Row */
+.m3-switch-row {
+    background-color: alpha(@col_surface_container, 0.5);
+    border-radius: var(--radius-md);
+    padding: 16px;
+}
+
+.m3-switch {
+    background-color: @col_surface_container;
+}
+
+.m3-switch:checked {
+    background-color: @col_primary;
+}
+
 .settings-nav {
     background-color: @col_surface_container_low;
     border-radius: var(--radius-xl) 0 0 var(--radius-xl);

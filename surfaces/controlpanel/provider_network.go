@@ -776,18 +776,10 @@ func (n *nmConfigProvider) showWiFiPasswordDialog(ssid string) {
 	title.SetHAlign(gtk.AlignStart)
 	content.Append(title)
 
-	passBox := gtk.NewBox(gtk.OrientationVertical, 8)
-	passBox.SetMarginTop(16)
-	passLabel := gtk.NewLabel("Password")
-	passLabel.AddCSSClass("settings-subtitle")
-	passLabel.SetHAlign(gtk.AlignStart)
-	passEntry := gtk.NewEntry()
-	passEntry.AddCSSClass("settings-entry")
-	passEntry.SetVisibility(false)
-	passEntry.SetInputPurpose(gtk.InputPurposePassword)
-	passBox.Append(passLabel)
-	passBox.Append(passEntry)
-	content.Append(passBox)
+	// Password - Material 3 Outlined Password Field
+	passField := n.createPasswordField("Password")
+	passEntry := passField.entry
+	content.Append(passField.container)
 
 	buttonBox := gtk.NewBox(gtk.OrientationHorizontal, 12)
 	buttonBox.SetHAlign(gtk.AlignEnd)
@@ -860,6 +852,46 @@ func (n *nmConfigProvider) showDeleteConfirmDialog(conn state.NMConnection) {
 	dialog.Show()
 }
 
+// outlinedTextField represents a Material 3 outlined text field
+type outlinedTextField struct {
+	container *gtk.Box
+	entry     *gtk.Entry
+	label     *gtk.Label
+}
+
+// createOutlinedTextField creates a Material 3 outlined text field
+func (n *nmConfigProvider) createOutlinedTextField(labelText, value string) *outlinedTextField {
+	container := gtk.NewBox(gtk.OrientationVertical, 0)
+	container.AddCSSClass("m3-outlined-field")
+
+	// Floating label
+	label := gtk.NewLabel(labelText)
+	label.AddCSSClass("m3-field-label")
+	label.SetHAlign(gtk.AlignStart)
+
+	// Text entry with outline
+	entry := gtk.NewEntry()
+	entry.AddCSSClass("m3-outlined-input")
+	entry.SetText(value)
+
+	container.Append(label)
+	container.Append(entry)
+
+	return &outlinedTextField{
+		container: container,
+		entry:     entry,
+		label:     label,
+	}
+}
+
+// createPasswordField creates a Material 3 outlined password field
+func (n *nmConfigProvider) createPasswordField(labelText string) *outlinedTextField {
+	field := n.createOutlinedTextField(labelText, "")
+	field.entry.SetVisibility(false)
+	field.entry.SetInputPurpose(gtk.InputPurposePassword)
+	return field
+}
+
 func (n *nmConfigProvider) showEditConnectionDialog(conn state.NMConnection) {
 	dialog := gtk.NewDialog()
 	dialog.SetTitle(fmt.Sprintf("Edit %s", conn.Name))
@@ -887,35 +919,30 @@ func (n *nmConfigProvider) showEditConnectionDialog(conn state.NMConnection) {
 	title.SetHAlign(gtk.AlignStart)
 	box.Append(title)
 
-	// Connection name
-	nameBox := gtk.NewBox(gtk.OrientationVertical, 8)
-	nameLabel := gtk.NewLabel("Connection Name")
-	nameLabel.AddCSSClass("settings-subtitle")
-	nameLabel.SetHAlign(gtk.AlignStart)
-	nameEntry := gtk.NewEntry()
-	nameEntry.AddCSSClass("settings-entry")
-	nameEntry.SetText(conn.Name)
-	nameBox.Append(nameLabel)
-	nameBox.Append(nameEntry)
-	box.Append(nameBox)
+	// Connection name - Material 3 Outlined Text Field style
+	nameField := n.createOutlinedTextField("Connection Name", conn.Name)
+	nameEntry := nameField.entry
+	box.Append(nameField.container)
 
-	// Connection type (read-only)
+	// Connection type (read-only chip style)
 	typeBox := gtk.NewBox(gtk.OrientationHorizontal, 8)
-	typeLabel := gtk.NewLabel("Type:")
-	typeLabel.AddCSSClass("settings-subtitle")
-	typeValue := gtk.NewLabel(conn.TypeLabel)
-	typeValue.AddCSSClass("settings-label")
+	typeBox.SetMarginTop(8)
+	typeLabel := gtk.NewLabel("Type")
+	typeLabel.AddCSSClass("settings-small-label")
+	typeChip := gtk.NewLabel(conn.TypeLabel)
+	typeChip.AddCSSClass("m3-assist-chip")
 	typeBox.Append(typeLabel)
-	typeBox.Append(typeValue)
+	typeBox.Append(typeChip)
 	box.Append(typeBox)
 
-	// IPv4 Method
+	// IPv4 Method - Material 3 Dropdown
 	ipv4Box := gtk.NewBox(gtk.OrientationVertical, 8)
+	ipv4Box.SetMarginTop(16)
 	ipv4Label := gtk.NewLabel("IPv4 Method")
-	ipv4Label.AddCSSClass("settings-subtitle")
+	ipv4Label.AddCSSClass("settings-small-label")
 	ipv4Label.SetHAlign(gtk.AlignStart)
-	ipv4Dropdown := gtk.NewDropDownFromStrings([]string{"auto", "manual", "disabled"})
-	ipv4Dropdown.AddCSSClass("settings-dropdown")
+	ipv4Dropdown := gtk.NewDropDownFromStrings([]string{"Automatic (DHCP)", "Manual", "Disabled"})
+	ipv4Dropdown.AddCSSClass("m3-dropdown-field")
 	if conn.IPv4Method == "manual" {
 		ipv4Dropdown.SetSelected(1)
 	} else if conn.IPv4Method == "disabled" {
@@ -925,17 +952,20 @@ func (n *nmConfigProvider) showEditConnectionDialog(conn state.NMConnection) {
 	ipv4Box.Append(ipv4Dropdown)
 	box.Append(ipv4Box)
 
-	// Autoconnect
-	autoBox := gtk.NewBox(gtk.OrientationHorizontal, 12)
+	// Autoconnect - Material 3 Switch with row
+	autoRow := gtk.NewBox(gtk.OrientationHorizontal, 0)
+	autoRow.AddCSSClass("m3-switch-row")
+	autoRow.SetMarginTop(16)
 	autoLabel := gtk.NewLabel("Auto-connect")
 	autoLabel.AddCSSClass("settings-subtitle")
 	autoLabel.SetHExpand(true)
 	autoLabel.SetHAlign(gtk.AlignStart)
 	autoSwitch := gtk.NewSwitch()
+	autoSwitch.AddCSSClass("m3-switch")
 	autoSwitch.SetActive(conn.Autoconnect)
-	autoBox.Append(autoLabel)
-	autoBox.Append(autoSwitch)
-	box.Append(autoBox)
+	autoRow.Append(autoLabel)
+	autoRow.Append(autoSwitch)
+	box.Append(autoRow)
 
 	scroll.SetChild(box)
 	content.Append(scroll)
@@ -955,8 +985,12 @@ func (n *nmConfigProvider) showEditConnectionDialog(conn state.NMConnection) {
 	saveBtn := gtk.NewButtonWithLabel("Save")
 	saveBtn.AddCSSClass("m3-filled-btn")
 	saveBtn.ConnectClicked(func() {
+		// Get the updated name
+		newName := nameEntry.Text()
+
 		settings := map[string]map[string]dbus.Variant{
 			"connection": {
+				"id":          dbus.MakeVariant(newName),
 				"autoconnect": dbus.MakeVariant(autoSwitch.Active()),
 			},
 			"ipv4": {
@@ -1071,44 +1105,30 @@ func (n *nmConfigProvider) showAddWiFiDialog() {
 	title.SetHAlign(gtk.AlignStart)
 	content.Append(title)
 
-	// SSID
-	ssidBox := gtk.NewBox(gtk.OrientationVertical, 8)
-	ssidBox.SetMarginTop(16)
-	ssidLabel := gtk.NewLabel("Network Name (SSID)")
-	ssidLabel.AddCSSClass("settings-subtitle")
-	ssidLabel.SetHAlign(gtk.AlignStart)
-	ssidEntry := gtk.NewEntry()
-	ssidEntry.AddCSSClass("settings-entry")
-	ssidBox.Append(ssidLabel)
-	ssidBox.Append(ssidEntry)
-	content.Append(ssidBox)
+	// SSID - Material 3 Outlined Text Field
+	ssidField := n.createOutlinedTextField("Network Name (SSID)", "")
+	ssidEntry := ssidField.entry
+	content.Append(ssidField.container)
 
-	// Password
-	passBox := gtk.NewBox(gtk.OrientationVertical, 8)
-	passBox.SetMarginTop(16)
-	passLabel := gtk.NewLabel("Password")
-	passLabel.AddCSSClass("settings-subtitle")
-	passLabel.SetHAlign(gtk.AlignStart)
-	passEntry := gtk.NewEntry()
-	passEntry.AddCSSClass("settings-entry")
-	passEntry.SetVisibility(false)
-	passEntry.SetInputPurpose(gtk.InputPurposePassword)
-	passBox.Append(passLabel)
-	passBox.Append(passEntry)
-	content.Append(passBox)
+	// Password - Material 3 Outlined Password Field
+	passField := n.createPasswordField("Password")
+	passEntry := passField.entry
+	content.Append(passField.container)
 
-	// Auto-connect
-	autoBox := gtk.NewBox(gtk.OrientationHorizontal, 12)
-	autoBox.SetMarginTop(16)
+	// Auto-connect - Material 3 Switch
+	autoRow := gtk.NewBox(gtk.OrientationHorizontal, 0)
+	autoRow.AddCSSClass("m3-switch-row")
+	autoRow.SetMarginTop(16)
 	autoLabel := gtk.NewLabel("Auto-connect")
 	autoLabel.AddCSSClass("settings-subtitle")
 	autoLabel.SetHExpand(true)
 	autoLabel.SetHAlign(gtk.AlignStart)
 	autoSwitch := gtk.NewSwitch()
+	autoSwitch.AddCSSClass("m3-switch")
 	autoSwitch.SetActive(true)
-	autoBox.Append(autoLabel)
-	autoBox.Append(autoSwitch)
-	content.Append(autoBox)
+	autoRow.Append(autoLabel)
+	autoRow.Append(autoSwitch)
+	content.Append(autoRow)
 
 	// Button row
 	buttonBox := gtk.NewBox(gtk.OrientationHorizontal, 12)
@@ -1193,30 +1213,25 @@ func (n *nmConfigProvider) showAddEthernetDialog() {
 	title.SetHAlign(gtk.AlignStart)
 	content.Append(title)
 
-	// Connection name
-	nameBox := gtk.NewBox(gtk.OrientationVertical, 8)
-	nameBox.SetMarginTop(16)
-	nameLabel := gtk.NewLabel("Connection Name")
-	nameLabel.AddCSSClass("settings-subtitle")
-	nameLabel.SetHAlign(gtk.AlignStart)
-	nameEntry := gtk.NewEntry()
-	nameEntry.AddCSSClass("settings-entry")
-	nameBox.Append(nameLabel)
-	nameBox.Append(nameEntry)
-	content.Append(nameBox)
+	// Connection name - Material 3 Outlined Text Field
+	nameField := n.createOutlinedTextField("Connection Name", "")
+	nameEntry := nameField.entry
+	content.Append(nameField.container)
 
-	// Auto-connect
-	autoBox := gtk.NewBox(gtk.OrientationHorizontal, 12)
-	autoBox.SetMarginTop(16)
+	// Auto-connect - Material 3 Switch
+	autoRow := gtk.NewBox(gtk.OrientationHorizontal, 0)
+	autoRow.AddCSSClass("m3-switch-row")
+	autoRow.SetMarginTop(16)
 	autoLabel := gtk.NewLabel("Auto-connect")
 	autoLabel.AddCSSClass("settings-subtitle")
 	autoLabel.SetHExpand(true)
 	autoLabel.SetHAlign(gtk.AlignStart)
 	autoSwitch := gtk.NewSwitch()
+	autoSwitch.AddCSSClass("m3-switch")
 	autoSwitch.SetActive(true)
-	autoBox.Append(autoLabel)
-	autoBox.Append(autoSwitch)
-	content.Append(autoBox)
+	autoRow.Append(autoLabel)
+	autoRow.Append(autoSwitch)
+	content.Append(autoRow)
 
 	// Button row
 	buttonBox := gtk.NewBox(gtk.OrientationHorizontal, 12)
