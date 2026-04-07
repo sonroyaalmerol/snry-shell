@@ -118,13 +118,8 @@ func (n *nmConfigProvider) buildHostnameSection() gtk.Widgetter {
 	n.hostnameEntry.SetHExpand(true)
 	n.hostnameEntry.SetText(n.manager.GetHostname())
 
-	updateBtn := gtk.NewButton()
-	updateBtn.AddCSSClass("m3-icon-btn")
-	updateBtn.AddCSSClass("settings-btn")
+	updateBtn := gtkutil.M3IconButton("check", "settings-btn")
 	updateBtn.SetTooltipText("Update hostname")
-	updateIcon := gtkutil.MaterialIcon("check")
-	updateBtn.SetChild(updateIcon)
-	updateBtn.SetCursorFromName("pointer")
 	updateBtn.ConnectClicked(func() {
 		newHostname := n.hostnameEntry.Text()
 		if err := n.manager.SetHostname(newHostname); err != nil {
@@ -222,12 +217,8 @@ func (n *nmConfigProvider) buildDeviceRow(dev state.NMDevice) gtk.Widgetter {
 
 	// Add connect/disconnect button if device has a connection
 	if dev.ActiveConnection != "" {
-		disconnectBtn := gtk.NewButton()
-		disconnectBtn.AddCSSClass("m3-icon-btn")
-		disconnectBtn.AddCSSClass("settings-btn-small")
+		disconnectBtn := gtkutil.M3IconButton("link_off", "settings-btn-small")
 		disconnectBtn.SetTooltipText("Disconnect")
-		disconnectBtn.SetChild(gtkutil.MaterialIcon("link_off"))
-		disconnectBtn.SetCursorFromName("pointer")
 		disconnectBtn.ConnectClicked(func() {
 			if err := n.manager.DeactivateConnection(dev.ActiveConnection); err != nil {
 				log.Printf("[CONTROLPANEL] failed to disconnect: %v", err)
@@ -243,12 +234,8 @@ func (n *nmConfigProvider) buildDeviceRow(dev state.NMDevice) gtk.Widgetter {
 		row.Append(infoBox)
 		row.Append(disconnectBtn)
 	} else if dev.State == 30 { // Disconnected - can connect
-		connectBtn := gtk.NewButton()
-		connectBtn.AddCSSClass("m3-icon-btn")
-		connectBtn.AddCSSClass("settings-btn-small")
+		connectBtn := gtkutil.M3IconButton("link", "settings-btn-small")
 		connectBtn.SetTooltipText("Connect")
-		connectBtn.SetChild(gtkutil.MaterialIcon("link"))
-		connectBtn.SetCursorFromName("pointer")
 		connectBtn.ConnectClicked(func() {
 			// For WiFi, show network selector
 			if dev.Type == 2 {
@@ -294,12 +281,8 @@ func (n *nmConfigProvider) buildWiFiSection() gtk.Widgetter {
 	scanLabel.SetHExpand(true)
 	scanLabel.SetHAlign(gtk.AlignStart)
 
-	scanBtn := gtk.NewButton()
-	scanBtn.AddCSSClass("m3-icon-btn")
-	scanBtn.AddCSSClass("settings-btn")
+	scanBtn := gtkutil.M3IconButton("refresh", "settings-btn")
 	scanBtn.SetTooltipText("Scan for Wi-Fi networks")
-	scanBtn.SetChild(gtkutil.MaterialIcon("refresh"))
-	scanBtn.SetCursorFromName("pointer")
 	scanBtn.ConnectClicked(func() {
 		scanLabel.SetText("Scanning...")
 		go func() {
@@ -401,14 +384,12 @@ func (n *nmConfigProvider) buildWiFiRow(net state.WiFiNetwork) gtk.Widgetter {
 	infoBox.Append(detailLabel)
 
 	// Action button
+	row.Append(icon)
+	row.Append(infoBox)
 	if net.Connected {
-		disconnectBtn := gtk.NewButton()
-		disconnectBtn.AddCSSClass("m3-icon-btn")
-		disconnectBtn.AddCSSClass("settings-btn-small")
+		disconnectBtn := gtkutil.M3IconButton("link_off", "settings-btn-small")
 		disconnectBtn.SetTooltipText("Disconnect")
-		disconnectBtn.SetChild(gtkutil.MaterialIcon("link_off"))
 		disconnectBtn.ConnectClicked(func() {
-			// Find and disconnect
 			devices := n.manager.GetDevices()
 			for _, dev := range devices {
 				if dev.ActiveSSID == net.SSID && dev.ActiveConnection != "" {
@@ -417,36 +398,21 @@ func (n *nmConfigProvider) buildWiFiRow(net state.WiFiNetwork) gtk.Widgetter {
 				}
 			}
 		})
-		row.Append(icon)
-		row.Append(infoBox)
 		row.Append(disconnectBtn)
 	} else if net.Saved {
-		connectBtn := gtk.NewButton()
-		connectBtn.AddCSSClass("m3-icon-btn")
-		connectBtn.AddCSSClass("settings-btn-small")
+		connectBtn := gtkutil.M3IconButton("link", "settings-btn-small")
 		connectBtn.SetTooltipText("Connect")
-		connectBtn.SetChild(gtkutil.MaterialIcon("link"))
 		connectBtn.ConnectClicked(func() {
 			if err := n.manager.ConnectWiFi(net.SSID); err != nil {
 				log.Printf("[CONTROLPANEL] failed to connect: %v", err)
 				gtkutil.ErrorDialog(nil, "Error", fmt.Sprintf("Failed to connect: %v", err))
 			}
 		})
-		row.Append(icon)
-		row.Append(infoBox)
 		row.Append(connectBtn)
 	} else {
-		// New network - need password
-		connectBtn := gtk.NewButton()
-		connectBtn.AddCSSClass("m3-icon-btn")
-		connectBtn.AddCSSClass("settings-btn-small")
+		connectBtn := gtkutil.M3IconButton("add", "settings-btn-small")
 		connectBtn.SetTooltipText("Connect (requires password)")
-		connectBtn.SetChild(gtkutil.MaterialIcon("add"))
-		connectBtn.ConnectClicked(func() {
-			n.showWiFiPasswordDialog(net.SSID)
-		})
-		row.Append(icon)
-		row.Append(infoBox)
+		connectBtn.ConnectClicked(func() { n.showWiFiPasswordDialog(net.SSID) })
 		row.Append(connectBtn)
 	}
 
@@ -467,23 +433,13 @@ func (n *nmConfigProvider) buildConnectionsSection() gtk.Widgetter {
 	header.SetMarginBottom(8)
 	header.SetHAlign(gtk.AlignEnd)
 
-	refreshBtn := gtk.NewButton()
-	refreshBtn.AddCSSClass("m3-icon-btn")
-	refreshBtn.AddCSSClass("settings-btn")
+	refreshBtn := gtkutil.M3IconButton("refresh", "settings-btn")
 	refreshBtn.SetTooltipText("Refresh connections list")
-	refreshBtn.SetChild(gtkutil.MaterialIcon("refresh"))
-	refreshBtn.ConnectClicked(func() {
-		n.refreshConnectionsList()
-	})
+	refreshBtn.ConnectClicked(func() { n.refreshConnectionsList() })
 
-	addBtn := gtk.NewButton()
-	addBtn.AddCSSClass("m3-icon-btn")
-	addBtn.AddCSSClass("settings-btn")
+	addBtn := gtkutil.M3IconButton("add", "settings-btn")
 	addBtn.SetTooltipText("Add new connection")
-	addBtn.SetChild(gtkutil.MaterialIcon("add"))
-	addBtn.ConnectClicked(func() {
-		n.showAddConnectionDialog()
-	})
+	addBtn.ConnectClicked(func() { n.showAddConnectionDialog() })
 
 	header.Append(refreshBtn)
 	header.Append(addBtn)
@@ -593,28 +549,14 @@ func (n *nmConfigProvider) buildConnectionRow(conn state.NMConnection) gtk.Widge
 
 	actionsRow.Append(gtk.NewBox(gtk.OrientationHorizontal, 0)) // Spacer
 
-	// Edit button
-	editBtn := gtk.NewButton()
-	editBtn.AddCSSClass("m3-icon-btn")
-	editBtn.AddCSSClass("settings-btn-small")
+	editBtn := gtkutil.M3IconButton("edit", "settings-btn-small")
 	editBtn.SetTooltipText("Edit connection")
-	editBtn.SetChild(gtkutil.MaterialIcon("edit"))
-	editBtn.SetCursorFromName("pointer")
-	editBtn.ConnectClicked(func() {
-		n.showEditConnectionDialog(conn)
-	})
+	editBtn.ConnectClicked(func() { n.showEditConnectionDialog(conn) })
 	actionsRow.Append(editBtn)
 
-	// Delete button
-	deleteBtn := gtk.NewButton()
-	deleteBtn.AddCSSClass("m3-icon-btn")
-	deleteBtn.AddCSSClass("settings-btn-small")
+	deleteBtn := gtkutil.M3IconButton("delete", "settings-btn-small")
 	deleteBtn.SetTooltipText("Delete connection")
-	deleteBtn.SetChild(gtkutil.MaterialIcon("delete"))
-	deleteBtn.SetCursorFromName("pointer")
-	deleteBtn.ConnectClicked(func() {
-		n.showDeleteConfirmDialog(conn)
-	})
+	deleteBtn.ConnectClicked(func() { n.showDeleteConfirmDialog(conn) })
 	actionsRow.Append(deleteBtn)
 
 	row.Append(actionsRow)
