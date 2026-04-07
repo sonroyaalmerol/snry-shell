@@ -420,7 +420,9 @@ func NewQuickToggles(b *bus.Bus, refs *servicerefs.ServiceRefs) gtk.Widgetter {
 	settingBrightness := false
 	brightnessScale.ConnectChangeValue(func(_ gtk.ScrollType, value float64) bool {
 		if !settingBrightness {
-			refs.Brightness.SetBrightness(value)
+			if err := refs.Brightness.SetBrightness(value); err != nil {
+				log.Printf("set brightness: %v", err)
+			}
 		}
 		return false
 	})
