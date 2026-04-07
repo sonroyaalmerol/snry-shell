@@ -1024,6 +1024,10 @@ scale.quick-slider {
     transition: background-color var(--duration-short3) var(--ease-standard-decel);
 }
 
+.conn-row:hover {
+    background-color: alpha(@col_on_surface, var(--state-hover));
+}
+
 .conn-row-connected {
     background-color: alpha(@col_primary_container, 0.25);
 }
