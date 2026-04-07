@@ -428,15 +428,22 @@ func (ls *LockScreen) resetAuth() {
 // It tries multiple methods: unix_chkpwd (PAM), then su fallback.
 func authenticate(password string) error {
 	username := currentUser()
+	log.Printf("[LOCKSCREEN] attempting authentication for user %q", username)
 
 	// Try unix_chkpwd first (standard PAM helper)
 	if err := authenticateWithUnixChkpwd(username, password); err == nil {
+		log.Printf("[LOCKSCREEN] unix_chkpwd authentication succeeded for %q", username)
 		return nil
+	} else {
+		log.Printf("[LOCKSCREEN] unix_chkpwd failed: %v", err)
 	}
 
-	// Fallback to su -S method
+	// Fallback to su method
 	if err := authenticateWithSu(username, password); err == nil {
+		log.Printf("[LOCKSCREEN] su authentication succeeded for %q", username)
 		return nil
+	} else {
+		log.Printf("[LOCKSCREEN] su failed: %v", err)
 	}
 
 	log.Printf("[LOCKSCREEN] all auth methods failed for %q", username)
@@ -468,11 +475,11 @@ func authenticateWithUnixChkpwd(username, password string) error {
 	return fmt.Errorf("unix_chkpwd not available or failed")
 }
 
-// authenticateWithSu uses su with stdin password as fallback.
-// This works on systems where su supports -S (read password from stdin).
+// authenticateWithSu uses su as a fallback authentication method.
+// It attempts to switch to the user with the provided password.
 func authenticateWithSu(username, password string) error {
-	// Try su with -S flag (read password from stdin)
-	cmd := exec.Command("su", "-", username, "-c", "echo authenticated")
+	// su without - reads password from stdin when not running from a terminal
+	cmd := exec.Command("su", username, "-c", "true")
 	cmd.Stdin = strings.NewReader(password + "\n")
 	cmd.Stdout = nil
 	cmd.Stderr = nil
