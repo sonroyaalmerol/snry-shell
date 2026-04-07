@@ -178,13 +178,19 @@ func New(app *gtk.Application, b *bus.Bus) *OSK {
 		})
 	})
 
-	// Hide OSK when screen is locked
+	// Handle screen lock/unlock - adjust layer to stay on top of lockscreen
 	b.Subscribe(bus.TopicScreenLock, func(e bus.Event) {
 		if ls, ok := e.Data.(state.LockScreenState); ok {
 			glib.IdleAdd(func() {
 				osk.screenLocked = ls.Locked
-				if ls.Locked && osk.visible {
-					osk.hide()
+				if ls.Locked {
+					// Move OSK to Top layer so it appears above lockscreen
+					layershell.SetLayer(osk.win, layershell.LayerTop)
+					log.Printf("[OSK] moved to Top layer for lockscreen")
+				} else {
+					// Move back to Overlay layer when unlocked
+					layershell.SetLayer(osk.win, layershell.LayerOverlay)
+					log.Printf("[OSK] moved back to Overlay layer")
 				}
 			})
 		}
