@@ -422,15 +422,7 @@ func PasswordEntry(placeholder string, onSubmit func(string)) (*gtk.Box, *gtk.En
 
 	eyeBtn := MaterialButton("visibility_off")
 	eyeBtn.AddCSSClass("m3-password-eye")
-	eyeBtn.ConnectClicked(func() {
-		if entry.Visibility() {
-			entry.SetVisibility(false)
-			eyeBtn.SetChild(MaterialIcon("visibility_off"))
-		} else {
-			entry.SetVisibility(true)
-			eyeBtn.SetChild(MaterialIcon("visibility"))
-		}
-	})
+	AddPasswordToggle(entry, eyeBtn)
 
 	if onSubmit != nil {
 		entry.ConnectActivate(func() { onSubmit(entry.Text()) })

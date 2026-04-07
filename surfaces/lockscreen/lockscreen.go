@@ -237,20 +237,11 @@ func (ls *LockScreen) buildWindow(lw *lockWindow) {
 	lw.entry.SetPlaceholderText("Password")
 	lw.entry.SetHAlign(gtk.AlignCenter)
 
-	// Eye toggle button inside/next to entry.
 	entryRow := gtk.NewBox(gtk.OrientationHorizontal, 8)
 	entryRow.AddCSSClass("lockscreen-entry-row")
 	entryRow.SetHAlign(gtk.AlignCenter)
 	eyeBtn := gtkutil.M3IconButton("visibility_off", "lockscreen-eye-btn")
-	eyeBtn.ConnectClicked(func() {
-		if lw.entry.Visibility() {
-			lw.entry.SetVisibility(false)
-			eyeBtn.SetChild(gtkutil.MaterialIcon("visibility_off"))
-		} else {
-			lw.entry.SetVisibility(true)
-			eyeBtn.SetChild(gtkutil.MaterialIcon("visibility"))
-		}
-	})
+	gtkutil.AddPasswordToggle(lw.entry, eyeBtn)
 	entryRow.Append(lw.entry)
 	entryRow.Append(eyeBtn)
 
