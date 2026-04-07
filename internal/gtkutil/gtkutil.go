@@ -98,19 +98,10 @@ func M3Switch() *gtk.Switch {
 }
 
 // SwitchRow creates a labeled row with an M3 switch on the trailing side.
-// For new code prefer LabeledRow from widgets.go which supports subtitles.
+// Prefer SwitchRowFull from widgets.go for new code — it supports a subtitle
+// and wires the callback automatically.
 func SwitchRow(label string, sw *gtk.Switch) *gtk.Box {
-	lbl := gtk.NewLabel(label)
-	lbl.AddCSSClass("m3-switch-row-label")
-	lbl.SetHExpand(true)
-	lbl.SetHAlign(gtk.AlignStart)
-	lbl.SetVAlign(gtk.AlignCenter)
-
-	row := gtk.NewBox(gtk.OrientationHorizontal, 0)
-	row.AddCSSClass("m3-switch-row")
-	row.Append(lbl)
-	row.Append(sw)
-	return row
+	return LabeledRow(label, "", sw)
 }
 
 // newDialogBase creates the shared layer-shell overlay window, scrim, card, and

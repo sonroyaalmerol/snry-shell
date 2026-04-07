@@ -200,6 +200,153 @@ scale.m3-scale slider {
     background-color: alpha(@col_on_surface, var(--state-hover));
 }
 
+/* Outlined button */
+.m3-outlined-btn {
+    background-color: transparent;
+    border: 1px solid @col_outline;
+    border-radius: var(--radius-pill);
+    padding: 8px 20px;
+    font-size: var(--typescale-body-lg);
+    font-weight: 500;
+    color: @col_primary;
+    transition: background-color var(--duration-short3) var(--ease-standard-decel),
+                border-color var(--duration-short3) var(--ease-standard-decel);
+}
+.m3-outlined-btn:hover {
+    background-color: alpha(@col_primary, 0.08);
+    border-color: @col_primary;
+}
+.m3-outlined-btn:disabled {
+    color: alpha(@col_on_surface, 0.38);
+    border-color: alpha(@col_on_surface, 0.12);
+}
+
+/* Tonal button (secondary emphasis) */
+.m3-tonal-btn {
+    background-color: @col_secondary_container;
+    color: @col_on_secondary_container;
+    border: none;
+    border-radius: var(--radius-pill);
+    padding: 8px 20px;
+    font-size: var(--typescale-body-lg);
+    font-weight: 500;
+    transition: background-color var(--duration-short3) var(--ease-emphasized-decel);
+}
+.m3-tonal-btn:hover {
+    background-color: alpha(@col_on_secondary_container, 0.08);
+}
+.m3-tonal-btn:disabled {
+    background-color: alpha(@col_on_surface, 0.12);
+    color: alpha(@col_on_surface, 0.38);
+}
+
+/* Badge */
+.m3-badge {
+    background-color: @col_error;
+    color: @col_on_error;
+    border-radius: var(--radius-pill);
+    font-size: 10px;
+    font-weight: 600;
+    min-width: 16px;
+    min-height: 16px;
+    padding: 0 4px;
+}
+.m3-badge-small {
+    min-width: 8px;
+    min-height: 8px;
+    padding: 0;
+}
+
+/* Card */
+.m3-card {
+    background-color: @col_surface_container_low;
+    border-radius: var(--radius-xl);
+    border: 1px solid alpha(@col_outline, 0.12);
+    padding: 16px;
+}
+.m3-card-filled {
+    background-color: @col_surface_container_highest;
+    border-radius: var(--radius-xl);
+    border: none;
+    padding: 16px;
+}
+.m3-card-outlined {
+    background-color: @col_surface;
+    border-radius: var(--radius-xl);
+    border: 1px solid @col_outline_variant;
+    padding: 16px;
+}
+
+/* Spinner (animated loading icon) */
+.m3-spinner {
+    color: @col_primary;
+}
+
+/* Linear progress bar */
+.m3-progress-bar {
+    background-color: @col_surface_container_highest;
+    border-radius: var(--radius-pill);
+    min-height: 4px;
+}
+.m3-progress-bar > trough {
+    background-color: @col_surface_container_highest;
+    border-radius: var(--radius-pill);
+    min-height: 4px;
+}
+.m3-progress-bar > trough > progress {
+    background-color: @col_primary;
+    border-radius: var(--radius-pill);
+    min-height: 4px;
+}
+
+/* Chip variants */
+.m3-filter-chip {
+    background-color: @col_surface_container;
+    border: 1px solid @col_outline;
+    border-radius: var(--radius-pill);
+    padding: 6px 16px;
+    font-size: var(--typescale-body-sm);
+    color: @col_on_surface;
+}
+.m3-filter-chip:checked {
+    background-color: @col_secondary_container;
+    border-color: transparent;
+    color: @col_on_secondary_container;
+}
+.m3-suggestion-chip {
+    background-color: transparent;
+    border: 1px solid @col_outline;
+    border-radius: var(--radius-pill);
+    padding: 6px 16px;
+    font-size: var(--typescale-body-sm);
+    color: @col_on_surface;
+}
+.m3-input-chip {
+    background-color: @col_secondary_container;
+    border-radius: var(--radius-pill);
+    padding: 6px 12px;
+    font-size: var(--typescale-body-sm);
+    color: @col_on_secondary_container;
+}
+
+/* Outlined text field */
+.m3-text-field {
+    background-color: transparent;
+    border-radius: var(--radius-xs) var(--radius-xs) 0 0;
+    border: none;
+    border-bottom: 1px solid @col_outline;
+    padding: 8px 16px;
+    color: @col_on_surface;
+    font-size: var(--typescale-body-lg);
+}
+.m3-text-field:focus {
+    border-bottom-color: @col_primary;
+    border-bottom-width: 2px;
+}
+.m3-text-field placeholder {
+    color: @col_on_surface_variant;
+}
+
 /* ── Bar ─────────────────────────────────────────────────────────────────────── */
 
 .bar {

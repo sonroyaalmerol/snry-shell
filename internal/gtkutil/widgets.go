@@ -8,6 +8,236 @@ import (
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 )
 
+// ── Buttons ──────────────────────────────────────────────────────────────────
+
+// M3TextButton creates an M3 text (low-emphasis) button.
+func M3TextButton(text string, classes ...string) *gtk.Button {
+	btn := gtk.NewButtonWithLabel(text)
+	btn.AddCSSClass("m3-text-btn")
+	for _, c := range classes {
+		btn.AddCSSClass(c)
+	}
+	btn.SetCursorFromName("pointer")
+	return btn
+}
+
+// M3OutlinedButton creates an M3 outlined (medium-emphasis) button.
+func M3OutlinedButton(text string, classes ...string) *gtk.Button {
+	btn := gtk.NewButtonWithLabel(text)
+	btn.AddCSSClass("m3-outlined-btn")
+	for _, c := range classes {
+		btn.AddCSSClass(c)
+	}
+	btn.SetCursorFromName("pointer")
+	return btn
+}
+
+// M3TonalButton creates an M3 tonal (secondary filled) button.
+func M3TonalButton(text string, classes ...string) *gtk.Button {
+	btn := gtk.NewButtonWithLabel(text)
+	btn.AddCSSClass("m3-tonal-btn")
+	for _, c := range classes {
+		btn.AddCSSClass(c)
+	}
+	btn.SetCursorFromName("pointer")
+	return btn
+}
+
+// ── Cards ─────────────────────────────────────────────────────────────────────
+
+// M3Card returns an elevated card container box. variant is one of "elevated"
+// (default), "filled", or "outlined".
+func M3Card(variant string, classes ...string) *gtk.Box {
+	box := gtk.NewBox(gtk.OrientationVertical, 0)
+	switch variant {
+	case "filled":
+		box.AddCSSClass("m3-card-filled")
+	case "outlined":
+		box.AddCSSClass("m3-card-outlined")
+	default:
+		box.AddCSSClass("m3-card")
+	}
+	for _, c := range classes {
+		box.AddCSSClass(c)
+	}
+	return box
+}
+
+// ── Chips ─────────────────────────────────────────────────────────────────────
+
+// M3AssistChip creates a non-interactive assist chip (icon + label).
+// Pass an empty icon to omit the icon.
+func M3AssistChip(icon, text string, classes ...string) *gtk.Box {
+	box := gtk.NewBox(gtk.OrientationHorizontal, 6)
+	box.AddCSSClass("m3-assist-chip")
+	for _, c := range classes {
+		box.AddCSSClass(c)
+	}
+	if icon != "" {
+		box.Append(MaterialIcon(icon))
+	}
+	if text != "" {
+		lbl := gtk.NewLabel(text)
+		box.Append(lbl)
+	}
+	return box
+}
+
+// M3FilterChip creates an interactive filter chip (toggle button style).
+func M3FilterChip(icon, text string, active bool, onChange func(bool), classes ...string) *gtk.ToggleButton {
+	tb := gtk.NewToggleButton()
+	tb.AddCSSClass("m3-filter-chip")
+	for _, c := range classes {
+		tb.AddCSSClass(c)
+	}
+	tb.SetActive(active)
+	tb.SetCursorFromName("pointer")
+
+	inner := gtk.NewBox(gtk.OrientationHorizontal, 6)
+	if icon != "" {
+		inner.Append(MaterialIcon(icon))
+	}
+	if text != "" {
+		lbl := gtk.NewLabel(text)
+		inner.Append(lbl)
+	}
+	tb.SetChild(inner)
+
+	if onChange != nil {
+		tb.ConnectToggled(func() { onChange(tb.Active()) })
+	}
+	return tb
+}
+
+// M3InputChip creates a dismissible input chip (label + remove button).
+func M3InputChip(text string, onRemove func(), classes ...string) *gtk.Box {
+	box := gtk.NewBox(gtk.OrientationHorizontal, 4)
+	box.AddCSSClass("m3-input-chip")
+	for _, c := range classes {
+		box.AddCSSClass(c)
+	}
+	lbl := gtk.NewLabel(text)
+	box.Append(lbl)
+	if onRemove != nil {
+		removeBtn := MaterialButton("close")
+		removeBtn.AddCSSClass("m3-icon-btn")
+		removeBtn.ConnectClicked(onRemove)
+		box.Append(removeBtn)
+	}
+	return box
+}
+
+// ── Badge ─────────────────────────────────────────────────────────────────────
+
+// M3Badge creates a small badge label for counts or status dots.
+// Pass count <= 0 to render a small dot badge (no text).
+func M3Badge(count int, classes ...string) *gtk.Label {
+	lbl := gtk.NewLabel("")
+	lbl.AddCSSClass("m3-badge")
+	for _, c := range classes {
+		lbl.AddCSSClass(c)
+	}
+	if count <= 0 {
+		lbl.AddCSSClass("m3-badge-small")
+	} else {
+		if count > 99 {
+			lbl.SetText("99+")
+		} else {
+			lbl.SetText(fmt.Sprintf("%d", count))
+		}
+	}
+	return lbl
+}
+
+// ── Loading & Progress ────────────────────────────────────────────────────────
+
+// M3Spinner returns a MaterialIcon configured as an animated spinner.
+// Use the "spinner-icon" CSS class (defined in style.css) to apply rotation.
+func M3Spinner(classes ...string) *gtk.Label {
+	icon := MaterialIcon("progress_activity", "spinner-icon")
+	icon.AddCSSClass("m3-spinner")
+	for _, c := range classes {
+		icon.AddCSSClass(c)
+	}
+	return icon
+}
+
+// M3ProgressBar creates a linear determinate/indeterminate progress bar.
+// Call SetFraction to set progress (0–1); call SetPulseStep + Pulse for
+// indeterminate mode.
+func M3ProgressBar(classes ...string) *gtk.ProgressBar {
+	bar := gtk.NewProgressBar()
+	bar.AddCSSClass("m3-progress-bar")
+	bar.SetShowText(false)
+	for _, c := range classes {
+		bar.AddCSSClass(c)
+	}
+	return bar
+}
+
+// ── Text fields ───────────────────────────────────────────────────────────────
+
+// M3TextField creates a single-line text entry with the M3 filled text field
+// style (underline border). Returns the container box and the entry widget.
+func M3TextField(placeholder string, classes ...string) (*gtk.Box, *gtk.Entry) {
+	box := gtk.NewBox(gtk.OrientationVertical, 0)
+	box.AddCSSClass("m3-outlined-field")
+	for _, c := range classes {
+		box.AddCSSClass(c)
+	}
+	entry := gtk.NewEntry()
+	entry.AddCSSClass("m3-outlined-input")
+	entry.SetPlaceholderText(placeholder)
+	entry.SetHExpand(true)
+	box.Append(entry)
+	return box, entry
+}
+
+// ── Composite helpers ─────────────────────────────────────────────────────────
+
+// IconLabel creates a horizontal box containing a MaterialIcon and a text
+// label side by side. iconClasses are applied to the icon label; textClasses
+// to the text label.
+func IconLabel(icon, text string, iconClasses, textClasses []string) *gtk.Box {
+	box := gtk.NewBox(gtk.OrientationHorizontal, 8)
+	ic := MaterialIcon(icon, iconClasses...)
+	lbl := gtk.NewLabel(text)
+	for _, c := range textClasses {
+		lbl.AddCSSClass(c)
+	}
+	box.Append(ic)
+	box.Append(lbl)
+	return box
+}
+
+// SliderRow creates a grid row with an icon, a label, and an M3Slider.
+// Returns the three widgets individually so callers can subscribe to value
+// changes on the slider.
+func SliderRow(icon, label string, min, max, step float64, iconClass, labelClass string) (*gtk.Box, *gtk.Label, *gtk.Scale) {
+	box := gtk.NewBox(gtk.OrientationHorizontal, 8)
+	box.SetHExpand(true)
+
+	ic := MaterialIcon(icon)
+	if iconClass != "" {
+		ic.AddCSSClass(iconClass)
+	}
+	ic.SetVAlign(gtk.AlignCenter)
+
+	lbl := gtk.NewLabel(label)
+	if labelClass != "" {
+		lbl.AddCSSClass(labelClass)
+	}
+	lbl.SetHAlign(gtk.AlignStart)
+	lbl.SetVAlign(gtk.AlignCenter)
+
+	scale := M3Slider(min, max, step)
+
+	box.Append(ic)
+	box.Append(lbl)
+	box.Append(scale)
+	return box, lbl, scale
+}
+
 // SetupScrollHoverSuppression adds a "scrolling" CSS class to a ScrolledWindow
 // while it is actively scrolling, and removes it shortly after. This prevents
 // stuck hover effects on touch devices where a finger drag looks like a hover.
