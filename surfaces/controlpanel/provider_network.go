@@ -18,13 +18,23 @@ type nmConfigProvider struct {
 
 // newNMProviderWithConnection creates a network provider with its own D-Bus connection
 func newNMProviderWithConnection() ConfigProvider {
+	log.Printf("[CONTROLPANEL] Attempting to connect to system D-Bus for NetworkManager...")
 	conn, err := dbus.ConnectSystemBus()
 	if err != nil {
 		log.Printf("[CONTROLPANEL] cannot connect to system bus for NetworkManager: %v", err)
 		return nil
 	}
+	log.Printf("[CONTROLPANEL] Successfully connected to system D-Bus")
 
 	nmSvc := network.New(conn, nil)
+
+	// Test the connection by getting hostname
+	if hostname, err := nmSvc.GetHostname(); err != nil {
+		log.Printf("[CONTROLPANEL] Warning: Failed to get hostname, NM may not be available: %v", err)
+	} else {
+		log.Printf("[CONTROLPANEL] NetworkManager available, hostname: %s", hostname)
+	}
+
 	return &nmConfigProvider{nmService: nmSvc}
 }
 
@@ -111,13 +121,17 @@ func (n *nmConfigProvider) buildHostnameSection() gtk.Widgetter {
 	updateBtn := gtkutil.M3IconButton("check", "settings-btn")
 	updateBtn.SetTooltipText("Update hostname")
 	updateBtn.ConnectClicked(func() {
-		if n.nmService != nil {
-			newHostname := hostnameEntry.Text()
-			if err := n.nmService.SetHostname(newHostname); err != nil {
-				log.Printf("[CONTROLPANEL] failed to set hostname: %v", err)
-			} else {
-				log.Printf("[CONTROLPANEL] hostname updated to %s", newHostname)
-			}
+		log.Printf("[CONTROLPANEL] Update hostname button clicked")
+		if n.nmService == nil {
+			log.Printf("[CONTROLPANEL] ERROR: nmService is nil!")
+			return
+		}
+		newHostname := hostnameEntry.Text()
+		log.Printf("[CONTROLPANEL] Setting hostname to: %s", newHostname)
+		if err := n.nmService.SetHostname(newHostname); err != nil {
+			log.Printf("[CONTROLPANEL] failed to set hostname: %v", err)
+		} else {
+			log.Printf("[CONTROLPANEL] hostname updated to %s", newHostname)
 		}
 	})
 
@@ -256,14 +270,20 @@ func (n *nmConfigProvider) buildWiFiSection() gtk.Widgetter {
 	scanBtn := gtkutil.M3IconButton("refresh", "settings-btn")
 	scanBtn.SetTooltipText("Scan for Wi-Fi networks")
 	scanBtn.ConnectClicked(func() {
-		if n.nmService != nil {
-			go func() {
-				_, err := n.nmService.ScanWiFi()
-				if err != nil {
-					log.Printf("[CONTROLPANEL] WiFi scan failed: %v", err)
-				}
-			}()
+		log.Printf("[CONTROLPANEL] Scan WiFi button clicked")
+		if n.nmService == nil {
+			log.Printf("[CONTROLPANEL] ERROR: nmService is nil!")
+			return
 		}
+		go func() {
+			log.Printf("[CONTROLPANEL] Starting WiFi scan...")
+			networks, err := n.nmService.ScanWiFi()
+			if err != nil {
+				log.Printf("[CONTROLPANEL] WiFi scan failed: %v", err)
+			} else {
+				log.Printf("[CONTROLPANEL] WiFi scan completed, found %d networks", len(networks))
+			}
+		}()
 	})
 
 	scanRow.Append(scanLabel)
@@ -389,10 +409,15 @@ func (n *nmConfigProvider) buildConnectionRow(conn state.NMConnection) gtk.Widge
 	autoconnectSwitch := gtk.NewSwitch()
 	autoconnectSwitch.SetActive(conn.Autoconnect)
 	autoconnectSwitch.ConnectStateSet(func(state bool) bool {
-		if n.nmService != nil {
-			if err := n.nmService.SetAutoconnect(conn.Path, state); err != nil {
-				log.Printf("[CONTROLPANEL] failed to set autoconnect: %v", err)
-			}
+		log.Printf("[CONTROLPANEL] Autoconnect toggle changed for %s: %v", conn.Name, state)
+		if n.nmService == nil {
+			log.Printf("[CONTROLPANEL] ERROR: nmService is nil!")
+			return false
+		}
+		if err := n.nmService.SetAutoconnect(conn.Path, state); err != nil {
+			log.Printf("[CONTROLPANEL] failed to set autoconnect: %v", err)
+		} else {
+			log.Printf("[CONTROLPANEL] autoconnect set to %v for %s", state, conn.Name)
 		}
 		return false
 	})
@@ -407,7 +432,7 @@ func (n *nmConfigProvider) buildConnectionRow(conn state.NMConnection) gtk.Widge
 	editBtn := gtkutil.M3IconButton("edit", "settings-btn-small")
 	editBtn.SetTooltipText("Edit connection")
 	editBtn.ConnectClicked(func() {
-		log.Printf("[CONTROLPANEL] edit connection %s", conn.Name)
+		log.Printf("[CONTROLPANEL] Edit button clicked for connection: %s (path: %s)", conn.Name, conn.Path)
 	})
 	actionsRow.Append(editBtn)
 
@@ -415,10 +440,16 @@ func (n *nmConfigProvider) buildConnectionRow(conn state.NMConnection) gtk.Widge
 	deleteBtn := gtkutil.M3IconButton("delete", "settings-btn-small")
 	deleteBtn.SetTooltipText("Delete connection")
 	deleteBtn.ConnectClicked(func() {
-		if n.nmService != nil {
-			if err := n.nmService.DeleteConnection(conn.Path); err != nil {
-				log.Printf("[CONTROLPANEL] failed to delete connection: %v", err)
-			}
+		log.Printf("[CONTROLPANEL] Delete button clicked for connection: %s (path: %s)", conn.Name, conn.Path)
+		if n.nmService == nil {
+			log.Printf("[CONTROLPANEL] ERROR: nmService is nil!")
+			return
+		}
+		log.Printf("[CONTROLPANEL] Deleting connection at path: %s", conn.Path)
+		if err := n.nmService.DeleteConnection(conn.Path); err != nil {
+			log.Printf("[CONTROLPANEL] failed to delete connection: %v", err)
+		} else {
+			log.Printf("[CONTROLPANEL] successfully deleted connection: %s", conn.Name)
 		}
 	})
 	actionsRow.Append(deleteBtn)
