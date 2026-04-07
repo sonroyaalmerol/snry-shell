@@ -413,8 +413,8 @@ func NewQuickToggles(b *bus.Bus, refs *servicerefs.ServiceRefs) gtk.Widgetter {
 
 	box.Append(grid)
 
-	// Brightness slider.
-	brightnessScale := gtkutil.M3Slider(0, 1, 0.01)
+	// Brightness slider row.
+	brightnessRow, _, brightnessScale := gtkutil.SliderRow("brightness_high", "Brightness", 0, 1, 0.01, "quick-slider-icon", "quick-slider-label")
 	brightnessScale.AddCSSClass("quick-slider")
 
 	settingBrightness := false
@@ -439,50 +439,20 @@ func NewQuickToggles(b *bus.Bus, refs *servicerefs.ServiceRefs) gtk.Widgetter {
 		})
 	})
 
-	sliderGrid := gtk.NewGrid()
-	sliderGrid.SetColumnSpacing(8)
-	sliderGrid.SetRowSpacing(8)
-	sliderGrid.SetHExpand(true)
-
-	// Brightness row (row 0).
-	brightnessIcon := gtk.NewLabel("brightness_high")
-	brightnessIcon.AddCSSClass("material-icon")
-	brightnessIcon.AddCSSClass("quick-slider-icon")
-	brightnessIcon.SetVAlign(gtk.AlignCenter)
-
-	brightnessLabel := gtk.NewLabel("Brightness")
-	brightnessLabel.AddCSSClass("quick-slider-label")
-	brightnessLabel.SetHAlign(gtk.AlignStart)
-	brightnessLabel.SetVAlign(gtk.AlignCenter)
-
-	sliderGrid.Attach(brightnessIcon, 0, 0, 1, 1)
-	sliderGrid.Attach(brightnessLabel, 1, 0, 1, 1)
-	sliderGrid.Attach(brightnessScale, 2, 0, 1, 1)
-
-	// Volume slider.
-	volumeScale := gtkutil.M3Slider(0, 1, 0.01)
+	// Volume slider row.
+	volumeRow, _, volumeScale := gtkutil.SliderRow("volume_up", "Volume", 0, 1, 0.01, "quick-slider-icon", "quick-slider-label")
 	volumeScale.AddCSSClass("quick-slider")
 	volumeScale.ConnectChangeValue(func(_ gtk.ScrollType, value float64) bool {
 		refs.Audio.SetVolume(value)
 		return false
 	})
 
-	// Volume row (row 1).
-	volumeIcon := gtk.NewLabel("volume_up")
-	volumeIcon.AddCSSClass("material-icon")
-	volumeIcon.AddCSSClass("quick-slider-icon")
-	volumeIcon.SetVAlign(gtk.AlignCenter)
+	sliderBox := gtk.NewBox(gtk.OrientationVertical, 8)
+	sliderBox.SetHExpand(true)
+	sliderBox.Append(brightnessRow)
+	sliderBox.Append(volumeRow)
 
-	volumeLabel := gtk.NewLabel("Volume")
-	volumeLabel.AddCSSClass("quick-slider-label")
-	volumeLabel.SetHAlign(gtk.AlignStart)
-	volumeLabel.SetVAlign(gtk.AlignCenter)
-
-	sliderGrid.Attach(volumeIcon, 0, 1, 1, 1)
-	sliderGrid.Attach(volumeLabel, 1, 1, 1, 1)
-	sliderGrid.Attach(volumeScale, 2, 1, 1, 1)
-
-	box.Append(sliderGrid)
+	box.Append(sliderBox)
 
 	return box
 }
