@@ -1328,6 +1328,10 @@ scale.osd-slider {
     background-color: alpha(@col_primary, var(--state-press));
 }
 
+.quick-inputmode-container {
+    padding: 8px 4px;
+}
+
 /* ── Quick setting sliders ──────────────────────────────────────────────────── */
 
 .quick-slider-row {

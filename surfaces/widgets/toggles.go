@@ -15,7 +15,7 @@ import (
 	"github.com/sonroyaalmerol/snry-shell/internal/state"
 )
 
-func newInputModeControl(b *bus.Bus) gtk.Widgetter {
+func newInputModeControl(b *bus.Bus) *gtk.Box {
 	box := gtk.NewBox(gtk.OrientationHorizontal, 0)
 	box.AddCSSClass("quick-toggle-segmented")
 	box.SetHExpand(true)
@@ -304,7 +304,6 @@ func NewQuickToggles(b *bus.Bus, refs *servicerefs.ServiceRefs) gtk.Widgetter {
 				}
 			}()
 		}},
-		{icon: "inputmode", label: "Input Mode", segmented: true},
 	}
 
 	col := 0
@@ -331,11 +330,7 @@ func NewQuickToggles(b *bus.Bus, refs *servicerefs.ServiceRefs) gtk.Widgetter {
 		inner.Append(icon)
 		inner.Append(lbl)
 
-		if toggle.segmented {
-			ctrl := newInputModeControl(b)
-			grid.Attach(ctrl, col, row, 2, 1)
-			col++ // skip the second column
-		} else if toggle.button {
+		if toggle.button {
 			btn := gtk.NewButton()
 			btn.SetCursorFromName("pointer")
 			btn.AddCSSClass("quick-toggle")
@@ -414,6 +409,17 @@ func NewQuickToggles(b *bus.Bus, refs *servicerefs.ServiceRefs) gtk.Widgetter {
 	}
 
 	box.Append(grid)
+
+	// Divider before segmented control
+	box.Append(gtkutil.M3Divider())
+
+	// Input mode control with extra padding
+	inputMode := newInputModeControl(b)
+	inputMode.AddCSSClass("quick-inputmode-container")
+	box.Append(inputMode)
+
+	// Divider before sliders
+	box.Append(gtkutil.M3Divider())
 
 	// Brightness slider row.
 	brightnessRow, _, brightnessScale := gtkutil.SliderRow("brightness_high", "Brightness", 0, 1, 0.01, "quick-slider-icon", "quick-slider-label")

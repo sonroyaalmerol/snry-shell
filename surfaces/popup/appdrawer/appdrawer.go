@@ -173,7 +173,19 @@ func (d *AppDrawer) build() {
 	scrim.AddController(clickGesture)
 
 	scrim.Append(content)
-	surfaceutil.AddEscapeToClose(d.win)
+
+	// Close on Escape - use PhaseCapture so it works even when search has focus.
+	keyCtrl := gtk.NewEventControllerKey()
+	keyCtrl.SetPropagationPhase(gtk.PhaseCapture)
+	keyCtrl.ConnectKeyPressed(func(keyval, _ uint, _ gdk.ModifierType) bool {
+		if keyval == 0xff1b { // GDK_KEY_Escape
+			d.win.SetVisible(false)
+			return true
+		}
+		return false
+	})
+	d.win.AddController(keyCtrl)
+
 	d.win.SetChild(scrim)
 }
 
