@@ -32,7 +32,6 @@ type OSK struct {
 	manualMode     bool // true when OSK was manually opened via bar button
 	visible        bool
 	fullscreen     bool
-	screenLocked   bool   // true when lockscreen is active
 	viewMode       string // "keyboard", "emoji", "clipboard"
 	stack          *gtk.Stack
 	keys           []*keyButton           // all character keys, for label updates
@@ -139,10 +138,6 @@ func New(app *gtk.Application, b *bus.Bus) *OSK {
 
 	// Auto-show/hide based on zwp_input_method_v2 activate/deactivate events.
 	b.Subscribe(bus.TopicTextInputFocus, func(e bus.Event) {
-		// Don't auto-show/hide when screen is locked to prevent focus wars
-		if osk.screenLocked {
-			return
-		}
 		isText, ok := e.Data.(bool)
 		if !ok {
 			return
@@ -186,14 +181,12 @@ func New(app *gtk.Application, b *bus.Bus) *OSK {
 	b.Subscribe(bus.TopicScreenLock, func(e bus.Event) {
 		if ls, ok := e.Data.(state.LockScreenState); ok {
 			glib.IdleAdd(func() {
-				osk.screenLocked = ls.Locked
 				if ls.Locked {
-					// Hide OSK when screen locks
+					// Hide OSK when screen locks initially to clear it out
 					osk.hide()
-					log.Printf("[OSK] screen locked (use bar button to show)")
+					log.Printf("[OSK] screen locked")
 				} else {
-					// Screen unlocked - restore normal behavior
-					log.Printf("[OSK] screen unlocked, auto-show restored")
+					log.Printf("[OSK] screen unlocked")
 				}
 			})
 		}
