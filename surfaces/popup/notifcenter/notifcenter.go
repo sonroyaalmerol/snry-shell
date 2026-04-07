@@ -25,6 +25,7 @@ type NotifCenter struct {
 	trigger gtk.Widgetter
 	monitor *gdk.Monitor
 	root    *gtk.Box
+	scroll  *gtk.ScrolledWindow
 }
 
 // New creates and hides the notification center popup anchored to the given trigger widget.
@@ -44,19 +45,19 @@ func New(app *gtk.Application, b *bus.Bus, refs *servicerefs.ServiceRefs, trigge
 	panel.SetMarginEnd(panelMargin)
 	panel.SetSizeRequest(panelWidth, -1)
 
-	scroll := gtk.NewScrolledWindow()
-	scroll.SetPolicy(gtk.PolicyNever, gtk.PolicyAutomatic)
-	scroll.AddCSSClass("popup-scroll")
-	scroll.SetMaxContentHeight(800)
-	scroll.SetPropagateNaturalHeight(true)
+	nc.scroll = gtk.NewScrolledWindow()
+	nc.scroll.SetPolicy(gtk.PolicyNever, gtk.PolicyAutomatic)
+	nc.scroll.AddCSSClass("popup-scroll")
+	nc.scroll.SetMaxContentHeight(800)
+	nc.scroll.SetPropagateNaturalHeight(true)
 
 	content := gtk.NewBox(gtk.OrientationVertical, 8)
 	content.Append(widgets.NewNotificationList(nc.bus))
 	content.Append(gtkutil.M3Divider())
 	content.Append(widgets.BuildMediaGroup(nc.bus, nc.refs.Mpris))
 
-	scroll.SetChild(content)
-	panel.Append(scroll)
+	nc.scroll.SetChild(content)
+	panel.Append(nc.scroll)
 	root.Append(panel)
 
 	b.Subscribe(bus.TopicPopupTrigger, func(e bus.Event) {
@@ -87,6 +88,10 @@ func (nc *NotifCenter) Toggle() {
 			layershell.SetMonitor(nc.win, nc.monitor)
 		}
 		surfaceutil.PositionUnderTrigger(nc.root, nc.trigger, panelWidth, panelMargin, nc.monitor)
+		// Scroll to top when opening
+		if nc.scroll != nil {
+			nc.scroll.SetVAdjustment(gtk.NewAdjustment(0, 0, 0, 0, 0, 0))
+		}
 		nc.win.SetVisible(true)
 	}
 }

@@ -24,6 +24,7 @@ type Calendar struct {
 	trigger gtk.Widgetter
 	monitor *gdk.Monitor
 	root    *gtk.Box
+	scroll  *gtk.ScrolledWindow
 }
 
 // New creates and hides the calendar popup anchored to the given trigger widget.
@@ -43,19 +44,19 @@ func New(app *gtk.Application, b *bus.Bus, refs *servicerefs.ServiceRefs, trigge
 	panel.SetMarginEnd(panelMargin)
 	panel.SetSizeRequest(panelWidth, -1)
 
-	scroll := gtk.NewScrolledWindow()
-	scroll.SetPolicy(gtk.PolicyNever, gtk.PolicyAutomatic)
-	scroll.AddCSSClass("popup-scroll")
-	scroll.SetMaxContentHeight(800)
-	scroll.SetPropagateNaturalHeight(true)
+	cal.scroll = gtk.NewScrolledWindow()
+	cal.scroll.SetPolicy(gtk.PolicyNever, gtk.PolicyAutomatic)
+	cal.scroll.AddCSSClass("popup-scroll")
+	cal.scroll.SetMaxContentHeight(800)
+	cal.scroll.SetPropagateNaturalHeight(true)
 
 	content := gtk.NewBox(gtk.OrientationVertical, 8)
 	content.Append(widgets.NewQuickToggles(b, refs))
 	content.Append(gtkutil.M3Divider())
 	content.Append(widgets.BuildCalendarGroup())
 
-	scroll.SetChild(content)
-	panel.Append(scroll)
+	cal.scroll.SetChild(content)
+	panel.Append(cal.scroll)
 	root.Append(panel)
 
 	b.Subscribe(bus.TopicPopupTrigger, func(e bus.Event) {
@@ -86,6 +87,10 @@ func (cal *Calendar) Toggle() {
 			layershell.SetMonitor(cal.win, cal.monitor)
 		}
 		surfaceutil.PositionUnderTrigger(cal.root, cal.trigger, panelWidth, panelMargin, cal.monitor)
+		// Scroll to top when opening
+		if cal.scroll != nil {
+			cal.scroll.SetVAdjustment(gtk.NewAdjustment(0, 0, 0, 0, 0, 0))
+		}
 		cal.win.SetVisible(true)
 	}
 }

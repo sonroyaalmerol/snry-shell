@@ -24,6 +24,7 @@ type Bluetooth struct {
 	trigger gtk.Widgetter
 	monitor *gdk.Monitor
 	root    *gtk.Box
+	scroll  *gtk.ScrolledWindow
 }
 
 // New creates and hides the Bluetooth popup anchored to the given trigger widget.
@@ -43,14 +44,14 @@ func New(app *gtk.Application, b *bus.Bus, refs *servicerefs.ServiceRefs, trigge
 	panel.SetMarginEnd(panelMargin)
 	panel.SetSizeRequest(panelWidth, -1)
 
-	scroll := gtk.NewScrolledWindow()
-	scroll.SetPolicy(gtk.PolicyNever, gtk.PolicyAutomatic)
-	scroll.AddCSSClass("popup-scroll")
-	scroll.SetMaxContentHeight(500)
-	scroll.SetPropagateNaturalHeight(true)
+	bt.scroll = gtk.NewScrolledWindow()
+	bt.scroll.SetPolicy(gtk.PolicyNever, gtk.PolicyAutomatic)
+	bt.scroll.AddCSSClass("popup-scroll")
+	bt.scroll.SetMaxContentHeight(500)
+	bt.scroll.SetPropagateNaturalHeight(true)
 
-	scroll.SetChild(widgets.NewBluetoothWidget(bt.bus, refs, bt.win))
-	panel.Append(scroll)
+	bt.scroll.SetChild(widgets.NewBluetoothWidget(bt.bus, refs, bt.win))
+	panel.Append(bt.scroll)
 	root.Append(panel)
 
 	b.Subscribe(bus.TopicPopupTrigger, func(e bus.Event) {
@@ -81,6 +82,10 @@ func (bt *Bluetooth) Toggle() {
 			layershell.SetMonitor(bt.win, bt.monitor)
 		}
 		surfaceutil.PositionUnderTrigger(bt.root, bt.trigger, panelWidth, panelMargin, bt.monitor)
+		// Scroll to top when opening
+		if bt.scroll != nil {
+			bt.scroll.SetVAdjustment(gtk.NewAdjustment(0, 0, 0, 0, 0, 0))
+		}
 		bt.win.SetVisible(true)
 	}
 }

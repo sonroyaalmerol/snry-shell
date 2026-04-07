@@ -24,6 +24,7 @@ type WiFi struct {
 	trigger gtk.Widgetter
 	monitor *gdk.Monitor
 	root    *gtk.Box
+	scroll  *gtk.ScrolledWindow
 }
 
 // New creates and hides the WiFi popup anchored to the given trigger widget.
@@ -43,14 +44,14 @@ func New(app *gtk.Application, b *bus.Bus, refs *servicerefs.ServiceRefs, trigge
 	panel.SetMarginEnd(panelMargin)
 	panel.SetSizeRequest(panelWidth, -1)
 
-	scroll := gtk.NewScrolledWindow()
-	scroll.SetPolicy(gtk.PolicyNever, gtk.PolicyAutomatic)
-	scroll.AddCSSClass("popup-scroll")
-	scroll.SetMaxContentHeight(500)
-	scroll.SetPropagateNaturalHeight(true)
+	w.scroll = gtk.NewScrolledWindow()
+	w.scroll.SetPolicy(gtk.PolicyNever, gtk.PolicyAutomatic)
+	w.scroll.AddCSSClass("popup-scroll")
+	w.scroll.SetMaxContentHeight(500)
+	w.scroll.SetPropagateNaturalHeight(true)
 
-	scroll.SetChild(widgets.NewWiFiWidget(w.bus, refs, w.win))
-	panel.Append(scroll)
+	w.scroll.SetChild(widgets.NewWiFiWidget(w.bus, refs, w.win))
+	panel.Append(w.scroll)
 	root.Append(panel)
 
 	b.Subscribe(bus.TopicPopupTrigger, func(e bus.Event) {
@@ -83,6 +84,10 @@ func (w *WiFi) Toggle() {
 		surfaceutil.PositionUnderTrigger(w.root, w.trigger, panelWidth, panelMargin, w.monitor)
 		if w.refs.Network != nil {
 			go w.refs.Network.ScanWiFi()
+		}
+		// Scroll to top when opening
+		if w.scroll != nil {
+			w.scroll.SetVAdjustment(gtk.NewAdjustment(0, 0, 0, 0, 0, 0))
 		}
 		w.win.SetVisible(true)
 	}

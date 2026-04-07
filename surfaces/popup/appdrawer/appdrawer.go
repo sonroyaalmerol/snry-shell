@@ -23,6 +23,7 @@ type AppDrawer struct {
 	apps    []launcher.App
 	flowBox *gtk.FlowBox
 	search  *gtk.SearchEntry
+	scroll  *gtk.ScrolledWindow
 }
 
 // New creates and hides the app drawer overlay.
@@ -113,11 +114,11 @@ func (d *AppDrawer) build() {
 	d.search.SetPlaceholderText("Search apps...")
 
 	// Scrollable app grid.
-	scrolled := gtk.NewScrolledWindow()
-	scrolled.SetVExpand(true)
-	scrolled.SetHExpand(true)
-	scrolled.SetPolicy(gtk.PolicyNever, gtk.PolicyAutomatic)
-	scrolled.AddCSSClass("appdrawer-scroll")
+	d.scroll = gtk.NewScrolledWindow()
+	d.scroll.SetVExpand(true)
+	d.scroll.SetHExpand(true)
+	d.scroll.SetPolicy(gtk.PolicyNever, gtk.PolicyAutomatic)
+	d.scroll.AddCSSClass("appdrawer-scroll")
 
 	d.flowBox = gtk.NewFlowBox()
 	d.flowBox.AddCSSClass("appdrawer-grid")
@@ -142,9 +143,9 @@ func (d *AppDrawer) build() {
 		d.populateGrid(launcher.Filter(d.apps, query))
 	})
 
-	scrolled.SetChild(d.flowBox)
+	d.scroll.SetChild(d.flowBox)
 	content.Append(d.search)
-	content.Append(scrolled)
+	content.Append(d.scroll)
 
 	// Wire up scrim click to dismiss.
 	clickGesture := gtk.NewGestureClick()
@@ -166,6 +167,14 @@ func (d *AppDrawer) Toggle() {
 	} else {
 		if d.monitor != nil {
 			layershell.SetMonitor(d.win, d.monitor)
+		}
+		// Scroll to top when opening
+		if d.scroll != nil {
+			d.scroll.SetVAdjustment(gtk.NewAdjustment(0, 0, 0, 0, 0, 0))
+		}
+		// Clear search when opening
+		if d.search != nil {
+			d.search.SetText("")
 		}
 		d.win.SetVisible(true)
 		d.win.GrabFocus()
