@@ -252,12 +252,8 @@ func NewQuickToggles(b *bus.Bus, refs *servicerefs.ServiceRefs) gtk.Widgetter {
 				}
 			}()
 		}},
-		{icon: "mic", label: "Mic Mute", requires: "wpctl", toggle: func(_ bool) {
-			go func() {
-				if err := exec.Command("wpctl", "set-mute", "@DEFAULT_SOURCE@", "toggle").Run(); err != nil {
-					log.Printf("toggle mic-mute: %v", err)
-				}
-			}()
+		{icon: "mic", label: "Mic Mute", toggle: func(_ bool) {
+			b.Publish(bus.TopicSystemControls, "mic-mute")
 		}},
 		{icon: "equalizer", label: "EasyEffects", requires: "easyeffects", toggle: func(_ bool) {
 			go func() {
