@@ -196,6 +196,29 @@ func (d *AppDrawer) clearGrid() {
 }
 
 func (d *AppDrawer) populateGrid(apps []launcher.App) {
+	// Clear existing children
+	d.clearGrid()
+
+	// Show empty state if no apps
+	if len(apps) == 0 {
+		emptyBox := gtk.NewBox(gtk.OrientationVertical, 16)
+		emptyBox.AddCSSClass("appdrawer-empty")
+		emptyBox.SetHAlign(gtk.AlignCenter)
+		emptyBox.SetVAlign(gtk.AlignCenter)
+
+		emptyIcon := gtkutil.MaterialIcon("search_off")
+		emptyIcon.AddCSSClass("appdrawer-empty-icon")
+		emptyIcon.AddCSSClass("material-icon")
+
+		emptyLabel := gtk.NewLabel("No apps found")
+		emptyLabel.AddCSSClass("appdrawer-empty-text")
+
+		emptyBox.Append(emptyIcon)
+		emptyBox.Append(emptyLabel)
+		d.flowBox.Append(emptyBox)
+		return
+	}
+
 	for _, app := range apps {
 		tile := newAppTile(app, func() {
 			d.win.SetVisible(false)
@@ -205,9 +228,14 @@ func (d *AppDrawer) populateGrid(apps []launcher.App) {
 }
 
 func newAppTile(app launcher.App, onLaunch func()) *gtk.Box {
-	box := gtk.NewBox(gtk.OrientationVertical, 6)
+	box := gtk.NewBox(gtk.OrientationVertical, 8)
 	box.AddCSSClass("appdrawer-tile")
 	box.SetCursorFromName("pointer")
+
+	// Icon container for better Material 3 styling
+	iconBox := gtk.NewBox(gtk.OrientationVertical, 0)
+	iconBox.SetHAlign(gtk.AlignCenter)
+	iconBox.SetVAlign(gtk.AlignCenter)
 
 	icon := gtk.NewImage()
 	iconName := app.Icon
@@ -215,16 +243,20 @@ func newAppTile(app launcher.App, onLaunch func()) *gtk.Box {
 		iconName = "application-x-executable"
 	}
 	icon.SetFromIconName(iconName)
-	icon.SetPixelSize(56)
+	icon.SetPixelSize(48)
 	icon.AddCSSClass("appdrawer-tile-icon")
+
+	iconBox.Append(icon)
 
 	label := gtk.NewLabel(app.Name)
 	label.SetJustify(gtk.JustifyCenter)
 	label.SetWrap(true)
 	label.SetMaxWidthChars(10)
+	label.SetLines(2)
+	label.SetEllipsize(2) // Pango.EllipsizeEnd
 	label.AddCSSClass("appdrawer-tile-label")
 
-	box.Append(icon)
+	box.Append(iconBox)
 	box.Append(label)
 
 	gtkutil.ClaimedClick(&box.Widget, func() {

@@ -496,19 +496,51 @@ scale.m3-scale slider {
 /* ── App Drawer ── */
 
 .appdrawer-scrim {
-    background-color: alpha(@col_surface, 0.92);
+    background-color: alpha(@col_background, 0.85);
 }
 
 .appdrawer-content {
+    background-color: @col_surface_container_low;
+    border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+    margin: 16px;
+    margin-top: 0;
+    padding: 24px;
+    box-shadow: var(--elevation-3);
 }
 
+/* App Drawer Header */
+.appdrawer-header {
+    margin-bottom: 20px;
+}
+
+.appdrawer-title {
+    font-size: var(--typescale-headline-md);
+    font-weight: 600;
+    color: @col_on_surface;
+    margin-bottom: 16px;
+}
+
+/* Material 3 Search Bar */
 .appdrawer-search-entry {
     background-color: @col_surface_container_high;
     color: @col_on_surface;
-    font-size: 15px;
-    border-radius: var(--radius-xl);
-    padding: 12px 16px;
-    margin-bottom: 16px;
+    font-size: 16px;
+    border-radius: var(--radius-full);
+    padding: 16px 24px;
+    margin-bottom: 20px;
+    border: none;
+    box-shadow: var(--elevation-1);
+    transition: box-shadow var(--duration-short3) var(--ease-standard-decel);
+}
+
+.appdrawer-search-entry:focus {
+    box-shadow: var(--elevation-2), 0 0 0 2px alpha(@col_primary, 0.3);
+    outline: none;
+}
+
+.appdrawer-search-entry image {
+    color: @col_on_surface_variant;
+    margin-right: 12px;
 }
 
 .appdrawer-scroll {
@@ -531,31 +563,59 @@ scale.m3-scale slider {
     opacity: 1;
 }
 
+/* Material 3 App Grid */
 .appdrawer-grid {
-    padding: 0;
+    padding: 8px;
 }
 
+/* Material 3 App Tile */
 .appdrawer-tile {
-    padding: 12px 8px;
-    border-radius: var(--radius-xl);
+    padding: 16px 12px;
+    border-radius: var(--radius-lg);
     background-color: transparent;
-    min-width: 80px;
+    min-width: 88px;
+    transition: background-color var(--duration-short3) var(--ease-standard-decel),
+                transform var(--duration-short3) var(--ease-standard-decel);
 }
 
-/* Hover effects disabled to prevent stuck states on touch - use active instead */
+.appdrawer-tile-icon {
+    border-radius: var(--radius-xl);
+    box-shadow: var(--elevation-1);
+    margin-bottom: 8px;
+}
+
+.appdrawer-tile-label {
+    font-size: 12px;
+    font-weight: 500;
+    color: @col_on_surface;
+    text-align: center;
+}
+
+/* Active/pressed state - Material 3 ripple effect */
 .appdrawer-tile:active {
-    background-color: alpha(@col_primary_container, 0.35);
+    background-color: alpha(@col_primary_container, 0.4);
+    transform: scale(0.96);
 }
 
 /* Suppress hover effects during scrolling to prevent stuck hover states */
 .appdrawer-scroll.scrolling .appdrawer-tile:hover,
 .appdrawer-scroll.scrolling .appdrawer-tile:active {
     background-color: transparent;
+    transform: none;
 }
 
-.appdrawer-tile-label {
-    font-size: 12px;
-    color: @col_on_surface;
+/* Empty state */
+.appdrawer-empty {
+    font-size: 14px;
+    color: @col_on_surface_variant;
+    text-align: center;
+    padding: 48px 24px;
+}
+
+.appdrawer-empty-icon {
+    font-size: 48px;
+    color: @col_outline;
+    margin-bottom: 16px;
 }
 
 .notification-list {
