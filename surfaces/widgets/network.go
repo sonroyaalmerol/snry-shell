@@ -190,6 +190,11 @@ func newWiFiRow(parent *gtk.ApplicationWindow, refs *servicerefs.ServiceRefs, ne
 		check := gtkutil.MaterialIcon("check_circle")
 		check.AddCSSClass("conn-row-connected-icon")
 		meta.Append(check)
+
+		badge := gtk.NewLabel("ACTIVE")
+		badge.AddCSSClass("m3-assist-chip") // Reuse chip style
+		badge.SetVAlign(gtk.AlignCenter)
+		meta.Append(badge)
 	}
 
 	row.Append(signalIcon)
