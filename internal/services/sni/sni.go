@@ -54,6 +54,7 @@ func (s *Service) Run(ctx context.Context) error {
 	// Listen for item registered/unregistered.
 	ch := make(chan *dbus.Signal, 16)
 	s.conn.Signal(ch)
+	defer s.conn.RemoveSignal(ch)
 	if err := s.conn.AddMatchSignal(
 		dbus.WithMatchInterface(watcherIface),
 		dbus.WithMatchMember("StatusNotifierItemRegistered"),

@@ -31,6 +31,7 @@ func (f *fakeDBusConn) Signal(ch chan<- *dbus.Signal) {
 	}()
 }
 
+func (f *fakeDBusConn) RemoveSignal(ch chan<- *dbus.Signal)            {}
 func (f *fakeDBusConn) BusObject() dbus.BusObject                     { return nil }
 func (f *fakeDBusConn) Object(string, dbus.ObjectPath) dbus.BusObject { return nil }
 func (f *fakeDBusConn) AddMatchSignal(opts ...dbus.MatchOption) error { return nil }

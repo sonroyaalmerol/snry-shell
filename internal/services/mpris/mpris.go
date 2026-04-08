@@ -39,6 +39,7 @@ func (s *Service) Run(ctx context.Context) error {
 	s.refreshNameMap()
 	ch := make(chan *dbus.Signal, 16)
 	s.conn.Signal(ch)
+	defer s.conn.RemoveSignal(ch)
 
 	// Subscribe to PropertiesChanged on all MPRIS players.
 	s.conn.BusObject().Call(

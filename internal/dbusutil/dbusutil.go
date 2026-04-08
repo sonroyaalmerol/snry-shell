@@ -5,6 +5,7 @@ import "github.com/godbus/dbus/v5"
 type DBusConn interface {
 	Object(dest string, path dbus.ObjectPath) dbus.BusObject
 	Signal(ch chan<- *dbus.Signal)
+	RemoveSignal(ch chan<- *dbus.Signal)
 	BusObject() dbus.BusObject
 	AddMatchSignal(opts ...dbus.MatchOption) error
 }
@@ -25,6 +26,13 @@ func (r *RealConn) Signal(ch chan<- *dbus.Signal) {
 		return
 	}
 	r.Conn.Signal(ch)
+}
+
+func (r *RealConn) RemoveSignal(ch chan<- *dbus.Signal) {
+	if r.Conn == nil {
+		return
+	}
+	r.Conn.RemoveSignal(ch)
 }
 
 func (r *RealConn) BusObject() dbus.BusObject {

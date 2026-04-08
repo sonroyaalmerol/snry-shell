@@ -35,6 +35,7 @@ func NewWithConn(conn dbusutil.DBusConn, b *bus.Bus) *Service {
 func (s *Service) Run(ctx context.Context) error {
 	ch := make(chan *dbus.Signal, 16)
 	s.conn.Signal(ch)
+	defer s.conn.RemoveSignal(ch)
 
 	s.conn.BusObject().Call(
 		"org.freedesktop.DBus.AddMatch", 0,

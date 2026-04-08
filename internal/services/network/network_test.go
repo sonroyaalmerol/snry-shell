@@ -77,6 +77,8 @@ func (f *fakeDBusConn) Signal(ch chan<- *dbus.Signal) {
 	}()
 }
 
+func (f *fakeDBusConn) RemoveSignal(ch chan<- *dbus.Signal) {}
+
 func (f *fakeDBusConn) BusObject() dbus.BusObject {
 	return &fakeBusObject{properties: map[string]dbus.Variant{}}
 }

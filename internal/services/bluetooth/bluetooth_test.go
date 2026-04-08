@@ -72,6 +72,7 @@ type fakeDBusConn struct {
 
 func (f *fakeDBusConn) Object(string, dbus.ObjectPath) dbus.BusObject { return f.obj }
 func (f *fakeDBusConn) Signal(chan<- *dbus.Signal)                    {}
+func (f *fakeDBusConn) RemoveSignal(chan<- *dbus.Signal)              {}
 func (f *fakeDBusConn) AddMatchSignal(...dbus.MatchOption) error      { return nil }
 func (f *fakeDBusConn) BusObject() dbus.BusObject                     { return f.obj }
 

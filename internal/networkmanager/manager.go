@@ -140,6 +140,7 @@ func (m *Manager) Stop() {
 func (m *Manager) monitorDBusSignals() {
 	ch := make(chan *dbus.Signal, 32)
 	m.conn.Signal(ch)
+	defer m.conn.RemoveSignal(ch)
 
 	// Add match for NM signals
 	busObj := m.conn.BusObject()
@@ -175,7 +176,7 @@ func (m *Manager) handleSignal(sig *dbus.Signal) {
 
 // periodicRefresh periodically refreshes data
 func (m *Manager) periodicRefresh() {
-	ticker := time.NewTicker(5 * time.Second)
+	ticker := time.NewTicker(30 * time.Second)
 	defer ticker.Stop()
 
 	for {

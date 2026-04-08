@@ -183,6 +183,7 @@ func (s *Service) monitorLogind(ctx context.Context) {
 
 	ch := make(chan *dbus.Signal, 16)
 	s.conn.Signal(ch)
+	defer s.conn.RemoveSignal(ch)
 
 	if err := s.conn.AddMatchSignal(dbus.WithMatchObjectPath(dbus.ObjectPath(session))); err != nil {
 		log.Printf("[INPUTMODE] AddMatchSignal: %v", err)
