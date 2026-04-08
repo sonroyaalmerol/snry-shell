@@ -53,8 +53,8 @@ import (
 	"github.com/sonroyaalmerol/snry-shell/surfaces/popup/appdrawer"
 	popupbluetooth "github.com/sonroyaalmerol/snry-shell/surfaces/popup/bluetooth"
 	"github.com/sonroyaalmerol/snry-shell/surfaces/popup/calendar"
+	popupnetwork "github.com/sonroyaalmerol/snry-shell/surfaces/popup/network"
 	"github.com/sonroyaalmerol/snry-shell/surfaces/popup/notifcenter"
-	"github.com/sonroyaalmerol/snry-shell/surfaces/popup/wifi"
 	"github.com/sonroyaalmerol/snry-shell/surfaces/popup/windowmgmt"
 	"github.com/sonroyaalmerol/snry-shell/surfaces/recorder"
 	"github.com/sonroyaalmerol/snry-shell/surfaces/regionselector"
@@ -411,7 +411,7 @@ func Run() int {
 		overview.New(app, b, refs.Hyprland)
 		appdrawer.New(app, b, bars[0].AppDrawerTrigger)
 		notifcenter.New(app, b, refs, bars[0].NotifTrigger)
-		wifi.New(app, b, refs, bars[0].WifiTrigger)
+		popupnetwork.New(app, b, refs, bars[0].NetworkTrigger)
 		popupbluetooth.New(app, b, refs, bars[0].BtTrigger)
 		windowmgmt.New(app, b, refs, bars[0].TitleTrigger)
 		calendar.New(app, b, refs, bars[0].ClockGroup)

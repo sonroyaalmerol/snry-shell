@@ -16,7 +16,7 @@ type Bar struct {
 	bus              *bus.Bus
 	monitor          *gdk.Monitor
 	NotifTrigger     gtk.Widgetter
-	WifiTrigger      gtk.Widgetter
+	NetworkTrigger   gtk.Widgetter
 	BtTrigger        gtk.Widgetter
 	OskTrigger       gtk.Widgetter
 	ClockGroup       gtk.Widgetter
@@ -101,8 +101,8 @@ func (b *Bar) buildRight(refs *servicerefs.ServiceRefs) gtk.Widgetter {
 	notif := clickableBarGroup(newNotificationIcon(b.bus), b.bus, "toggle-notif-center", b.monitor)
 	b.NotifTrigger = notif
 
-	wifi := clickableBarGroup(newWifiIcon(b.bus), b.bus, "toggle-wifi", b.monitor)
-	b.WifiTrigger = wifi
+	network := clickableBarGroup(newNetworkIcon(b.bus), b.bus, "toggle-wifi", b.monitor)
+	b.NetworkTrigger = network
 
 	bt := clickableBarGroup(newBluetoothIcon(b.bus, refs), b.bus, "toggle-bluetooth", b.monitor)
 	b.BtTrigger = bt
@@ -114,7 +114,7 @@ func (b *Bar) buildRight(refs *servicerefs.ServiceRefs) gtk.Widgetter {
 	b.ClockGroup = clockGroup
 
 	box.Append(notif)
-	box.Append(wifi)
+	box.Append(network)
 	box.Append(bt)
 	box.Append(osk)
 	box.Append(newTrayWidget(b.bus))
