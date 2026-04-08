@@ -10,39 +10,27 @@ import (
 	"github.com/sonroyaalmerol/snry-shell/internal/settings"
 )
 
-// shellConfigProvider implements ConfigProvider for snry-shell settings
-type shellConfigProvider struct {
+// baseShellProvider provides common functionality for shell providers
+type baseShellProvider struct {
 	cfg *settings.Config
 }
 
-func newShellConfigProvider(cfg *settings.Config) *shellConfigProvider {
-	return &shellConfigProvider{cfg: cfg}
-}
-
-func (s *shellConfigProvider) Name() string {
-	return "Shell"
-}
-
-func (s *shellConfigProvider) Icon() string {
-	return "tune"
-}
-
-func (s *shellConfigProvider) Load() error {
+func (b *baseShellProvider) Load() error {
 	if cfg, err := settings.Load(); err == nil {
-		*s.cfg = cfg
+		*b.cfg = cfg
 	}
 	return nil
 }
 
-func (s *shellConfigProvider) Save() error {
-	if err := settings.Save(*s.cfg); err != nil {
+func (b *baseShellProvider) Save() error {
+	if err := settings.Save(*b.cfg); err != nil {
 		return err
 	}
-	s.notifyShellReload()
+	b.notifyShellReload()
 	return nil
 }
 
-func (s *shellConfigProvider) notifyShellReload() {
+func (b *baseShellProvider) notifyShellReload() {
 	conn, err := net.Dial("unix", controlsocket.DefaultPath)
 	if err != nil {
 		return
@@ -53,67 +41,102 @@ func (s *shellConfigProvider) notifyShellReload() {
 	}
 }
 
-func (s *shellConfigProvider) BuildWidget() gtk.Widgetter {
+// appearanceConfigProvider handles appearance settings
+type appearanceConfigProvider struct {
+	baseShellProvider
+}
+
+func newAppearanceConfigProvider(cfg *settings.Config) *appearanceConfigProvider {
+	return &appearanceConfigProvider{baseShellProvider{cfg: cfg}}
+}
+
+func (a *appearanceConfigProvider) Name() string { return "Appearance" }
+func (a *appearanceConfigProvider) Icon() string { return "palette" }
+
+func (a *appearanceConfigProvider) BuildWidget() gtk.Widgetter {
 	scroll := gtk.NewScrolledWindow()
 	scroll.SetPolicy(gtk.PolicyNever, gtk.PolicyAutomatic)
 	scroll.AddCSSClass("popup-scroll")
-	scroll.SetVExpand(true)
-	scroll.SetHExpand(true)
 
 	box := gtk.NewBox(gtk.OrientationVertical, 0)
 	box.AddCSSClass("settings-stack")
-	box.SetVExpand(true)
-	box.SetHExpand(true)
 
-	box.Append(s.buildAppearanceSection())
-	box.Append(s.buildBehaviorSection())
+	darkModeRow, _ := gtkutil.SwitchRowFull("Dark Mode", "Use dark theme", a.cfg.DarkMode, func(active bool) {
+		a.cfg.DarkMode = active
+		if err := a.Save(); err != nil {
+			log.Printf("[CONTROLPANEL] save dark mode: %v", err)
+		}
+	})
+
+	box.Append(gtkutil.SettingsSection("Theme", darkModeRow))
 
 	scroll.SetChild(box)
 	return scroll
 }
 
-func (s *shellConfigProvider) buildAppearanceSection() gtk.Widgetter {
-	darkModeRow, _ := gtkutil.SwitchRowFull("Dark Mode", "Use dark theme", s.cfg.DarkMode, func(active bool) {
-		s.cfg.DarkMode = active
-		if err := s.Save(); err != nil {
-			log.Printf("[CONTROLPANEL] save dark mode: %v", err)
-		}
-	})
-	return gtkutil.SettingsSection("Appearance", darkModeRow)
+// behaviorConfigProvider handles behavior settings
+type behaviorConfigProvider struct {
+	baseShellProvider
 }
 
-func (s *shellConfigProvider) buildBehaviorSection() gtk.Widgetter {
-	outer := gtk.NewBox(gtk.OrientationVertical, 0)
+func newBehaviorConfigProvider(cfg *settings.Config) *behaviorConfigProvider {
+	return &behaviorConfigProvider{baseShellProvider{cfg: cfg}}
+}
 
-	dndRow, _ := gtkutil.SwitchRowFull("Do Not Disturb", "Silence notifications", s.cfg.DoNotDisturb, func(active bool) {
-		s.cfg.DoNotDisturb = active
-		if err := s.Save(); err != nil {
+func (b *behaviorConfigProvider) Name() string { return "Behavior" }
+func (b *behaviorConfigProvider) Icon() string { return "tune" }
+
+func (b *behaviorConfigProvider) BuildWidget() gtk.Widgetter {
+	scroll := gtk.NewScrolledWindow()
+	scroll.SetPolicy(gtk.PolicyNever, gtk.PolicyAutomatic)
+	scroll.AddCSSClass("popup-scroll")
+
+	box := gtk.NewBox(gtk.OrientationVertical, 0)
+	box.AddCSSClass("settings-stack")
+
+	dndRow, _ := gtkutil.SwitchRowFull("Do Not Disturb", "Silence notifications", b.cfg.DoNotDisturb, func(active bool) {
+		b.cfg.DoNotDisturb = active
+		if err := b.Save(); err != nil {
 			log.Printf("[CONTROLPANEL] save do-not-disturb: %v", err)
 		}
 	})
 
 	inputModeRow := gtkutil.DropdownRow("Input Mode", "Touch input handling",
-		[]string{"auto", "tablet", "desktop"}, s.cfg.InputMode,
+		[]string{"auto", "tablet", "desktop"}, b.cfg.InputMode,
 		func(value string) {
-			s.cfg.InputMode = value
-			if err := s.Save(); err != nil {
+			b.cfg.InputMode = value
+			if err := b.Save(); err != nil {
 				log.Printf("[CONTROLPANEL] save input mode: %v", err)
 			}
 		})
 
-	behaviorSection := gtkutil.SettingsSection("Behavior", dndRow, inputModeRow)
-	behaviorSection.SetMarginTop(24)
-	outer.Append(behaviorSection)
+	box.Append(gtkutil.SettingsSection("Interaction", dndRow, inputModeRow))
 
-	idleSection := s.buildIdleSection()
-	outer.Append(idleSection)
-
-	return outer
+	scroll.SetChild(box)
+	return scroll
 }
 
-func (s *shellConfigProvider) buildIdleSection() gtk.Widgetter {
-	outer := gtk.NewBox(gtk.OrientationVertical, 0)
+// systemConfigProvider handles system, idle and lock settings
+type systemConfigProvider struct {
+	baseShellProvider
+}
 
+func newSystemConfigProvider(cfg *settings.Config) *systemConfigProvider {
+	return &systemConfigProvider{baseShellProvider{cfg: cfg}}
+}
+
+func (s *systemConfigProvider) Name() string { return "System" }
+func (s *systemConfigProvider) Icon() string { return "settings" }
+
+func (s *systemConfigProvider) BuildWidget() gtk.Widgetter {
+	scroll := gtk.NewScrolledWindow()
+	scroll.SetPolicy(gtk.PolicyNever, gtk.PolicyAutomatic)
+	scroll.AddCSSClass("popup-scroll")
+
+	box := gtk.NewBox(gtk.OrientationVertical, 0)
+	box.AddCSSClass("settings-stack")
+
+	// Idle & Lock Section
 	lockTimeoutRow := gtkutil.SpinRow(
 		"Lock timeout", "Minutes of inactivity before locking (0 = disabled)",
 		0, 120, s.cfg.IdleLockTimeout/60,
@@ -147,10 +170,9 @@ func (s *shellConfigProvider) buildIdleSection() gtk.Widgetter {
 		},
 	)
 
-	idleSection := gtkutil.SettingsSection("Idle & Lock", lockTimeoutRow, displayOffTimeoutRow, suspendTimeoutRow)
-	idleSection.SetMarginTop(24)
-	outer.Append(idleSection)
+	box.Append(gtkutil.SettingsSection("Idle & Lock", lockTimeoutRow, displayOffTimeoutRow, suspendTimeoutRow))
 
+	// System Buttons Section
 	lidActionRow := gtkutil.DropdownRow("Lid close action", "Action to take when laptop lid is closed",
 		[]string{"ignore", "lock", "suspend"}, s.cfg.LidCloseAction,
 		func(value string) {
@@ -169,10 +191,9 @@ func (s *shellConfigProvider) buildIdleSection() gtk.Widgetter {
 			}
 		})
 
-	systemSection := gtkutil.SettingsSection("System Buttons", lidActionRow, powerActionRow)
-	systemSection.SetMarginTop(24)
-	outer.Append(systemSection)
+	box.Append(gtkutil.SettingsSection("System Buttons", lidActionRow, powerActionRow))
 
+	// Password & Lockscreen Section
 	maxAttemptsRow := gtkutil.SpinRow(
 		"Max password attempts", "Attempts before temporary lockout",
 		1, 10, s.cfg.LockMaxAttempts,
@@ -209,9 +230,8 @@ func (s *shellConfigProvider) buildIdleSection() gtk.Widgetter {
 		}
 	})
 
-	lockSection := gtkutil.SettingsSection("", maxAttemptsRow, lockoutDurationRow, showClockRow, showUserRow)
-	lockSection.SetMarginTop(16)
-	outer.Append(lockSection)
+	box.Append(gtkutil.SettingsSection("Lockscreen Security", maxAttemptsRow, lockoutDurationRow, showClockRow, showUserRow))
 
-	return outer
+	scroll.SetChild(box)
+	return scroll
 }
