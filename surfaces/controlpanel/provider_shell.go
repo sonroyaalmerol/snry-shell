@@ -61,14 +61,41 @@ func (a *appearanceConfigProvider) BuildWidget() gtk.Widgetter {
 	box := gtk.NewBox(gtk.OrientationVertical, 0)
 	box.AddCSSClass("settings-stack")
 
+	// Theme Section
 	darkModeRow, _ := gtkutil.SwitchRowFull("Dark Mode", "Use dark theme", a.cfg.DarkMode, func(active bool) {
 		a.cfg.DarkMode = active
-		if err := a.Save(); err != nil {
-			log.Printf("[CONTROLPANEL] save dark mode: %v", err)
-		}
+		a.Save()
 	})
 
-	box.Append(gtkutil.SettingsSection("Theme", darkModeRow))
+	blurStrengthRow := gtkutil.SpinRow("Blur Strength", "Background blur intensity (0-100)", 0, 100, a.cfg.BlurStrength, func(v int) {
+		a.cfg.BlurStrength = v
+		a.Save()
+	})
+
+	box.Append(gtkutil.SettingsSection("Theme", darkModeRow, blurStrengthRow))
+
+	// Bar Section
+	barPosRow := gtkutil.DropdownRow("Bar Position", "Where the status bar is anchored",
+		[]string{"top", "bottom"}, a.cfg.BarPosition, func(v string) {
+			a.cfg.BarPosition = v
+			a.Save()
+		})
+
+	showBatteryRow, _ := gtkutil.SwitchRowFull("Show Battery Percentage", "Display numeric battery level", a.cfg.BarShowBatteryPct, func(active bool) {
+		a.cfg.BarShowBatteryPct = active
+		a.Save()
+	})
+
+	box.Append(gtkutil.SettingsSection("Status Bar", barPosRow, showBatteryRow))
+
+	// Clock Section
+	clockFormatRow := gtkutil.DropdownRow("Clock Format", "Time display style",
+		[]string{"12h", "24h"}, a.cfg.ClockFormat, func(v string) {
+			a.cfg.ClockFormat = v
+			a.Save()
+		})
+
+	box.Append(gtkutil.SettingsSection("Clock", clockFormatRow))
 
 	scroll.SetChild(box)
 	return scroll
@@ -94,23 +121,36 @@ func (b *behaviorConfigProvider) BuildWidget() gtk.Widgetter {
 	box := gtk.NewBox(gtk.OrientationVertical, 0)
 	box.AddCSSClass("settings-stack")
 
+	// Interaction Section
 	dndRow, _ := gtkutil.SwitchRowFull("Do Not Disturb", "Silence notifications", b.cfg.DoNotDisturb, func(active bool) {
 		b.cfg.DoNotDisturb = active
-		if err := b.Save(); err != nil {
-			log.Printf("[CONTROLPANEL] save do-not-disturb: %v", err)
-		}
+		b.Save()
 	})
 
 	inputModeRow := gtkutil.DropdownRow("Input Mode", "Touch input handling",
 		[]string{"auto", "tablet", "desktop"}, b.cfg.InputMode,
 		func(value string) {
 			b.cfg.InputMode = value
-			if err := b.Save(); err != nil {
-				log.Printf("[CONTROLPANEL] save input mode: %v", err)
-			}
+			b.Save()
 		})
 
 	box.Append(gtkutil.SettingsSection("Interaction", dndRow, inputModeRow))
+
+	// Notifications Section
+	notifTimeoutRow := gtkutil.SpinRow("Notification Timeout", "Milliseconds before toast disappears",
+		1000, 30000, b.cfg.NotificationTimeout, func(v int) {
+			b.cfg.NotificationTimeout = v
+			b.Save()
+		})
+
+	notifPosRow := gtkutil.DropdownRow("Notification Position", "Where toasts appear",
+		[]string{"top-right", "top-left", "bottom-right", "bottom-left"}, b.cfg.NotificationPosition,
+		func(v string) {
+			b.cfg.NotificationPosition = v
+			b.Save()
+		})
+
+	box.Append(gtkutil.SettingsSection("Notifications", notifTimeoutRow, notifPosRow))
 
 	scroll.SetChild(box)
 	return scroll
@@ -136,15 +176,28 @@ func (s *systemConfigProvider) BuildWidget() gtk.Widgetter {
 	box := gtk.NewBox(gtk.OrientationVertical, 0)
 	box.AddCSSClass("settings-stack")
 
+	// Audio & Brightness Section
+	volStepRow := gtkutil.SpinRow("Volume Step", "Percentage change per increment (1-10%)",
+		1, 10, int(s.cfg.VolumeStep*100), func(v int) {
+			s.cfg.VolumeStep = float64(v) / 100.0
+			s.Save()
+		})
+
+	brightStepRow := gtkutil.SpinRow("Brightness Step", "Percentage change per increment (1-10%)",
+		1, 10, int(s.cfg.BrightnessStep*100), func(v int) {
+			s.cfg.BrightnessStep = float64(v) / 100.0
+			s.Save()
+		})
+
+	box.Append(gtkutil.SettingsSection("Hardware Steps", volStepRow, brightStepRow))
+
 	// Idle & Lock Section
 	lockTimeoutRow := gtkutil.SpinRow(
 		"Lock timeout", "Minutes of inactivity before locking (0 = disabled)",
 		0, 120, s.cfg.IdleLockTimeout/60,
 		func(v int) {
 			s.cfg.IdleLockTimeout = v * 60
-			if err := s.Save(); err != nil {
-				log.Printf("[CONTROLPANEL] save idle lock timeout: %v", err)
-			}
+			s.Save()
 		},
 	)
 
@@ -153,9 +206,7 @@ func (s *systemConfigProvider) BuildWidget() gtk.Widgetter {
 		0, 120, s.cfg.IdleDisplayOffTimeout/60,
 		func(v int) {
 			s.cfg.IdleDisplayOffTimeout = v * 60
-			if err := s.Save(); err != nil {
-				log.Printf("[CONTROLPANEL] save idle display off timeout: %v", err)
-			}
+			s.Save()
 		},
 	)
 
@@ -164,9 +215,7 @@ func (s *systemConfigProvider) BuildWidget() gtk.Widgetter {
 		0, 120, s.cfg.IdleSuspendTimeout/60,
 		func(v int) {
 			s.cfg.IdleSuspendTimeout = v * 60
-			if err := s.Save(); err != nil {
-				log.Printf("[CONTROLPANEL] save idle suspend timeout: %v", err)
-			}
+			s.Save()
 		},
 	)
 
@@ -177,18 +226,14 @@ func (s *systemConfigProvider) BuildWidget() gtk.Widgetter {
 		[]string{"ignore", "lock", "suspend"}, s.cfg.LidCloseAction,
 		func(value string) {
 			s.cfg.LidCloseAction = value
-			if err := s.Save(); err != nil {
-				log.Printf("[CONTROLPANEL] save lid action: %v", err)
-			}
+			s.Save()
 		})
 
 	powerActionRow := gtkutil.DropdownRow("Power button action", "Action to take when power button is pressed",
 		[]string{"ignore", "lock", "shutdown", "session-menu"}, s.cfg.PowerButtonAction,
 		func(value string) {
 			s.cfg.PowerButtonAction = value
-			if err := s.Save(); err != nil {
-				log.Printf("[CONTROLPANEL] save power action: %v", err)
-			}
+			s.Save()
 		})
 
 	box.Append(gtkutil.SettingsSection("System Buttons", lidActionRow, powerActionRow))
@@ -199,9 +244,7 @@ func (s *systemConfigProvider) BuildWidget() gtk.Widgetter {
 		1, 10, s.cfg.LockMaxAttempts,
 		func(v int) {
 			s.cfg.LockMaxAttempts = v
-			if err := s.Save(); err != nil {
-				log.Printf("[CONTROLPANEL] save lock max attempts: %v", err)
-			}
+			s.Save()
 		},
 	)
 
@@ -210,24 +253,18 @@ func (s *systemConfigProvider) BuildWidget() gtk.Widgetter {
 		5, 300, s.cfg.LockoutDuration,
 		func(v int) {
 			s.cfg.LockoutDuration = v
-			if err := s.Save(); err != nil {
-				log.Printf("[CONTROLPANEL] save lockout duration: %v", err)
-			}
+			s.Save()
 		},
 	)
 
 	showClockRow, _ := gtkutil.SwitchRowFull("Show clock", "Display clock on lockscreen", s.cfg.LockShowClock, func(active bool) {
 		s.cfg.LockShowClock = active
-		if err := s.Save(); err != nil {
-			log.Printf("[CONTROLPANEL] save lock show clock: %v", err)
-		}
+		s.Save()
 	})
 
 	showUserRow, _ := gtkutil.SwitchRowFull("Show username", "Display username on lockscreen", s.cfg.LockShowUser, func(active bool) {
 		s.cfg.LockShowUser = active
-		if err := s.Save(); err != nil {
-			log.Printf("[CONTROLPANEL] save lock show user: %v", err)
-		}
+		s.Save()
 	})
 
 	box.Append(gtkutil.SettingsSection("Lockscreen Security", maxAttemptsRow, lockoutDurationRow, showClockRow, showUserRow))
