@@ -26,6 +26,7 @@ func newControlPanel(cfg settings.Config) *controlPanel {
 		cfg: cfg,
 		providers: []ConfigProvider{
 			newAppearanceConfigProvider(&cfg),
+			newWallpaperConfigProvider(&cfg),
 			newBehaviorConfigProvider(&cfg),
 			newSystemConfigProvider(&cfg),
 		},
