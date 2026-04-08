@@ -202,10 +202,10 @@ func (s *systemConfigProvider) BuildWidget() gtk.Widgetter {
 	)
 
 	displayOffTimeoutRow := gtkutil.SpinRow(
-		"Turn display off after lock", "Extra minutes after locking before display turns off (0 = disabled)",
-		0, 120, s.cfg.IdleDisplayOffTimeout/60,
+		"Turn display off after lock", "Extra seconds after locking before display turns off (0 = disabled)",
+		0, 300, s.cfg.IdleDisplayOffTimeout,
 		func(v int) {
-			s.cfg.IdleDisplayOffTimeout = v * 60
+			s.cfg.IdleDisplayOffTimeout = v
 			s.Save()
 		},
 	)
