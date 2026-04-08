@@ -381,6 +381,18 @@ func NewQuickToggles(b *bus.Bus, refs *servicerefs.ServiceRefs) gtk.Widgetter {
 						switch v := e.Data.(type) {
 						case state.NetworkState:
 							tb.SetActive(v.WirelessEnabled)
+							if toggle.label == "WiFi" {
+								if v.Connected {
+									switch v.Type {
+									case "ethernet":
+										icon.SetText("settings_ethernet")
+									default:
+										icon.SetText("wifi")
+									}
+								} else {
+									icon.SetText("wifi_off")
+								}
+							}
 						case state.BluetoothState:
 							tb.SetActive(v.Powered)
 						case state.AudioSink:
