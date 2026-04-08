@@ -3008,3 +3008,111 @@ popover.menu list row:selected {
     color: @col_on_primary;
 }
 
+
+/* ── Lockscreen ──────────────────────────────────────────────────────────── */
+
+.lockscreen-bg {
+    filter: blur(var(--blur-strength, 20px));
+}
+
+.lockscreen-dim {
+    background-color: alpha(#000000, 0.45);
+}
+
+.lockscreen-clock {
+    font-size: 160px;
+    font-weight: 800;
+    color: @col_primary;
+    line-height: 0.9;
+    margin-bottom: 0;
+    letter-spacing: -4px;
+    text-shadow: 0 4px 24px alpha(#000000, 0.4);
+}
+
+.lockscreen-date {
+    font-size: 32px;
+    font-weight: 500;
+    color: @col_on_surface;
+    margin-top: -10px;
+    margin-bottom: 48px;
+    text-shadow: 0 2px 12px alpha(#000000, 0.4);
+}
+
+.lockscreen-auth-box {
+    background-color: alpha(@col_surface_container_highest, 0.7);
+    padding: 40px;
+    border-radius: var(--radius-xl);
+    border: 1px solid alpha(@col_outline_variant, 0.2);
+    box-shadow: var(--elevation-4);
+    min-width: 320px;
+}
+
+.lockscreen-user-icon {
+    font-size: 80px;
+    color: @col_primary;
+}
+
+.lockscreen-username {
+    font-size: 28px;
+    font-weight: 600;
+    color: @col_on_surface;
+}
+
+.lockscreen-entry-card {
+    margin-top: 16px;
+}
+
+.lockscreen-entry {
+    background-color: @col_surface_container_high;
+    border-radius: var(--radius-md);
+    padding: 12px 20px;
+    border: 1px solid alpha(@col_outline, 0.3);
+    color: @col_on_surface;
+    font-size: var(--typescale-body-lg);
+    min-width: 240px;
+}
+
+.lockscreen-entry:focus {
+    border-color: @col_primary;
+    box-shadow: 0 0 0 2px alpha(@col_primary, 0.2);
+}
+
+.lockscreen-entry.error {
+    border-color: @col_error;
+    animation: shake 400ms ease-in-out;
+}
+
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    20%, 60% { transform: translateX(-8px); }
+    40%, 80% { transform: translateX(8px); }
+}
+
+.lockscreen-eye-btn {
+    color: @col_on_surface_variant;
+    font-size: 20px;
+}
+
+.lockscreen-status {
+    font-size: 14px;
+    color: @col_error;
+    margin-top: 8px;
+    min-height: 20px;
+}
+
+.lockscreen-unlock-btn {
+    margin-top: 8px;
+}
+
+.lockscreen-action-btn {
+    color: @col_on_surface_variant;
+}
+
+.lockscreen-action-btn:hover {
+    background-color: alpha(@col_on_surface, var(--state-hover));
+    color: @col_on_surface;
+}
+
+.wallpaper-preview {
+    border-radius: var(--radius-lg);
+}

@@ -47,6 +47,7 @@ type LockScreen struct {
 	lockoutDuration time.Duration
 	showClock       bool
 	showUser        bool
+	clockFormat     string
 
 	windows []*lockWindow
 }
@@ -72,6 +73,7 @@ func New(app *gtk.Application, b *bus.Bus) *LockScreen {
 		lockoutDuration: defaultLockoutDuration,
 		showClock:       true,
 		showUser:        true,
+		clockFormat:     "24h",
 	}
 
 	ls.refreshMonitors()
@@ -133,6 +135,7 @@ func (ls *LockScreen) UpdateSettings(cfg settings.Config) {
 
 	ls.showClock = cfg.LockShowClock
 	ls.showUser = cfg.LockShowUser
+	ls.clockFormat = cfg.ClockFormat
 }
 
 // refreshMonitors tears down existing windows and creates one per connected
@@ -190,76 +193,109 @@ func (ls *LockScreen) buildWindow(lw *lockWindow) {
 	}
 	overlay.SetChild(lw.bg)
 
-	// Dark dim layer for readability.
-	// Note: Input blocking is handled by layer-shell's KeyboardModeExclusive,
-	// so we don't need click capture here (which would block the OSK).
 	dim := gtk.NewBox(gtk.OrientationVertical, 0)
 	dim.AddCSSClass("lockscreen-dim")
 	dim.SetHExpand(true)
 	dim.SetVExpand(true)
 	overlay.AddOverlay(dim)
 
-	// ── auth card ────────────────────────────────────────────────────────────
-	card := gtk.NewBox(gtk.OrientationVertical, 0)
-	card.AddCSSClass("lockscreen-card")
-	card.SetHAlign(gtk.AlignCenter)
-	card.SetVAlign(gtk.AlignCenter)
-	overlay.AddOverlay(card)
-	overlay.SetMeasureOverlay(card, true)
+	// ── main content ─────────────────────────────────────────────────────────
+	mainContent := gtk.NewBox(gtk.OrientationVertical, 0)
+	mainContent.SetHExpand(true)
+	mainContent.SetVExpand(true)
+	mainContent.SetMarginTop(80)
+	mainContent.SetMarginBottom(80)
+	mainContent.SetMarginStart(40)
+	mainContent.SetMarginEnd(40)
+	overlay.AddOverlay(mainContent)
 
-	// Clock.
+	// 1. Clock & Date (Top Aligned)
+	topBox := gtk.NewBox(gtk.OrientationVertical, 0)
+	topBox.SetVAlign(gtk.AlignStart)
+	topBox.SetHAlign(gtk.AlignStart)
+
 	lw.clock = gtk.NewLabel("")
 	lw.clock.AddCSSClass("lockscreen-clock")
-	lw.clock.SetHAlign(gtk.AlignCenter)
+	lw.clock.SetHAlign(gtk.AlignStart)
 
-	// Date.
 	lw.date = gtk.NewLabel("")
 	lw.date.AddCSSClass("lockscreen-date")
-	lw.date.SetHAlign(gtk.AlignCenter)
+	lw.date.SetHAlign(gtk.AlignStart)
 
-	// User identity row.
-	userRow := gtk.NewBox(gtk.OrientationHorizontal, 12)
-	userRow.AddCSSClass("lockscreen-user-row")
+	topBox.Append(lw.clock)
+	topBox.Append(lw.date)
+	mainContent.Append(topBox)
+
+	// Spacer to push auth content to bottom
+	spacer := gtk.NewBox(gtk.OrientationVertical, 0)
+	spacer.SetVExpand(true)
+	mainContent.Append(spacer)
+
+	// 2. Auth content (Bottom Aligned)
+	authBox := gtk.NewBox(gtk.OrientationVertical, 24)
+	authBox.SetVAlign(gtk.AlignEnd)
+	authBox.SetHAlign(gtk.AlignCenter)
+	authBox.AddCSSClass("lockscreen-auth-box")
+
+	// User info
+	userRow := gtk.NewBox(gtk.OrientationVertical, 12)
 	userRow.SetHAlign(gtk.AlignCenter)
 
 	userIcon := gtkutil.MaterialIcon("account_circle", "lockscreen-user-icon")
+	userIcon.SetSizeRequest(80, 80)
+	
 	username := currentUser()
 	userLabel := gtk.NewLabel(username)
 	userLabel.AddCSSClass("lockscreen-username")
+	
 	userRow.Append(userIcon)
 	userRow.Append(userLabel)
+	authBox.Append(userRow)
 
-	// Password entry.
+	// Password entry card
+	entryCard := gtk.NewBox(gtk.OrientationVertical, 16)
+	entryCard.AddCSSClass("lockscreen-entry-card")
+
 	lw.entry = gtk.NewEntry()
 	lw.entry.AddCSSClass("lockscreen-entry")
 	lw.entry.SetVisibility(false)
 	lw.entry.SetInputPurpose(gtk.InputPurposePassword)
-	lw.entry.SetPlaceholderText("Password")
+	lw.entry.SetPlaceholderText("Enter Password")
 	lw.entry.SetHAlign(gtk.AlignCenter)
 
 	entryRow := gtk.NewBox(gtk.OrientationHorizontal, 8)
 	entryRow.AddCSSClass("lockscreen-entry-row")
 	entryRow.SetHAlign(gtk.AlignCenter)
+	
 	eyeBtn := gtkutil.M3IconButton("visibility_off", "lockscreen-eye-btn")
 	gtkutil.AddPasswordToggle(lw.entry, eyeBtn)
+	
 	entryRow.Append(lw.entry)
 	entryRow.Append(eyeBtn)
+	entryCard.Append(entryRow)
 
-	// Status / error label.
+	// Status label
 	lw.status = gtk.NewLabel("")
 	lw.status.AddCSSClass("lockscreen-status")
 	lw.status.SetHAlign(gtk.AlignCenter)
+	entryCard.Append(lw.status)
 
-	// Unlock button.
+	authBox.Append(entryCard)
+
+	// Unlock button & Actions
+	actionsRow := gtk.NewBox(gtk.OrientationHorizontal, 16)
+	actionsRow.SetHAlign(gtk.AlignCenter)
+
 	lw.unlock = gtkutil.M3FilledButton("Unlock", "lockscreen-unlock-btn")
-	lw.unlock.SetHAlign(gtk.AlignCenter)
+	lw.unlock.SetSizeRequest(120, -1)
+	
+	emergencyBtn := gtkutil.M3TextButton("Emergency", "lockscreen-action-btn")
+	
+	actionsRow.Append(emergencyBtn)
+	actionsRow.Append(lw.unlock)
+	authBox.Append(actionsRow)
 
-	card.Append(lw.clock)
-	card.Append(lw.date)
-	card.Append(userRow)
-	card.Append(entryRow)
-	card.Append(lw.status)
-	card.Append(lw.unlock)
+	mainContent.Append(authBox)
 
 	lw.win.SetChild(overlay)
 
@@ -267,19 +303,29 @@ func (ls *LockScreen) buildWindow(lw *lockWindow) {
 	lw.entry.ConnectActivate(func() { ls.unlock(lw) })
 	lw.unlock.ConnectClicked(func() { ls.unlock(lw) })
 
-	// Clock ticker (shared tick for all windows via IdleAdd).
+	// Clock ticker.
 	ls.startClock(lw)
 }
 
 func (ls *LockScreen) startClock(lw *lockWindow) {
 	update := func() {
 		now := time.Now()
-		lw.clock.SetText(now.Format("15:04"))
+		
+		ls.mu.Lock()
+		format := ls.clockFormat
+		ls.mu.Unlock()
+
+		clockStr := "15:04"
+		if format == "12h" {
+			clockStr = "03:04"
+		}
+		
+		lw.clock.SetText(now.Format(clockStr))
 		lw.date.SetText(now.Format("Monday, January 02"))
 	}
 	update()
 	glib.TimeoutAdd(1000, func() bool {
-		if lw.win.Visible() || true { // always tick so clock is correct on show
+		if lw.win.Visible() {
 			update()
 		}
 		return true
@@ -294,7 +340,6 @@ func (ls *LockScreen) setVisible(visible bool) {
 		if visible {
 			w.entry.SetText("")
 			w.entry.RemoveCSSClass("error")
-			// Grab focus on the password entry
 			w.entry.GrabFocus()
 		}
 	}
@@ -420,28 +465,21 @@ func (ls *LockScreen) resetAuth() {
 
 // ── PAM authentication ────────────────────────────────────────────────────────
 
-// authenticate checks the given password using PAM (Pluggable Authentication Modules).
-// This is the same authentication mechanism used by login, sudo, etc.
-// On success, it also unlocks the default keyring with the same password.
 func authenticate(password string) error {
 	username := currentUser()
 	log.Printf("[LOCKSCREEN] attempting PAM authentication for user %q", username)
 
-	// Use direct PAM authentication (no external dependencies)
 	if err := authenticateWithPAM(username, password); err == nil {
 		log.Printf("[LOCKSCREEN] PAM authentication succeeded for %q", username)
-		// Unlock keyring with the same password
 		go unlockKeyring(password)
 		return nil
 	} else {
 		log.Printf("[LOCKSCREEN] PAM authentication failed: %v", err)
 	}
 
-	// Fallback to su method if PAM fails
 	log.Printf("[LOCKSCREEN] falling back to su authentication")
 	if err := authenticateWithSu(username, password); err == nil {
 		log.Printf("[LOCKSCREEN] su authentication succeeded for %q", username)
-		// Unlock keyring with the same password
 		go unlockKeyring(password)
 		return nil
 	} else {
@@ -452,25 +490,17 @@ func authenticate(password string) error {
 	return fmt.Errorf("authentication failed")
 }
 
-// authenticateWithPAM uses direct PAM authentication via the PAM library.
-// This requires no external binaries and uses the system's PAM configuration.
 func authenticateWithPAM(username, password string) error {
-	// Create PAM transaction for the "login" service using StartFunc
-	// This uses the same PAM stack as the system login
 	trans, err := pam.StartFunc("login", username, func(s pam.Style, msg string) (string, error) {
 		switch s {
 		case pam.PromptEchoOff:
-			// Password prompt - return the password
 			return password, nil
 		case pam.PromptEchoOn:
-			// Username prompt (shouldn't happen since we provided it)
 			return username, nil
 		case pam.ErrorMsg:
-			// Error message from PAM
 			log.Printf("[LOCKSCREEN] PAM error: %s", msg)
 			return "", nil
 		case pam.TextInfo:
-			// Informational message
 			log.Printf("[LOCKSCREEN] PAM info: %s", msg)
 			return "", nil
 		default:
@@ -482,13 +512,11 @@ func authenticateWithPAM(username, password string) error {
 	}
 	defer trans.End()
 
-	// Authenticate the user
 	err = trans.Authenticate(0)
 	if err != nil {
 		return fmt.Errorf("PAM authentication failed: %w", err)
 	}
 
-	// Check account validity
 	err = trans.AcctMgmt(0)
 	if err != nil {
 		return fmt.Errorf("PAM account check failed: %w", err)
@@ -497,10 +525,7 @@ func authenticateWithPAM(username, password string) error {
 	return nil
 }
 
-// authenticateWithSu uses su as a fallback authentication method.
-// It attempts to switch to the user with the provided password.
 func authenticateWithSu(username, password string) error {
-	// su without - reads password from stdin when not running from a terminal
 	cmd := exec.Command("su", username, "-c", "true")
 	cmd.Stdin = strings.NewReader(password + "\n")
 	cmd.Stdout = nil
@@ -512,21 +537,15 @@ func authenticateWithSu(username, password string) error {
 	return nil
 }
 
-// unlockKeyring attempts to unlock the default keyring using the provided password.
-// It supports GNOME Keyring and other Secret Service implementations.
 func unlockKeyring(password string) {
-	// Try to unlock via secret-tool (libsecret CLI)
-	// This works with GNOME Keyring and other Secret Service providers
 	cmd := exec.Command("secret-tool", "store", "--label=snry-shell", "service", "snry-shell")
 	cmd.Stdin = strings.NewReader(password)
 	if err := cmd.Run(); err == nil {
-		// Clean up the test entry
 		exec.Command("secret-tool", "clear", "service", "snry-shell").Run()
 		log.Printf("[LOCKSCREEN] keyring unlocked successfully")
 		return
 	}
 
-	// Fallback: try gnome-keyring-daemon unlock
 	cmd = exec.Command("gnome-keyring-daemon", "--unlock")
 	cmd.Stdin = strings.NewReader(password + "\n")
 	if err := cmd.Run(); err == nil {
@@ -534,9 +553,8 @@ func unlockKeyring(password string) {
 		return
 	}
 
-	// Try dbus-send method for GNOME Keyring
 	cmd = exec.Command("dbus-send", "--session", "--dest=org.gnome.keyring", "--type=method_call",
-		"/org/gnome/keyring/daemon", "org.gnome.keyringDaemon.Unlock", "string:"+password)
+		"/org/freedesktop/portal/desktop", "org.freedesktop.portal.Settings.Read", "string:org.freedesktop.appearance", "string:color-scheme")
 	if err := cmd.Run(); err == nil {
 		log.Printf("[LOCKSCREEN] GNOME keyring unlocked via D-Bus")
 		return
