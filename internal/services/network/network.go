@@ -43,6 +43,9 @@ func NewWithConn(conn dbusutil.DBusConn, b *bus.Bus) *Service {
 }
 
 func (s *Service) Run(ctx context.Context) error {
+	// Emit initial state for subscribers.
+	s.query()
+
 	// Redundant: Manager now handles background updates and publishes to TopicNetwork.
 	<-ctx.Done()
 	return ctx.Err()
