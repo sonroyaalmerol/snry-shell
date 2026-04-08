@@ -192,26 +192,35 @@ func (s *systemConfigProvider) BuildWidget() gtk.Widgetter {
 	box.Append(gtkutil.SettingsSection("Hardware Steps", volStepRow, brightStepRow))
 
 	// Idle & Lock Section
-	lockTimeoutRow := gtkutil.SpinRow(
-		"Lock timeout", "Minutes of inactivity before locking (0 = disabled)",
-		0, 120, s.cfg.IdleLockTimeout/60,
-		func(v int) {
-			s.cfg.IdleLockTimeout = v * 60
-			s.Save()
-		},
-	)
-
 	displayOffTimeoutRow := gtkutil.SpinRow(
-		"Turn display off after lock", "Extra seconds after locking before display turns off (0 = disabled)",
-		0, 300, s.cfg.IdleDisplayOffTimeout,
+		"Display off timeout", "Seconds of inactivity before display turns off (0 = disabled)",
+		0, 1200, s.cfg.IdleDisplayOffTimeout,
 		func(v int) {
 			s.cfg.IdleDisplayOffTimeout = v
 			s.Save()
 		},
 	)
 
+	lockTimeoutRow := gtkutil.SpinRow(
+		"Lock timeout", "Seconds of inactivity before locking (0 = disabled)",
+		0, 1200, s.cfg.IdleLockTimeout,
+		func(v int) {
+			s.cfg.IdleLockTimeout = v
+			s.Save()
+		},
+	)
+
+	lockDisplayOffTimeoutRow := gtkutil.SpinRow(
+		"Turn display off after manual lock", "Seconds of inactivity while locked before display off",
+		0, 300, s.cfg.LockDisplayOffTimeout,
+		func(v int) {
+			s.cfg.LockDisplayOffTimeout = v
+			s.Save()
+		},
+	)
+
 	suspendTimeoutRow := gtkutil.SpinRow(
-		"Suspend after lock", "Extra minutes after locking before suspend (0 = disabled)",
+		"Suspend after lock", "Minutes after locking before suspend (0 = disabled)",
 		0, 120, s.cfg.IdleSuspendTimeout/60,
 		func(v int) {
 			s.cfg.IdleSuspendTimeout = v * 60
@@ -219,7 +228,7 @@ func (s *systemConfigProvider) BuildWidget() gtk.Widgetter {
 		},
 	)
 
-	box.Append(gtkutil.SettingsSection("Idle & Lock", lockTimeoutRow, displayOffTimeoutRow, suspendTimeoutRow))
+	box.Append(gtkutil.SettingsSection("Idle & Lock", displayOffTimeoutRow, lockTimeoutRow, lockDisplayOffTimeoutRow, suspendTimeoutRow))
 
 	// System Buttons Section
 	lidActionRow := gtkutil.DropdownRow("Lid close action", "Action to take when laptop lid is closed",
