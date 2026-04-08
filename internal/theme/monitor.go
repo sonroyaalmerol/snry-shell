@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/sonroyaalmerol/snry-shell/internal/bus"
+	"github.com/sonroyaalmerol/snry-shell/internal/settings"
 	"github.com/sonroyaalmerol/snry-shell/internal/store"
 )
 
@@ -35,6 +36,19 @@ func NewMonitor(b *bus.Bus) *Monitor {
 
 // Run starts monitoring for wallpaper changes
 func (m *Monitor) Run(ctx context.Context) {
+	// Load initial settings
+	if cfg, err := settings.Load(); err == nil {
+		m.generator.SetBlurStrength(cfg.BlurStrength)
+	}
+
+	// Subscribe to settings changes
+	m.bus.Subscribe(bus.TopicSettingsChanged, func(e bus.Event) {
+		if cfg, ok := e.Data.(settings.Config); ok {
+			m.generator.SetBlurStrength(cfg.BlurStrength)
+			m.bus.Publish(bus.TopicThemeChanged, bus.Event{Data: m.current})
+		}
+	})
+
 	// Restore last wallpaper from persistent store and regenerate theme
 	if lastWallpaper := store.LookupOr(storeKeyWallpaper, ""); lastWallpaper != "" {
 		m.current = lastWallpaper

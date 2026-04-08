@@ -353,15 +353,28 @@ scale.m3-scale slider {
     background-color: @col_surface;
     min-height: 52px;
     padding: 0 6px;
-    /* Rounded bottom corners only */
+}
+
+.bar-top {
     border-radius: 0 0 var(--radius-xl) var(--radius-xl);
+}
+
+.bar-bottom {
+    border-radius: var(--radius-xl) var(--radius-xl) 0 0;
 }
 
 /* Bar group container — rounded rect wrapping widgets */
 .bar-group {
     background-color: @col_surface_container;
-    border-radius: var(--radius-md);
     padding: 4px 6px;
+}
+
+.bar-group-top {
+    border-radius: var(--radius-md);
+}
+
+.bar-group-bottom {
+    border-radius: var(--radius-md);
 }
 
 .bar-group-clickable {

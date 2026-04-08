@@ -60,19 +60,27 @@ type ColorScheme struct {
 // Generator handles wallpaper color extraction and theme generation
 type Generator struct {
 	wallpaperPath string
+	blurStrength  int
 	cacheDir      string
 }
 
 // New creates a new theme generator
 func New() *Generator {
 	return &Generator{
-		cacheDir: filepath.Join(fileutil.CacheDir(), "snry-shell"),
+		cacheDir:     filepath.Join(fileutil.CacheDir(), "snry-shell"),
+		blurStrength: 20,
 	}
 }
 
 // GetLastWallpaper returns the last wallpaper path from persistent store
 func GetLastWallpaper() string {
 	return store.LookupOr(storeKeyWallpaper, "")
+}
+
+// SetBlurStrength updates blur strength and regenerates theme
+func (g *Generator) SetBlurStrength(v int) error {
+	g.blurStrength = v
+	return g.Generate()
 }
 
 // SetWallpaper sets the current wallpaper path and regenerates theme
@@ -276,7 +284,7 @@ func (g *Generator) writeThemeCSS(scheme *ColorScheme) error {
 		return err
 	}
 
-	css := generateCSS(scheme)
+	css := g.generateCSS(scheme)
 	themePath := filepath.Join(g.cacheDir, "theme.css")
 
 	if err := os.WriteFile(themePath, []byte(css), 0644); err != nil {
@@ -288,10 +296,12 @@ func (g *Generator) writeThemeCSS(scheme *ColorScheme) error {
 }
 
 // generateCSS creates the CSS content from a color scheme
-func generateCSS(scheme *ColorScheme) string {
+func (g *Generator) generateCSS(scheme *ColorScheme) string {
 	var sb strings.Builder
 	sb.WriteString("/* Auto-generated theme from wallpaper */\n")
 	sb.WriteString("/* This file is overwritten when wallpaper changes */\n\n")
+
+	sb.WriteString(fmt.Sprintf("* {\n    --blur-strength: %dpx;\n}\n\n", g.blurStrength))
 
 	writeColor(&sb, "col_primary", scheme.Primary)
 	writeColor(&sb, "col_on_primary", scheme.OnPrimary)
