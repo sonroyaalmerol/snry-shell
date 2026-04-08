@@ -193,6 +193,7 @@ func (m *Manager) refreshAll() {
 	m.refreshHostname()
 	m.refreshState()
 	m.refreshPrimaryConnection()
+	m.refreshWirelessEnabled()
 	m.refreshDevices()
 	m.refreshConnections()
 
@@ -200,6 +201,23 @@ func (m *Manager) refreshAll() {
 	if m.bus != nil {
 		m.publishLegacyState()
 	}
+}
+
+func (m *Manager) refreshWirelessEnabled() {
+	nmObj := m.conn.Object(nmDest, nmPath)
+	if nmObj == nil {
+		return
+	}
+
+	wirelessV, err := nmObj.GetProperty(nmIface + ".WirelessEnabled")
+	if err != nil {
+		return
+	}
+
+	enabled, _ := wirelessV.Value().(bool)
+	m.mu.Lock()
+	m.wirelessEnabled = enabled
+	m.mu.Unlock()
 }
 
 func (m *Manager) refreshPrimaryConnection() {
