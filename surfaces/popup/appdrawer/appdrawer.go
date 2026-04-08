@@ -21,6 +21,7 @@ type AppDrawer struct {
 	trigger gtk.Widgetter
 	monitor *gdk.Monitor
 	apps    []launcher.App
+	current []launcher.App
 	flowBox *gtk.FlowBox
 	search  *gtk.SearchEntry
 	scroll  *gtk.ScrolledWindow
@@ -99,14 +100,6 @@ func (d *AppDrawer) build() {
 	content.SetMarginStart(24)
 	content.SetMarginEnd(24)
 
-	// Prevent clicks and scrolls inside content from reaching the scrim dismiss gesture.
-	stopClick := gtk.NewGestureClick()
-	stopClick.SetButton(0)
-	stopClick.ConnectPressed(func(n int, x, y float64) {
-		stopClick.SetState(gtk.EventSequenceClaimed)
-	})
-	content.AddController(stopClick)
-
 	// Header with title
 	header := gtk.NewBox(gtk.OrientationHorizontal, 0)
 	header.AddCSSClass("appdrawer-header")
@@ -158,15 +151,32 @@ func (d *AppDrawer) build() {
 		d.populateGrid(launcher.Filter(d.apps, query))
 	})
 
+	d.search.ConnectActivate(func() {
+		if len(d.current) == 0 {
+			return
+		}
+		app := d.current[0]
+		d.win.SetVisible(false)
+		go func() {
+			if err := launcher.Launch(app); err != nil {
+				glib.IdleAdd(func() {
+					gtkutil.ErrorDialog(d.win, "Launch failed", err.Error())
+				})
+			}
+		}()
+	})
+
 	d.scroll.SetChild(d.flowBox)
 	content.Append(header)
 	content.Append(d.search)
 	content.Append(d.scroll)
 
 	// Wire up scrim click to dismiss.
+	// Use PhaseTarget so this only fires for clicks directly on the scrim
+	// background, not clicks that bubble up from the content area.
 	clickGesture := gtk.NewGestureClick()
 	clickGesture.SetButton(1)
-	clickGesture.SetPropagationLimit(gtk.LimitNone)
+	clickGesture.SetPropagationPhase(gtk.PhaseTarget)
 	clickGesture.ConnectReleased(func(nPress int, x, y float64) {
 		d.win.SetVisible(false)
 	})
@@ -223,6 +233,7 @@ func (d *AppDrawer) clearGrid() {
 func (d *AppDrawer) populateGrid(apps []launcher.App) {
 	// Clear existing children
 	d.clearGrid()
+	d.current = apps
 
 	// Show empty state if no apps
 	if len(apps) == 0 {
