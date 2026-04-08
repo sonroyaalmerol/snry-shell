@@ -101,6 +101,16 @@ func (s *Service) fetchState() (state.NetworkState, error) {
 	var ipv4, ipv6, activeName string
 	strength := 0
 
+	// Always try to get SSID from any WiFi device regardless of primary connection
+	if wifiPaths, err := s.wifiDevicePaths(); err == nil {
+		for _, p := range wifiPaths {
+			if s2, ok := s.getWifiSSID(p); ok {
+				ssid = s2
+				break
+			}
+		}
+	}
+
 	if primaryPath != "/" {
 		primaryConnObj := s.conn.Object(nmDest, primaryPath)
 		var connSettings map[string]map[string]dbus.Variant
@@ -110,13 +120,6 @@ func (s *Service) fetchState() (state.NetworkState, error) {
 				rawType, _ := c["type"].Value().(string)
 				if rawType == "802-11-wireless" {
 					connType = "wifi"
-					if w, ok := connSettings["802-11-wireless"]; ok {
-						if ssidV, ok := w["ssid"]; ok {
-							if ssidBytes, ok := ssidV.Value().([]byte); ok {
-								ssid = string(ssidBytes)
-							}
-						}
-					}
 				} else if rawType == "802-3-ethernet" {
 					connType = "ethernet"
 				} else {
@@ -236,7 +239,7 @@ func (s *Service) wifiDevicePaths() ([]dbus.ObjectPath, error) {
 	var wifiPaths []dbus.ObjectPath
 	for _, p := range paths {
 		devObj := s.conn.Object(nmDest, p)
-		dtV, err := devObj.GetProperty(nmIface + ".Device.DeviceType")
+		dtV, err := devObj.GetProperty("org.freedesktop.NetworkManager.Device.DeviceType")
 		if err != nil {
 			continue
 		}
@@ -395,7 +398,7 @@ func (s *Service) ConnectWiFi(ssid string) error {
 	var wirelessDevice dbus.ObjectPath
 	for _, devPath := range devicePaths {
 		devObj := s.conn.Object(nmDest, devPath)
-		dtV, err := devObj.GetProperty(nmIface + ".Device.DeviceType")
+		dtV, err := devObj.GetProperty("org.freedesktop.NetworkManager.Device.DeviceType")
 		if err != nil {
 			continue
 		}
@@ -708,29 +711,29 @@ func (s *Service) GetDevices() ([]state.NMDevice, error) {
 		device := state.NMDevice{Path: string(p)}
 
 		// Get device type
-		if dtV, err := devObj.GetProperty(nmIface + ".Device.DeviceType"); err == nil {
+		if dtV, err := devObj.GetProperty("org.freedesktop.NetworkManager.Device.DeviceType"); err == nil {
 			device.Type, _ = dtV.Value().(uint32)
 		}
 
 		// Get interface name
-		if ifaceV, err := devObj.GetProperty(nmIface + ".Device.Interface"); err == nil {
+		if ifaceV, err := devObj.GetProperty("org.freedesktop.NetworkManager.Device.Interface"); err == nil {
 			device.Interface, _ = ifaceV.Value().(string)
 		}
 
 		// Get state
-		if stateV, err := devObj.GetProperty(nmIface + ".Device.State"); err == nil {
+		if stateV, err := devObj.GetProperty("org.freedesktop.NetworkManager.Device.State"); err == nil {
 			device.State, _ = stateV.Value().(uint32)
 		}
 
 		// Get active connection
-		if acV, err := devObj.GetProperty(nmIface + ".Device.ActiveConnection"); err == nil {
+		if acV, err := devObj.GetProperty("org.freedesktop.NetworkManager.Device.ActiveConnection"); err == nil {
 			if acPath, ok := acV.Value().(dbus.ObjectPath); ok && acPath != "/" {
 				device.ActiveConnection = string(acPath)
 			}
 		}
 
 		// Get IP config
-		if ipV, err := devObj.GetProperty(nmIface + ".Device.Ip4Config"); err == nil {
+		if ipV, err := devObj.GetProperty("org.freedesktop.NetworkManager.Device.Ip4Config"); err == nil {
 			if ipPath, ok := ipV.Value().(dbus.ObjectPath); ok && ipPath != "/" {
 				device.HasIP4 = true
 			}
@@ -738,7 +741,7 @@ func (s *Service) GetDevices() ([]state.NMDevice, error) {
 
 		// Get MAC address for ethernet/wifi
 		if device.Type == 1 || device.Type == 2 { // ethernet or wifi
-			if hwV, err := devObj.GetProperty(nmIface + ".Device.HwAddress"); err == nil {
+			if hwV, err := devObj.GetProperty("org.freedesktop.NetworkManager.Device.HwAddress"); err == nil {
 				device.HwAddress, _ = hwV.Value().(string)
 			}
 		}
