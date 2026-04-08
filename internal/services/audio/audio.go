@@ -18,13 +18,26 @@ const (
 )
 
 type Service struct {
-	bus  *bus.Bus
-	mu   sync.Mutex
-	last state.AudioSink
+	bus        *bus.Bus
+	mu         sync.Mutex
+	last       state.AudioSink
+	volumeStep float64
 }
 
 func New(b *bus.Bus) *Service {
-	return &Service{bus: b}
+	return &Service{bus: b, volumeStep: 0.05}
+}
+
+func (s *Service) UpdateStep(step float64) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.volumeStep = step
+}
+
+func (s *Service) VolumeStep() float64 {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.volumeStep
 }
 
 func NewWithDefaults(b *bus.Bus) *Service {

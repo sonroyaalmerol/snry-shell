@@ -150,6 +150,15 @@ func (s *Service) IsDark() bool {
 	return s.isDark
 }
 
+// UpdateConfig updates the service state from new settings
+func (s *Service) UpdateConfig(cfg settings.Config) {
+	s.mu.Lock()
+	s.isDark = cfg.DarkMode
+	s.override = true
+	s.mu.Unlock()
+	s.publish()
+}
+
 // SetOverride sets whether to use shell settings override.
 func (s *Service) SetOverride(override bool) {
 	s.mu.Lock()

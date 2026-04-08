@@ -19,13 +19,22 @@ import (
 const backlightRoot = "/sys/class/backlight"
 
 type Service struct {
-	bus     *bus.Bus
-	last    state.BrightnessState
-	lastErr string
+	bus            *bus.Bus
+	last           state.BrightnessState
+	lastErr        string
+	brightnessStep float64
 }
 
 func New(b *bus.Bus) *Service {
-	return &Service{bus: b}
+	return &Service{bus: b, brightnessStep: 0.05}
+}
+
+func (s *Service) UpdateStep(step float64) {
+	s.brightnessStep = step
+}
+
+func (s *Service) BrightnessStep() float64 {
+	return s.brightnessStep
 }
 
 func NewWithDefaults(b *bus.Bus) *Service {
