@@ -84,7 +84,7 @@ nfpms:
     license: MIT
 
 aurs:
-  - package_name: snry-shell
+  - name: snry-shell
     homepage: https://github.com/sonroyaalmerol/snry-shell
     description: Modern Wayland desktop shell for Hyprland
     maintainers:
