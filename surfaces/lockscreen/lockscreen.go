@@ -62,6 +62,7 @@ type lockWindow struct {
 	status  *gtk.Label
 	unlock  *gtk.Button
 	authBox *gtk.Box
+	spacer  *gtk.Box
 }
 
 // New creates and returns the lockscreen manager. Windows are spawned per
@@ -134,11 +135,13 @@ func New(app *gtk.Application, b *bus.Bus) *LockScreen {
 
 func (ls *LockScreen) updateOSKLayout(lw *lockWindow, visible bool) {
 	if visible {
-		// Shift auth box up to avoid OSK
+		// Hide spacer and shift auth box up to avoid OSK
+		lw.spacer.SetVisible(false)
 		lw.authBox.SetVAlign(gtk.AlignStart)
-		lw.authBox.SetMarginTop(240) // Below clock but above OSK
+		lw.authBox.SetMarginTop(120) // Below clock but above OSK
 	} else {
-		// Restore to bottom
+		// Restore spacer and bottom alignment
+		lw.spacer.SetVisible(true)
 		lw.authBox.SetVAlign(gtk.AlignEnd)
 		lw.authBox.SetMarginTop(0)
 	}
@@ -255,6 +258,7 @@ func (ls *LockScreen) buildWindow(lw *lockWindow) {
 	// Spacer to push auth content to bottom
 	spacer := gtk.NewBox(gtk.OrientationVertical, 0)
 	spacer.SetVExpand(true)
+	lw.spacer = spacer
 	mainContent.Append(spacer)
 
 	// 2. Auth content (Bottom Aligned)
