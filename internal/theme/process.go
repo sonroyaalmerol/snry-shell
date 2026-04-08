@@ -54,8 +54,14 @@ func ProcessWallpaper(src string, cfg ProcessConfig) (string, error) {
 
 	if cfg.Blur > 0 {
 		// Three passes of separable box blur approximates a Gaussian.
+		// Preallocate two scratch buffers and ping-pong between them so
+		// each pass reuses memory instead of allocating two fresh images.
+		b := rgba.Bounds()
+		horiz := image.NewNRGBA(b) // horizontal-pass scratch
+		tmp := image.NewNRGBA(b)   // output ping-pong buffer
 		for range 3 {
-			rgba = separableBoxBlur(rgba, cfg.Blur)
+			separableBoxBlurInto(rgba, horiz, tmp, cfg.Blur)
+			rgba, tmp = tmp, rgba // result is now rgba; old rgba becomes next output
 		}
 	}
 
@@ -118,9 +124,11 @@ func applyBrightness(img *image.NRGBA, brightness int) {
 	}
 }
 
-// separableBoxBlur performs a single horizontal+vertical box blur pass
+// separableBoxBlurInto performs a single horizontal+vertical box blur pass
 // using sliding-window running sums — O(w·h) regardless of radius.
-func separableBoxBlur(src *image.NRGBA, radius int) *image.NRGBA {
+// It writes the result into dst, using horiz as a scratch buffer for the
+// horizontal pass. Both horiz and dst must have the same bounds as src.
+func separableBoxBlurInto(src, horiz, dst *image.NRGBA, radius int) {
 	b := src.Bounds()
 	w := b.Dx()
 	h := b.Dy()
@@ -128,11 +136,9 @@ func separableBoxBlur(src *image.NRGBA, radius int) *image.NRGBA {
 	oy := b.Min.Y
 
 	// Horizontal pass: src → horiz
-	horiz := image.NewNRGBA(b)
 	for y := 0; y < h; y++ {
 		var sumR, sumG, sumB int
 		cnt := 0
-		// Seed the first window
 		for dx := 0; dx <= radius && dx < w; dx++ {
 			c := src.NRGBAAt(ox+dx, oy+y)
 			sumR += int(c.R)
@@ -143,7 +149,6 @@ func separableBoxBlur(src *image.NRGBA, radius int) *image.NRGBA {
 		horiz.SetNRGBA(ox, oy+y, color.NRGBA{R: uint8(sumR / cnt), G: uint8(sumG / cnt), B: uint8(sumB / cnt), A: 255})
 
 		for x := 1; x < w; x++ {
-			// Remove the pixel leaving the left edge of the window.
 			if outX := x - radius - 1; outX >= 0 {
 				c := src.NRGBAAt(ox+outX, oy+y)
 				sumR -= int(c.R)
@@ -151,7 +156,6 @@ func separableBoxBlur(src *image.NRGBA, radius int) *image.NRGBA {
 				sumB -= int(c.B)
 				cnt--
 			}
-			// Add the pixel entering the right edge of the window.
 			if inX := x + radius; inX < w {
 				c := src.NRGBAAt(ox+inX, oy+y)
 				sumR += int(c.R)
@@ -164,11 +168,9 @@ func separableBoxBlur(src *image.NRGBA, radius int) *image.NRGBA {
 	}
 
 	// Vertical pass: horiz → dst
-	dst := image.NewNRGBA(b)
 	for x := 0; x < w; x++ {
 		var sumR, sumG, sumB int
 		cnt := 0
-		// Seed the first window
 		for dy := 0; dy <= radius && dy < h; dy++ {
 			c := horiz.NRGBAAt(ox+x, oy+dy)
 			sumR += int(c.R)
@@ -196,7 +198,6 @@ func separableBoxBlur(src *image.NRGBA, radius int) *image.NRGBA {
 			dst.SetNRGBA(ox+x, oy+y, color.NRGBA{R: uint8(sumR / cnt), G: uint8(sumG / cnt), B: uint8(sumB / cnt), A: 255})
 		}
 	}
-	return dst
 }
 
 func clampU8(v int) uint8 {

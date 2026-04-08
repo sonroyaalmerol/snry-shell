@@ -46,7 +46,7 @@ func (s *Service) Run(ctx context.Context) error {
 	s.lastCPU = cpu
 	s.lastRAM = ram
 	s.bus.Publish(bus.TopicResources, state.ResourceState{CPU: cpu, RAM: ram})
-	return runner.PollLoop(ctx, 2*time.Second, s.publish)
+	return runner.PollLoop(ctx, 5*time.Second, s.publish)
 }
 
 func (s *Service) publish() {
