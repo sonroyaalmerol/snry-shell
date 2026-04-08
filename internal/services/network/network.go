@@ -43,33 +43,9 @@ func NewWithConn(conn dbusutil.DBusConn, b *bus.Bus) *Service {
 }
 
 func (s *Service) Run(ctx context.Context) error {
-	ch := make(chan *dbus.Signal, 16)
-	s.conn.Signal(ch)
-
-	busObj := s.conn.BusObject()
-	if busObj == nil {
-		return fmt.Errorf("no D-Bus connection")
-	}
-	busObj.Call(
-		"org.freedesktop.DBus.AddMatch", 0,
-		fmt.Sprintf("type='signal',sender='%s',interface='%s',member='PropertiesChanged'",
-			nmDest, nmPropertiesIface),
-	)
-
-	// Emit initial state.
-	s.query()
-
-	for {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case _, ok := <-ch:
-			if !ok {
-				return nil
-			}
-			s.query()
-		}
-	}
+	// Redundant: Manager now handles background updates and publishes to TopicNetwork.
+	<-ctx.Done()
+	return ctx.Err()
 }
 
 func (s *Service) query() {
