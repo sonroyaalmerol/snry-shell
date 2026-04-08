@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"strings"
 
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
@@ -502,14 +503,16 @@ func (n *nmConfigProvider) buildConnectionRow(conn state.NMConnection) gtk.Widge
 	nameLabel.SetHAlign(gtk.AlignStart)
 
 	detail := conn.TypeLabel
+	if conn.IsPrimary {
+		detail += "  (Active Gateway)"
+	} else if conn.Active {
+		detail += "  (Connected)"
+	}
 	if conn.Secured {
 		detail += "  Secured"
 	}
 	if conn.IPv4Method != "" {
 		detail += fmt.Sprintf("  IPv4: %s", conn.IPv4Method)
-	}
-	if conn.Active {
-		detail += "  Active"
 	}
 	detailLabel := gtk.NewLabel(detail)
 	detailLabel.AddCSSClass("conn-row-status")
@@ -520,6 +523,48 @@ func (n *nmConfigProvider) buildConnectionRow(conn state.NMConnection) gtk.Widge
 
 	mainRow.Append(icon)
 	mainRow.Append(infoBox)
+
+	// Quick actions for active connection
+	if conn.Active {
+		disconnectBtn := gtkutil.M3IconButton("link_off", "settings-btn-small")
+		disconnectBtn.SetTooltipText("Disconnect")
+		disconnectBtn.ConnectClicked(func() {
+			if err := n.manager.DeactivateConnection(conn.Path); err != nil {
+				log.Printf("[CONTROLPANEL] failed to disconnect: %v", err)
+				gtkutil.ErrorDialog(nil, "Error", fmt.Sprintf("Failed to disconnect: %v", err))
+			}
+			glib.TimeoutAdd(1000, func() bool {
+				n.refreshConnectionsList()
+				return false
+			})
+		})
+		mainRow.Append(disconnectBtn)
+	} else {
+		connectBtn := gtkutil.M3IconButton("link", "settings-btn-small")
+		connectBtn.SetTooltipText("Connect")
+		connectBtn.ConnectClicked(func() {
+			// Find suitable device
+			devices := n.manager.GetDevices()
+			var devicePath string
+			for _, dev := range devices {
+				// Match connection type to device type - simplified
+				if (conn.Type == "802-11-wireless" && dev.Type == 2) ||
+					(conn.Type == "802-3-ethernet" && dev.Type == 1) {
+					devicePath = dev.Path
+					break
+				}
+			}
+			if devicePath != "" {
+				if err := n.manager.ActivateConnection(conn.Path, devicePath); err != nil {
+					log.Printf("[CONTROLPANEL] failed to connect: %v", err)
+					gtkutil.ErrorDialog(nil, "Error", fmt.Sprintf("Failed to connect: %v", err))
+				}
+			} else {
+				gtkutil.ErrorDialog(nil, "Error", "No suitable device found for this connection")
+			}
+		})
+		mainRow.Append(connectBtn)
+	}
 
 	row.Append(mainRow)
 
@@ -811,7 +856,7 @@ func (n *nmConfigProvider) showEditConnectionDialog(conn state.NMConnection) {
 	dialog.SetTitle(fmt.Sprintf("Edit %s", conn.Name))
 	dialog.SetTransientFor(nil)
 	dialog.SetModal(true)
-	dialog.SetDefaultSize(450, 400)
+	dialog.SetDefaultSize(450, 500)
 	dialog.AddCSSClass("popup-panel")
 
 	content := dialog.ContentArea()
@@ -873,6 +918,31 @@ func (n *nmConfigProvider) showEditConnectionDialog(conn state.NMConnection) {
 	ipv4Box.Append(ipv4Dropdown)
 	box.Append(ipv4Box)
 
+	// Manual IP settings (initially hidden if not manual)
+	manualBox := gtk.NewBox(gtk.OrientationVertical, 16)
+	manualBox.SetVisible(conn.IPv4Method == "manual")
+
+	addressField := gtkutil.NewM3OutlinedTextField()
+	addressField.Entry().SetPlaceholderText("IP Address (e.g. 192.168.1.10/24)")
+	addressField.SetText(conn.IPv4Address)
+	manualBox.Append(gtkutil.SettingsSection("Address", addressField))
+
+	gatewayField := gtkutil.NewM3OutlinedTextField()
+	gatewayField.Entry().SetPlaceholderText("Gateway (e.g. 192.168.1.1)")
+	gatewayField.SetText(conn.IPv4Gateway)
+	manualBox.Append(gtkutil.SettingsSection("Gateway", gatewayField))
+
+	dnsField := gtkutil.NewM3OutlinedTextField()
+	dnsField.Entry().SetPlaceholderText("DNS Servers (comma separated)")
+	dnsField.SetText(strings.Join(conn.IPv4DNS, ", "))
+	manualBox.Append(gtkutil.SettingsSection("DNS Servers", dnsField))
+
+	box.Append(manualBox)
+
+	ipv4Dropdown.ConnectSelected(func(idx int) {
+		manualBox.SetVisible(idx == 1)
+	})
+
 	// Autoconnect - Material 3 Switch with row
 	autoRow := gtk.NewBox(gtk.OrientationHorizontal, 0)
 	autoRow.AddCSSClass("m3-switch-row")
@@ -908,14 +978,50 @@ func (n *nmConfigProvider) showEditConnectionDialog(conn state.NMConnection) {
 		// Get the updated name
 		newName := nameEntry.Text()
 
+		method := "auto"
+		switch ipv4Dropdown.Selected() {
+		case 1:
+			method = "manual"
+		case 2:
+			method = "disabled"
+		}
+
+		ipv4Settings := map[string]dbus.Variant{
+			"method": dbus.MakeVariant(method),
+		}
+
+		if method == "manual" {
+			addrParts := strings.Split(addressField.Entry().Text(), "/")
+			if len(addrParts) == 2 {
+				ipv4Settings["address-data"] = dbus.MakeVariant([]map[string]dbus.Variant{
+					{
+						"address": dbus.MakeVariant(addrParts[0]),
+						"prefix":  dbus.MakeVariant(func() uint32 { var p uint32; fmt.Sscanf(addrParts[1], "%d", &p); return p }()),
+					},
+				})
+			}
+			if gw := gatewayField.Entry().Text(); gw != "" {
+				ipv4Settings["gateway"] = dbus.MakeVariant(gw)
+			}
+			if dnsStr := dnsField.Entry().Text(); dnsStr != "" {
+				dnsList := strings.Split(dnsStr, ",")
+				dnsUints := []uint32{}
+				for _, d := range dnsList {
+					var a, b, c, d_byte byte
+					if n, _ := fmt.Sscanf(strings.TrimSpace(d), "%d.%d.%d.%d", &a, &b, &c, &d_byte); n == 4 {
+						dnsUints = append(dnsUints, uint32(a)|uint32(b)<<8|uint32(c)<<16|uint32(d_byte)<<24)
+					}
+				}
+				ipv4Settings["dns"] = dbus.MakeVariant(dnsUints)
+			}
+		}
+
 		settings := map[string]map[string]dbus.Variant{
 			"connection": {
 				"id":          dbus.MakeVariant(newName),
 				"autoconnect": dbus.MakeVariant(autoSwitch.Active()),
 			},
-			"ipv4": {
-				"method": dbus.MakeVariant(ipv4Dropdown.Selected()),
-			},
+			"ipv4": ipv4Settings,
 		}
 
 		if err := n.manager.UpdateConnection(conn.Path, settings); err != nil {
@@ -965,7 +1071,7 @@ func (n *nmConfigProvider) showAddConnectionDialog() {
 	typeLabel.SetHAlign(gtk.AlignStart)
 	content.Append(typeLabel)
 
-	types := []string{"Wi-Fi", "Ethernet", "VPN"}
+	types := []string{"Wi-Fi", "Ethernet", "WireGuard"}
 	typeList := gtk.NewBox(gtk.OrientationVertical, 8)
 	typeList.SetMarginTop(12)
 
@@ -1000,8 +1106,8 @@ func (n *nmConfigProvider) showAddConnectionForm(connType string) {
 		n.showAddWiFiDialog()
 	case "Ethernet":
 		n.showAddEthernetDialog()
-	case "VPN":
-		gtkutil.ErrorDialog(nil, "Not Implemented", "VPN configuration not yet implemented")
+	case "WireGuard":
+		n.showAddWireGuardDialog()
 	}
 }
 
@@ -1219,6 +1325,76 @@ func (n *nmConfigProvider) showAddEthernetDialog() {
 	})
 	buttonBox.Append(addBtn)
 
+	content.Append(buttonBox)
+	dialog.Show()
+}
+
+func (n *nmConfigProvider) showAddWireGuardDialog() {
+	dialog := gtk.NewDialog()
+	dialog.SetTitle("Add WireGuard Connection")
+	dialog.SetTransientFor(nil)
+	dialog.SetModal(true)
+	dialog.SetDefaultSize(400, 280)
+	dialog.AddCSSClass("popup-panel")
+
+	content := dialog.ContentArea()
+	content.AddCSSClass("settings-stack")
+	content.SetMarginTop(24)
+	content.SetMarginBottom(24)
+	content.SetMarginStart(24)
+	content.SetMarginEnd(24)
+
+	title := gtk.NewLabel("Add WireGuard Connection")
+	title.AddCSSClass("settings-title")
+	title.SetHAlign(gtk.AlignStart)
+	content.Append(title)
+
+	nameField := gtkutil.NewM3OutlinedTextField()
+	nameField.Entry().SetPlaceholderText("Connection Name (e.g. MyVPN)")
+	content.Append(gtkutil.SettingsSection("Name", nameField))
+
+	ifaceField := gtkutil.NewM3OutlinedTextField()
+	ifaceField.Entry().SetPlaceholderText("Interface (e.g. wg0)")
+	content.Append(gtkutil.SettingsSection("Interface", ifaceField))
+
+	buttonBox := gtk.NewBox(gtk.OrientationHorizontal, 12)
+	buttonBox.SetHAlign(gtk.AlignEnd)
+	buttonBox.SetMarginTop(24)
+
+	cancelBtn := gtk.NewButtonWithLabel("Cancel")
+	cancelBtn.AddCSSClass("m3-text-btn")
+	cancelBtn.ConnectClicked(func() { dialog.Close() })
+	buttonBox.Append(cancelBtn)
+
+	addBtn := gtk.NewButtonWithLabel("Add")
+	addBtn.AddCSSClass("m3-filled-btn")
+	addBtn.ConnectClicked(func() {
+		name := nameField.Entry().Text()
+		iface := ifaceField.Entry().Text()
+
+		if name == "" || iface == "" {
+			gtkutil.ErrorDialog(nil, "Error", "Please fill in all fields")
+			return
+		}
+
+		settings := map[string]map[string]dbus.Variant{
+			"connection": {
+				"id":             dbus.MakeVariant(name),
+				"type":           dbus.MakeVariant("wireguard"),
+				"interface-name": dbus.MakeVariant(iface),
+			},
+			"wireguard": {}, // Minimal WG section
+		}
+
+		if _, err := n.manager.AddConnection(settings); err != nil {
+			log.Printf("[CONTROLPANEL] failed to add WG: %v", err)
+			gtkutil.ErrorDialog(nil, "Error", err.Error())
+		} else {
+			n.refreshConnectionsList()
+			dialog.Close()
+		}
+	})
+	buttonBox.Append(addBtn)
 	content.Append(buttonBox)
 	dialog.Show()
 }
