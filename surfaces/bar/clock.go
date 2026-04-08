@@ -5,9 +5,11 @@ import (
 
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
+	"github.com/sonroyaalmerol/snry-shell/internal/bus"
+	"github.com/sonroyaalmerol/snry-shell/internal/settings"
 )
 
-func newClockWidget() gtk.Widgetter {
+func newClockWidget(b *bus.Bus) gtk.Widgetter {
 	box := gtk.NewBox(gtk.OrientationHorizontal, 4)
 	box.AddCSSClass("bar-clock-box")
 	box.SetHAlign(gtk.AlignCenter)
@@ -26,11 +28,27 @@ func newClockWidget() gtk.Widgetter {
 	box.Append(sepLabel)
 	box.Append(dateLabel)
 
+	format := "15:04"
+
 	update := func() {
 		now := time.Now()
-		timeLabel.SetText(now.Format("15:04"))
+		timeLabel.SetText(now.Format(format))
 		dateLabel.SetText(now.Format("Mon Jan 02"))
 	}
+
+	b.Subscribe(bus.TopicSettingsChanged, func(e bus.Event) {
+		if cfg, ok := e.Data.(settings.Config); ok {
+			glib.IdleAdd(func() {
+				if cfg.ClockFormat == "12h" {
+					format = "03:04 PM"
+				} else {
+					format = "15:04"
+				}
+				update()
+			})
+		}
+	})
+
 	update()
 
 	glib.TimeoutAdd(1000, func() bool {

@@ -10,14 +10,20 @@ import (
 	"github.com/sonroyaalmerol/snry-shell/internal/bus"
 	"github.com/sonroyaalmerol/snry-shell/internal/gtkutil"
 	"github.com/sonroyaalmerol/snry-shell/internal/servicerefs"
+	"github.com/sonroyaalmerol/snry-shell/internal/settings"
 	"github.com/sonroyaalmerol/snry-shell/internal/state"
 	"github.com/sonroyaalmerol/snry-shell/internal/surfaceutil"
 )
 
 // barGroup wraps a widget in a rounded container matching illogical-impulse BarGroup.
-func barGroup(child gtk.Widgetter) gtk.Widgetter {
+func barGroup(child gtk.Widgetter, position string) gtk.Widgetter {
 	box := gtk.NewBox(gtk.OrientationHorizontal, 0)
 	box.AddCSSClass("bar-group")
+	if position == "bottom" {
+		box.AddCSSClass("bar-group-bottom")
+	} else {
+		box.AddCSSClass("bar-group-top")
+	}
 	box.SetVAlign(gtk.AlignCenter)
 	box.Append(child)
 	return box
@@ -25,10 +31,15 @@ func barGroup(child gtk.Widgetter) gtk.Widgetter {
 
 // clickableBarGroup wraps a widget like barGroup but adds a click gesture
 // that publishes the given action string to TopicSystemControls.
-func clickableBarGroup(child gtk.Widgetter, b *bus.Bus, action string, mon *gdk.Monitor) gtk.Widgetter {
+func clickableBarGroup(child gtk.Widgetter, b *bus.Bus, action string, mon *gdk.Monitor, position string) gtk.Widgetter {
 	box := gtk.NewBox(gtk.OrientationHorizontal, 0)
 	box.AddCSSClass("bar-group")
 	box.AddCSSClass("bar-group-clickable")
+	if position == "bottom" {
+		box.AddCSSClass("bar-group-bottom")
+	} else {
+		box.AddCSSClass("bar-group-top")
+	}
 	box.SetVAlign(gtk.AlignCenter)
 	box.SetCursorFromName("pointer")
 	box.Append(child)
@@ -162,6 +173,17 @@ func newBatteryIndicator(b *bus.Bus) gtk.Widgetter {
 	box.Append(valueLabel)
 	revealer.SetChild(box)
 
+	showPct := true
+
+	b.Subscribe(bus.TopicSettingsChanged, func(e bus.Event) {
+		if cfg, ok := e.Data.(settings.Config); ok {
+			glib.IdleAdd(func() {
+				showPct = cfg.BarShowBatteryPct
+				valueLabel.SetVisible(showPct)
+			})
+		}
+	})
+
 	b.Subscribe(bus.TopicBattery, func(e bus.Event) {
 		bs := e.Data.(state.BatteryState)
 		glib.IdleAdd(func() {
@@ -171,6 +193,7 @@ func newBatteryIndicator(b *bus.Bus) gtk.Widgetter {
 			}
 			icon.SetText(batteryIcon(bs.Percentage, bs.Charging))
 			valueLabel.SetText(fmt.Sprintf("%d%%", int(bs.Percentage)))
+			valueLabel.SetVisible(showPct)
 			revealer.SetRevealChild(true)
 		})
 	})

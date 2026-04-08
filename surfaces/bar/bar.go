@@ -10,11 +10,14 @@ import (
 	"github.com/sonroyaalmerol/snry-shell/internal/servicerefs"
 )
 
-// Bar is the top-edge status bar surface.
+// Bar is the status bar surface.
 type Bar struct {
 	Win              *gtk.ApplicationWindow
+	app              *gtk.Application
 	bus              *bus.Bus
+	refs             *servicerefs.ServiceRefs
 	monitor          *gdk.Monitor
+	position         string
 	NotifTrigger     gtk.Widgetter
 	NetworkTrigger   gtk.Widgetter
 	BtTrigger        gtk.Widgetter
@@ -25,18 +28,30 @@ type Bar struct {
 }
 
 // New creates and shows the bar window on the given monitor.
-func New(app *gtk.Application, b *bus.Bus, refs *servicerefs.ServiceRefs, mon *gdk.Monitor) *Bar {
+func New(app *gtk.Application, b *bus.Bus, refs *servicerefs.ServiceRefs, mon *gdk.Monitor, position string) *Bar {
+	anchors := layershell.TopEdgeAnchors()
+	if position == "bottom" {
+		anchors = layershell.BottomEdgeAnchors()
+	}
+
 	win := layershell.NewWindow(app, layershell.WindowConfig{
 		Name:          "snry-bar",
 		Layer:         layershell.LayerTop,
-		Anchors:       layershell.TopEdgeAnchors(),
+		Anchors:       anchors,
 		KeyboardMode:  layershell.KeyboardModeOnDemand,
 		ExclusiveZone: layershell.BarHeight(), // default until realize updates it
 		Namespace:     "snry-bar",
 		Monitor:       mon,
 	})
 
-	bar := &Bar{Win: win, bus: b, monitor: mon}
+	bar := &Bar{
+		Win:      win,
+		app:      app,
+		bus:      b,
+		refs:     refs,
+		monitor:  mon,
+		position: position,
+	}
 	bar.build(refs)
 
 	// Set exclusive zone from actual allocated height after layout so the
@@ -55,9 +70,49 @@ func New(app *gtk.Application, b *bus.Bus, refs *servicerefs.ServiceRefs, mon *g
 	return bar
 }
 
+func (b *Bar) Reload(position string) {
+	b.position = position
+	b.Win.Destroy()
+
+	anchors := layershell.TopEdgeAnchors()
+	if position == "bottom" {
+		anchors = layershell.BottomEdgeAnchors()
+	}
+
+	win := layershell.NewWindow(b.app, layershell.WindowConfig{
+		Name:          "snry-bar",
+		Layer:         layershell.LayerTop,
+		Anchors:       anchors,
+		KeyboardMode:  layershell.KeyboardModeOnDemand,
+		ExclusiveZone: layershell.BarHeight(),
+		Namespace:     "snry-bar",
+		Monitor:       b.monitor,
+	})
+
+	b.Win = win
+	b.build(b.refs)
+
+	win.ConnectRealize(func() {
+		glib.IdleAdd(func() {
+			if h := win.AllocatedHeight(); h > 0 {
+				layershell.SetExclusiveZone(win, h)
+				layershell.SetBarHeight(h)
+			}
+		})
+	})
+
+	win.SetVisible(true)
+}
+
 func (b *Bar) build(refs *servicerefs.ServiceRefs) {
 	root := gtk.NewCenterBox()
 	root.AddCSSClass("bar")
+	if b.position == "bottom" {
+		root.AddCSSClass("bar-bottom")
+	} else {
+		root.AddCSSClass("bar-top")
+	}
+
 	root.SetStartWidget(b.buildLeft(refs))
 	root.SetCenterWidget(b.buildCenter(refs))
 	root.SetEndWidget(b.buildRight(refs))
@@ -69,7 +124,7 @@ func (b *Bar) buildLeft(refs *servicerefs.ServiceRefs) gtk.Widgetter {
 	box := gtk.NewBox(gtk.OrientationHorizontal, 0)
 	box.SetVAlign(gtk.AlignCenter)
 
-	appDrawer := clickableBarGroup(newAppDrawerIcon(), b.bus, "toggle-appdrawer", b.monitor)
+	appDrawer := clickableBarGroup(newAppDrawerIcon(), b.bus, "toggle-appdrawer", b.monitor, b.position)
 	b.AppDrawerTrigger = appDrawer
 	box.Append(appDrawer)
 
@@ -82,13 +137,13 @@ func (b *Bar) buildLeft(refs *servicerefs.ServiceRefs) gtk.Widgetter {
 
 // Center: workspaces only.
 func (b *Bar) buildCenter(refs *servicerefs.ServiceRefs) gtk.Widgetter {
-	return barGroup(newWorkspacesWidget(b.bus, refs.Hyprland))
+	return barGroup(newWorkspacesWidget(b.bus, refs.Hyprland), b.position)
 }
 
 func newClockGroup(b *bus.Bus) gtk.Widgetter {
 	box := gtk.NewBox(gtk.OrientationHorizontal, 4)
 	box.SetVAlign(gtk.AlignCenter)
-	box.Append(newClockWidget())
+	box.Append(newClockWidget(b))
 	box.Append(newBatteryIndicator(b))
 	return box
 }
@@ -98,19 +153,19 @@ func (b *Bar) buildRight(refs *servicerefs.ServiceRefs) gtk.Widgetter {
 	box := gtk.NewBox(gtk.OrientationHorizontal, 2)
 	box.SetVAlign(gtk.AlignCenter)
 
-	notif := clickableBarGroup(newNotificationIcon(b.bus), b.bus, "toggle-notif-center", b.monitor)
+	notif := clickableBarGroup(newNotificationIcon(b.bus), b.bus, "toggle-notif-center", b.monitor, b.position)
 	b.NotifTrigger = notif
 
-	network := clickableBarGroup(newNetworkIcon(b.bus), b.bus, "toggle-wifi", b.monitor)
+	network := clickableBarGroup(newNetworkIcon(b.bus), b.bus, "toggle-wifi", b.monitor, b.position)
 	b.NetworkTrigger = network
 
-	bt := clickableBarGroup(newBluetoothIcon(b.bus, refs), b.bus, "toggle-bluetooth", b.monitor)
+	bt := clickableBarGroup(newBluetoothIcon(b.bus, refs), b.bus, "toggle-bluetooth", b.monitor, b.position)
 	b.BtTrigger = bt
 
-	osk := clickableBarGroup(newOskIcon(b.bus), b.bus, "toggle-osk-bar", b.monitor)
+	osk := clickableBarGroup(newOskIcon(b.bus), b.bus, "toggle-osk-bar", b.monitor, b.position)
 	b.OskTrigger = osk
 
-	clockGroup := clickableBarGroup(newClockGroup(b.bus), b.bus, "toggle-calendar", b.monitor)
+	clockGroup := clickableBarGroup(newClockGroup(b.bus), b.bus, "toggle-calendar", b.monitor, b.position)
 	b.ClockGroup = clockGroup
 
 	box.Append(notif)
