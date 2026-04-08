@@ -84,7 +84,7 @@ nfpms:
     license: MIT
 
 aurs:
-  - name: snry-shell
+  - name: snry-shell-bin
     homepage: https://github.com/sonroyaalmerol/snry-shell
     description: Modern Wayland desktop shell for Hyprland
     maintainers:
@@ -94,7 +94,7 @@ aurs:
       - gtk4
       - gtk4-layer-shell
       - hyprland
-    git_url: ssh://aur@aur.archlinux.org/snry-shell.git
+    git_url: ssh://aur@aur.archlinux.org/snry-shell-bin.git
     private_key: "{{ .Env.AUR_SSH_KEY }}"
     commit_author:
       name: Son Roy Almerol
