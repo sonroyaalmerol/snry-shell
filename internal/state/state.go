@@ -25,10 +25,14 @@ type BatteryState struct {
 	Present    bool
 }
 type NetworkState struct {
-	SSID            string
-	Connected       bool
-	Strength        int
-	WirelessEnabled bool
+	Type                 string // "wifi", "ethernet", etc.
+	SSID                 string
+	Connected            bool
+	Strength             int
+	WirelessEnabled      bool
+	IPv4                 string
+	IPv6                 string
+	ActiveConnectionName string
 }
 type Notification struct {
 	ID      uint32

@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"os"
 	"sync"
 	"time"
 
@@ -245,18 +246,26 @@ func (m *Manager) GetHostname() string {
 // refreshHostname fetches hostname from NM
 func (m *Manager) refreshHostname() {
 	nmObj := m.conn.Object(nmDest, nmPath)
-	if nmObj == nil {
-		return
+	if nmObj != nil {
+		hostnameV, err := nmObj.GetProperty(nmIface + ".Hostname")
+		if err == nil {
+			m.mu.Lock()
+			m.hostname, _ = hostnameV.Value().(string)
+			m.mu.Unlock()
+		}
 	}
 
-	hostnameV, err := nmObj.GetProperty(nmIface + ".Hostname")
-	if err != nil {
-		return
-	}
+	m.mu.RLock()
+	h := m.hostname
+	m.mu.RUnlock()
 
-	m.mu.Lock()
-	m.hostname, _ = hostnameV.Value().(string)
-	m.mu.Unlock()
+	if h == "" {
+		if h2, err := os.Hostname(); err == nil {
+			m.mu.Lock()
+			m.hostname = h2
+			m.mu.Unlock()
+		}
+	}
 }
 
 // refreshState fetches NM state
@@ -408,7 +417,7 @@ func (m *Manager) refreshConnections() {
 
 // fetchConnection fetches a single connection's settings
 func (m *Manager) fetchConnection(path dbus.ObjectPath) state.NMConnection {
-	conn := state.NMConnection{Path: string(path)}
+	conn := state.NMConnection{Path: string(path), Autoconnect: true}
 	connObj := m.conn.Object(nmDest, path)
 
 	var settings map[string]map[string]dbus.Variant
@@ -617,30 +626,78 @@ func (m *Manager) publishLegacyState() {
 	m.mu.RLock()
 	state_val := m.state
 	devices := m.devices
+	wirelessEnabled := m.wirelessEnabled
 	m.mu.RUnlock()
 
-	// Find connected WiFi info
-	var ssid string
-	var strength int
-	var wirelessEnabled bool
+	nmObj := m.conn.Object(nmDest, nmPath)
+	primaryV, _ := nmObj.GetProperty(nmIface + ".PrimaryConnection")
+	primaryPath, _ := primaryV.Value().(dbus.ObjectPath)
 
-	for _, dev := range devices {
-		if dev.Type == DeviceTypeWiFi {
-			wirelessEnabled = true
-			if dev.ActiveSSID != "" {
-				ssid = dev.ActiveSSID
-				strength = int(dev.SignalStrength)
+	var primaryConn *state.NMConnection
+	if primaryPath != "/" {
+		primaryConn = m.getConnectionByPath(string(primaryPath))
+	}
+
+	// Legacy defaults
+	ssid := ""
+	strength := 0
+	connected := state_val >= StateConnectedLocal
+	connType := "none"
+	var ipv4, ipv6, activeName string
+
+	if primaryConn != nil {
+		activeName = primaryConn.Name
+		if primaryConn.Type == "802-11-wireless" {
+			connType = "wifi"
+			ssid = primaryConn.SSID
+		} else if primaryConn.Type == "802-3-ethernet" {
+			connType = "ethernet"
+		} else {
+			connType = primaryConn.TypeLabel
+		}
+
+		// Find the device associated with this primary connection to get IP info and signal strength
+		for _, dev := range devices {
+			if dev.ActiveConnection == string(primaryPath) {
+				if connType == "wifi" {
+					strength = int(dev.SignalStrength)
+				}
+				// Fetch IP info from the device object
+				devObj := m.conn.Object(nmDest, dbus.ObjectPath(dev.Path))
+				if ip4V, err := devObj.GetProperty(nmDeviceIface + ".Ip4Config"); err == nil {
+					if ip4Path, ok := ip4V.Value().(dbus.ObjectPath); ok && ip4Path != "/" {
+						ip4Obj := m.conn.Object(nmDest, ip4Path)
+						if addrV, err := ip4Obj.GetProperty("org.freedesktop.NetworkManager.IP4Config.AddressData"); err == nil {
+							if addrs, ok := addrV.Value().([]map[string]dbus.Variant); ok && len(addrs) > 0 {
+								ipv4, _ = addrs[0]["address"].Value().(string)
+							}
+						}
+					}
+				}
+				if ip6V, err := devObj.GetProperty(nmDeviceIface + ".Ip6Config"); err == nil {
+					if ip6Path, ok := ip6V.Value().(dbus.ObjectPath); ok && ip6Path != "/" {
+						ip6Obj := m.conn.Object(nmDest, ip6Path)
+						if addrV, err := ip6Obj.GetProperty("org.freedesktop.NetworkManager.IP6Config.AddressData"); err == nil {
+							if addrs, ok := addrV.Value().([]map[string]dbus.Variant); ok && len(addrs) > 0 {
+								ipv6, _ = addrs[0]["address"].Value().(string)
+							}
+						}
+					}
+				}
+				break
 			}
 		}
 	}
 
-	connected := state_val >= StateConnectedLocal
-
 	legacyState := state.NetworkState{
-		SSID:            ssid,
-		Connected:       connected,
-		Strength:        strength,
-		WirelessEnabled: wirelessEnabled,
+		Type:                 connType,
+		SSID:                 ssid,
+		Connected:            connected,
+		Strength:             strength,
+		WirelessEnabled:      wirelessEnabled,
+		IPv4:                 ipv4,
+		IPv6:                 ipv6,
+		ActiveConnectionName: activeName,
 	}
 
 	m.bus.Publish(bus.TopicNetwork, legacyState)

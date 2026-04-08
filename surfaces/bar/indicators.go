@@ -87,18 +87,26 @@ func newNotificationIcon(b *bus.Bus) gtk.Widgetter {
 	return icon
 }
 
-// newWifiIcon returns a single wifi status icon.
-func newWifiIcon(b *bus.Bus) gtk.Widgetter {
+// newNetworkIcon returns a single network status icon (wifi or ethernet).
+func newNetworkIcon(b *bus.Bus) gtk.Widgetter {
 	icon := gtkutil.MaterialIcon("wifi_off")
 	icon.AddCSSClass("indicator-icon")
 
 	b.Subscribe(bus.TopicNetwork, func(e bus.Event) {
 		ns := e.Data.(state.NetworkState)
 		glib.IdleAdd(func() {
-			if ns.Connected {
-				icon.SetText("wifi")
-			} else {
+			if !ns.Connected {
 				icon.SetText("wifi_off")
+				return
+			}
+
+			switch ns.Type {
+			case "ethernet":
+				icon.SetText("settings_ethernet")
+			case "wifi":
+				icon.SetText("wifi")
+			default:
+				icon.SetText("wifi")
 			}
 		})
 	})

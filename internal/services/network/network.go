@@ -93,25 +93,99 @@ func (s *Service) fetchState() (state.NetworkState, error) {
 	nmState, _ := stateV.Value().(uint32)
 	connected := nmState >= nmStateConnectedLocal
 
-	// Try to get SSID from the primary WiFi device.
+	primaryV, _ := nmObj.GetProperty(nmIface + ".PrimaryConnection")
+	primaryPath, _ := primaryV.Value().(dbus.ObjectPath)
+
 	ssid := ""
-	if wifiPaths, err := s.wifiDevicePaths(); err == nil {
-		for _, p := range wifiPaths {
-			if s2, ok := s.getWifiSSID(p); ok {
-				ssid = s2
-				break
+	connType := "none"
+	var ipv4, ipv6, activeName string
+	strength := 0
+
+	if primaryPath != "/" {
+		primaryConnObj := s.conn.Object(nmDest, primaryPath)
+		var connSettings map[string]map[string]dbus.Variant
+		if err := primaryConnObj.Call("org.freedesktop.NetworkManager.Settings.Connection.GetSettings", 0).Store(&connSettings); err == nil {
+			if c, ok := connSettings["connection"]; ok {
+				activeName, _ = c["id"].Value().(string)
+				rawType, _ := c["type"].Value().(string)
+				if rawType == "802-11-wireless" {
+					connType = "wifi"
+					if w, ok := connSettings["802-11-wireless"]; ok {
+						if ssidV, ok := w["ssid"]; ok {
+							if ssidBytes, ok := ssidV.Value().([]byte); ok {
+								ssid = string(ssidBytes)
+							}
+						}
+					}
+				} else if rawType == "802-3-ethernet" {
+					connType = "ethernet"
+				} else {
+					connType = rawType
+				}
+			}
+		}
+
+		// Find device for IP info
+		devicesV, _ := nmObj.GetProperty(nmIface + ".Devices")
+		if devices, ok := devicesV.Value().([]dbus.ObjectPath); ok {
+			for _, devPath := range devices {
+				devObj := s.conn.Object(nmDest, devPath)
+				acV, _ := devObj.GetProperty("org.freedesktop.NetworkManager.Device.ActiveConnection")
+				if acPath, ok := acV.Value().(dbus.ObjectPath); ok && acPath == primaryPath {
+					if connType == "wifi" {
+						if apV, err := devObj.GetProperty(nmDeviceWireless + ".ActiveAccessPoint"); err == nil {
+							if apPath, ok := apV.Value().(dbus.ObjectPath); ok && apPath != "/" {
+								apObj := s.conn.Object(nmDest, apPath)
+								if strV, err := apObj.GetProperty(nmAccessPoint + ".Strength"); err == nil {
+									if s, ok := strV.Value().(uint8); ok {
+										strength = int(s)
+									}
+								}
+							}
+						}
+					}
+
+					// IP info
+					if ip4V, err := devObj.GetProperty("org.freedesktop.NetworkManager.Device.Ip4Config"); err == nil {
+						if ip4Path, ok := ip4V.Value().(dbus.ObjectPath); ok && ip4Path != "/" {
+							ip4Obj := s.conn.Object(nmDest, ip4Path)
+							if addrV, err := ip4Obj.GetProperty("org.freedesktop.NetworkManager.IP4Config.AddressData"); err == nil {
+								if addrs, ok := addrV.Value().([]map[string]dbus.Variant); ok && len(addrs) > 0 {
+									ipv4, _ = addrs[0]["address"].Value().(string)
+								}
+							}
+						}
+					}
+					if ip6V, err := devObj.GetProperty("org.freedesktop.NetworkManager.Device.Ip6Config"); err == nil {
+						if ip6Path, ok := ip6V.Value().(dbus.ObjectPath); ok && ip6Path != "/" {
+							ip6Obj := s.conn.Object(nmDest, ip6Path)
+							if addrV, err := ip6Obj.GetProperty("org.freedesktop.NetworkManager.IP6Config.AddressData"); err == nil {
+								if addrs, ok := addrV.Value().([]map[string]dbus.Variant); ok && len(addrs) > 0 {
+									ipv6, _ = addrs[0]["address"].Value().(string)
+								}
+							}
+						}
+					}
+					break
+				}
 			}
 		}
 	}
 
 	// Get wireless enabled state.
 	wirelessV, err := nmObj.GetProperty(nmIface + ".WirelessEnabled")
-	if err == nil {
-		wirelessEnabled, _ := wirelessV.Value().(bool)
-		return state.NetworkState{Connected: connected, SSID: ssid, WirelessEnabled: wirelessEnabled}, nil
-	}
+	wirelessEnabled, _ := wirelessV.Value().(bool)
 
-	return state.NetworkState{Connected: connected, SSID: ssid}, nil
+	return state.NetworkState{
+		Type:                 connType,
+		Connected:            connected,
+		SSID:                 ssid,
+		WirelessEnabled:      wirelessEnabled,
+		Strength:             strength,
+		IPv4:                 ipv4,
+		IPv6:                 ipv6,
+		ActiveConnectionName: activeName,
+	}, nil
 }
 
 // SetWiFi enables or disables the WiFi adapter.
