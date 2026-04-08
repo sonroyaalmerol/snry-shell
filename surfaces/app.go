@@ -108,6 +108,10 @@ func Run() int {
 		SystemHandler: idle.NewSystemHandler(b, sysConn, cfg.LidCloseAction, cfg.PowerButtonAction),
 	}
 
+	// Apply initial step settings
+	refs.Audio.UpdateStep(cfg.VolumeStep)
+	refs.Brightness.UpdateStep(cfg.BrightnessStep)
+
 	// Initialize shared network manager singleton for unified network state
 	if sysConn != nil {
 		nmManager := networkmanager.GetInstance(sysConn, b)
@@ -155,7 +159,9 @@ func Run() int {
 	idleSvc := idle.New(b, sysConn, idleCfg)
 	go idleSvc.Run(ctx)
 
-	// Update idle config when settings change.
+	var bars []*bar.Bar
+
+	// Update configs when settings change.
 	b.Subscribe(bus.TopicSettingsChanged, func(e bus.Event) {
 		if newCfg, ok := e.Data.(shellsettings.Config); ok {
 			idleSvc.UpdateConfig(idle.Config{
@@ -164,6 +170,18 @@ func Run() int {
 				SuspendTimeout:    idleDuration(newCfg.IdleSuspendTimeout),
 			})
 			refs.SystemHandler.UpdateConfig(newCfg.LidCloseAction, newCfg.PowerButtonAction)
+			refs.Audio.UpdateStep(newCfg.VolumeStep)
+			refs.Brightness.UpdateStep(newCfg.BrightnessStep)
+
+			// Reload bars if position changed
+			if newCfg.BarPosition != cfg.BarPosition {
+				glib.IdleAdd(func() {
+					for _, b := range bars {
+						b.Reload(newCfg.BarPosition)
+					}
+				})
+			}
+			cfg = newCfg
 		}
 	})
 
@@ -200,11 +218,11 @@ func Run() int {
 		}
 		switch cmd {
 		case "volume-up":
-			if err := refs.Audio.AdjustVolume(0.05); err != nil {
+			if err := refs.Audio.AdjustVolume(refs.Audio.VolumeStep()); err != nil {
 				log.Printf("[audio] volume-up: %v", err)
 			}
 		case "volume-down":
-			if err := refs.Audio.AdjustVolume(-0.05); err != nil {
+			if err := refs.Audio.AdjustVolume(-refs.Audio.VolumeStep()); err != nil {
 				log.Printf("[audio] volume-down: %v", err)
 			}
 		case "volume-mute":
@@ -248,11 +266,11 @@ func Run() int {
 		}
 		switch cmd {
 		case "brightness-up":
-			if err := refs.Brightness.AdjustBrightness(0.05); err != nil {
+			if err := refs.Brightness.AdjustBrightness(refs.Brightness.BrightnessStep()); err != nil {
 				log.Printf("[brightness] up: %v", err)
 			}
 		case "brightness-down":
-			if err := refs.Brightness.AdjustBrightness(-0.05); err != nil {
+			if err := refs.Brightness.AdjustBrightness(-refs.Brightness.BrightnessStep()); err != nil {
 				log.Printf("[brightness] down: %v", err)
 			}
 		}
@@ -296,6 +314,7 @@ func Run() int {
 				cfg = newCfg
 				// Publish settings changed event so components can react
 				b.Publish(bus.TopicSettingsChanged, cfg)
+				refs.DarkMode.UpdateConfig(newCfg)
 				log.Printf("[SETTINGS] Reloaded settings from control panel")
 			}
 		}
@@ -332,11 +351,9 @@ func Run() int {
 	}()
 
 	// Register Hyprland keybindings for power button and lid switch.
-	// These use bindl (works on lock screen) and dispatch to the control socket
-	// via the --toggle-* CLI. logind's block inhibitor (in SystemHandler) prevents
-	// logind from also acting on the same events.
 	cleanupSystemBinds := setupHyprlandSystemBinds(refs.Hyprland)
 	defer cleanupSystemBinds()
+
 	// Subscribe to tray item activation.
 	b.Subscribe(bus.TopicTrayActivate, func(ev bus.Event) {
 		if id, ok := ev.Data.(string); ok {
@@ -367,7 +384,6 @@ func Run() int {
 		}
 
 		// Per-monitor surfaces: bar and corners.
-		var bars []*bar.Bar
 		var allCorners []*corners.Corners
 
 		refreshMonitors := func() {
@@ -392,7 +408,7 @@ func Run() int {
 					continue
 				}
 				mon := &gdk.Monitor{Object: item}
-				bars = append(bars, bar.New(app, b, refs, mon))
+				bars = append(bars, bar.New(app, b, refs, mon, cfg.BarPosition))
 				allCorners = append(allCorners, corners.New(app, b, mon))
 			}
 			log.Printf("[SHELL] monitors: %d bars created", len(bars))
@@ -420,9 +436,14 @@ func Run() int {
 		crosshair.New(app, b)
 		ls := lockscreen.New(app, b)
 		// Load initial lockscreen settings
-		if cfg, err := shellsettings.Load(); err == nil {
-			ls.UpdateSettings(cfg)
-		}
+		ls.UpdateSettings(cfg)
+
+		b.Subscribe(bus.TopicSettingsChanged, func(e bus.Event) {
+			if newCfg, ok := e.Data.(shellsettings.Config); ok {
+				ls.UpdateSettings(newCfg)
+			}
+		})
+
 		mediaoverlay.New(app, b, refs.Mpris)
 		notifpopup.New(app, b)
 		osk.New(app, b)
