@@ -53,6 +53,13 @@ func (m *Monitor) Run(ctx context.Context) {
 	// Restore last wallpaper from persistent store and regenerate theme
 	if lastWallpaper := store.LookupOr(storeKeyWallpaper, ""); lastWallpaper != "" {
 		m.current = lastWallpaper
+		// Apply to desktop
+		if cfg, err := settings.Load(); err == nil {
+			if err := m.applyWallpaper(lastWallpaper, cfg.WallpaperDaemon); err != nil {
+				log.Printf("[THEME] failed to apply initial wallpaper: %v", err)
+			}
+		}
+		// Generate theme
 		if err := m.generator.SetWallpaper(lastWallpaper); err != nil {
 			// If failed (file might be gone), clear it
 			store.Delete(storeKeyWallpaper)
@@ -74,6 +81,7 @@ func (m *Monitor) Run(ctx context.Context) {
 			return
 		case <-ticker.C:
 			m.checkAndUpdate()
+			m.ensureDaemonRunning()
 		}
 	}
 }
@@ -110,6 +118,57 @@ func (m *Monitor) SetWallpaper(path string) error {
 	return nil
 }
 
+func (m *Monitor) ensureDaemonRunning() {
+	cfg, err := settings.Load()
+	if err != nil {
+		return
+	}
+
+	daemon := cfg.WallpaperDaemon
+	if daemon == "auto" || daemon == "" {
+		return
+	}
+
+	exe := daemon
+	if daemon == "swww" {
+		exe = "swww-daemon"
+	}
+
+	if !isProcessRunning(exe) {
+		log.Printf("[THEME] watchdog: %s is not running, restarting...", daemon)
+		if m.current != "" {
+			if err := m.startDaemon(m.current, daemon); err != nil {
+				log.Printf("[THEME] watchdog: failed to restart %s: %v", daemon, err)
+			}
+		}
+	}
+}
+
+func (m *Monitor) startDaemon(path, daemon string) error {
+	switch daemon {
+	case "swww":
+		// swww-daemon needs to be running before swww img
+		go exec.Command("swww-daemon").Run()
+		// Give it a moment to start
+		time.Sleep(500 * time.Millisecond)
+		return exec.Command("swww", "img", path).Run()
+	case "hyprpaper":
+		// Try to start the process
+		err := exec.Command("hyprpaper").Start()
+		if err != nil {
+			return err
+		}
+		time.Sleep(500 * time.Millisecond)
+		exec.Command("hyprctl", "hyprpaper", "preload", path).Run()
+		return exec.Command("hyprctl", "hyprpaper", "wallpaper", ", "+path).Run()
+	case "swaybg":
+		return exec.Command("swaybg", "-i", path, "-m", "fill").Start()
+	case "wbg":
+		return exec.Command("wbg", path).Start()
+	}
+	return nil
+}
+
 func (m *Monitor) applyWallpaper(path, daemon string) error {
 	if daemon == "auto" {
 		// Detect which daemon is running and use it
@@ -128,14 +187,19 @@ func (m *Monitor) applyWallpaper(path, daemon string) error {
 
 	switch daemon {
 	case "swww":
+		if !isProcessRunning("swww-daemon") {
+			go exec.Command("swww-daemon").Run()
+			time.Sleep(500 * time.Millisecond)
+		}
 		return exec.Command("swww", "img", path).Run()
 	case "hyprpaper":
-		// This assumes hyprpaper is already running and has the file preloaded or we use hyprctl
+		if !isProcessRunning("hyprpaper") {
+			go exec.Command("hyprpaper").Start()
+			time.Sleep(500 * time.Millisecond)
+		}
 		exec.Command("hyprctl", "hyprpaper", "preload", path).Run()
 		return exec.Command("hyprctl", "hyprpaper", "wallpaper", ", "+path).Run()
 	case "swaybg":
-		// swaybg usually needs to be restarted or run as a persistent process.
-		// For simplicity, we just try to kill existing and start new.
 		exec.Command("pkill", "swaybg").Run()
 		return exec.Command("swaybg", "-i", path, "-m", "fill").Start()
 	case "wbg":
