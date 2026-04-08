@@ -10,6 +10,7 @@ const (
 	keyInputMode             = "input_mode"
 	keyIdleLockTimeout       = "idle_lock_timeout"
 	keyIdleDisplayOffTimeout = "idle_displayoff_timeout"
+	keyLockDisplayOffTimeout = "lock_displayoff_timeout"
 	keyIdleSuspendTimeout    = "idle_suspend_timeout"
 	keyLockMaxAttempts       = "lock_max_attempts"
 	keyLockoutDuration       = "lockout_duration"
@@ -30,26 +31,26 @@ const (
 type Config struct {
 	DarkMode              bool
 	DoNotDisturb          bool
-	InputMode             string // "auto", "tablet", "desktop"
-	IdleLockTimeout       int    // seconds; 0 = disabled
-	IdleDisplayOffTimeout int    // additional seconds
-	IdleSuspendTimeout    int    // additional seconds
+	InputMode             string
+	IdleLockTimeout       int // seconds before lock
+	IdleDisplayOffTimeout int // seconds before display off
+	LockDisplayOffTimeout int // seconds before display off when locked
+	IdleSuspendTimeout    int // seconds after lock before suspend
 	LockMaxAttempts       int
 	LockoutDuration       int
 	LockShowClock         bool
 	LockShowUser          bool
-	LidCloseAction        string // "suspend", "lock", "ignore"
-	PowerButtonAction     string // "shutdown", "lock", "ignore", "session-menu"
+	LidCloseAction        string
+	PowerButtonAction     string
 
-	// New settings
-	BarPosition          string  // "top", "bottom"
+	BarPosition          string
 	BarShowBatteryPct    bool
-	ClockFormat          string  // "12h", "24h"
-	NotificationTimeout  int     // milliseconds
-	NotificationPosition string  // "top-right", "top-left", "bottom-right", "bottom-left"
-	VolumeStep           float64 // 0.01 to 0.1
-	BrightnessStep       float64 // 0.01 to 0.1
-	BlurStrength         int     // 0 to 100
+	ClockFormat          string
+	NotificationTimeout  int
+	NotificationPosition string
+	VolumeStep           float64
+	BrightnessStep       float64
+	BlurStrength         int
 }
 
 func DefaultConfig() Config {
@@ -58,7 +59,8 @@ func DefaultConfig() Config {
 		DoNotDisturb:          false,
 		InputMode:             "auto",
 		IdleLockTimeout:       300,
-		IdleDisplayOffTimeout: 30,
+		IdleDisplayOffTimeout: 120,
+		LockDisplayOffTimeout: 30,
 		IdleSuspendTimeout:    0,
 		LockMaxAttempts:       3,
 		LockoutDuration:       30,
@@ -86,6 +88,7 @@ func Load() (Config, error) {
 		InputMode:             store.LookupOr(keyInputMode, d.InputMode),
 		IdleLockTimeout:       store.LookupOr(keyIdleLockTimeout, d.IdleLockTimeout),
 		IdleDisplayOffTimeout: store.LookupOr(keyIdleDisplayOffTimeout, d.IdleDisplayOffTimeout),
+		LockDisplayOffTimeout: store.LookupOr(keyLockDisplayOffTimeout, d.LockDisplayOffTimeout),
 		IdleSuspendTimeout:    store.LookupOr(keyIdleSuspendTimeout, d.IdleSuspendTimeout),
 		LockMaxAttempts:       store.LookupOr(keyLockMaxAttempts, d.LockMaxAttempts),
 		LockoutDuration:       store.LookupOr(keyLockoutDuration, d.LockoutDuration),
@@ -112,6 +115,7 @@ func Save(cfg Config) error {
 		keyInputMode:             cfg.InputMode,
 		keyIdleLockTimeout:       cfg.IdleLockTimeout,
 		keyIdleDisplayOffTimeout: cfg.IdleDisplayOffTimeout,
+		keyLockDisplayOffTimeout: cfg.LockDisplayOffTimeout,
 		keyIdleSuspendTimeout:    cfg.IdleSuspendTimeout,
 		keyLockMaxAttempts:       cfg.LockMaxAttempts,
 		keyLockoutDuration:       cfg.LockoutDuration,
