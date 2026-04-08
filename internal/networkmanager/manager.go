@@ -83,9 +83,10 @@ type Manager struct {
 
 	// Cached data
 	mu              sync.RWMutex
-	hostname        string
-	state           uint32
-	devices         []state.NMDevice
+	hostname          string
+	state             uint32
+	primaryConnection string
+	devices           []state.NMDevice
 	connections     []state.NMConnection
 	wifiNetworks    []state.WiFiNetwork
 	wirelessEnabled bool
@@ -191,6 +192,7 @@ func (m *Manager) periodicRefresh() {
 func (m *Manager) refreshAll() {
 	m.refreshHostname()
 	m.refreshState()
+	m.refreshPrimaryConnection()
 	m.refreshDevices()
 	m.refreshConnections()
 
@@ -198,6 +200,23 @@ func (m *Manager) refreshAll() {
 	if m.bus != nil {
 		m.publishLegacyState()
 	}
+}
+
+func (m *Manager) refreshPrimaryConnection() {
+	nmObj := m.conn.Object(nmDest, nmPath)
+	if nmObj == nil {
+		return
+	}
+
+	primaryV, err := nmObj.GetProperty(nmIface + ".PrimaryConnection")
+	if err != nil {
+		return
+	}
+
+	path, _ := primaryV.Value().(dbus.ObjectPath)
+	m.mu.Lock()
+	m.primaryConnection = string(path)
+	m.mu.Unlock()
 }
 
 // GetState returns current network state
@@ -525,12 +544,23 @@ func (m *Manager) fetchConnection(path dbus.ObjectPath) state.NMConnection {
 			conn.IPv4Method, _ = v.Value().(string)
 		}
 		// Check if addresses are configured
-		if _, ok := ipv4["address-data"]; ok {
-			conn.IPv4Configured = true
+		if v, ok := ipv4["address-data"]; ok {
+			if addrs, ok := v.Value().([]map[string]dbus.Variant); ok && len(addrs) > 0 {
+				conn.IPv4Configured = true
+				conn.IPv4Address, _ = addrs[0]["address"].Value().(string)
+			}
+		}
+		if v, ok := ipv4["gateway"]; ok {
+			conn.IPv4Gateway, _ = v.Value().(string)
 		}
 		if v, ok := ipv4["dns"]; ok {
 			if dns, ok := v.Value().([]uint32); ok && len(dns) > 0 {
 				conn.IPv4DNSConfigured = true
+				for _, d := range dns {
+					// NetworkManager stores IPv4 as uint32
+					conn.IPv4DNS = append(conn.IPv4DNS, fmt.Sprintf("%d.%d.%d.%d",
+						byte(d), byte(d>>8), byte(d>>16), byte(d>>24)))
+				}
 			}
 		}
 	}
@@ -539,12 +569,28 @@ func (m *Manager) fetchConnection(path dbus.ObjectPath) state.NMConnection {
 		if v, ok := ipv6["method"]; ok {
 			conn.IPv6Method, _ = v.Value().(string)
 		}
+		if v, ok := ipv6["address-data"]; ok {
+			if addrs, ok := v.Value().([]map[string]dbus.Variant); ok && len(addrs) > 0 {
+				conn.IPv6Configured = true
+				conn.IPv6Address, _ = addrs[0]["address"].Value().(string)
+			}
+		}
+		if v, ok := ipv6["gateway"]; ok {
+			conn.IPv6Gateway, _ = v.Value().(string)
+		}
 	}
 
 	// Check if connection is active
+	m.mu.RLock()
+	primary := m.primaryConnection
+	m.mu.RUnlock()
+
 	for _, dev := range m.devices {
 		if dev.ActiveConnection == conn.Path {
 			conn.Active = true
+			if conn.Path == primary {
+				conn.IsPrimary = true
+			}
 			break
 		}
 	}

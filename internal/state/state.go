@@ -139,7 +139,14 @@ type NMConnection struct {
 	IPv4Configured    bool
 	IPv6Configured    bool
 	IPv4DNSConfigured bool
+	IPv4Address       string
+	IPv4Gateway       string
+	IPv4DNS           []string
+	IPv6Address       string
+	IPv6Gateway       string
+	IPv6DNS           []string
 	Active            bool
+	IsPrimary         bool
 	WiFiMode          string
 	APN               string
 	LastUsed          time.Time
