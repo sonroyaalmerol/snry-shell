@@ -11,6 +11,7 @@ import (
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/godbus/dbus/v5"
+	"strings"
 	"time"
 
 	"github.com/sonroyaalmerol/snry-shell/assets"
@@ -311,13 +312,23 @@ func Run() int {
 
 	// Handle settings reload from control panel.
 	b.Subscribe(bus.TopicSystemControls, func(e bus.Event) {
-		if action, ok := e.Data.(string); ok && action == "reload-settings" {
+		action, ok := e.Data.(string)
+		if !ok {
+			return
+		}
+
+		if action == "reload-settings" {
 			if newCfg, err := shellsettings.Load(); err == nil {
 				cfg = newCfg
 				// Publish settings changed event so components can react
 				b.Publish(bus.TopicSettingsChanged, cfg)
 				refs.DarkMode.UpdateConfig(newCfg)
 				log.Printf("[SETTINGS] Reloaded settings from control panel")
+			}
+		} else if strings.HasPrefix(action, "set-wallpaper:") {
+			path := strings.TrimPrefix(action, "set-wallpaper:")
+			if err := themeMonitor.SetWallpaper(path); err != nil {
+				log.Printf("[THEME] Failed to set wallpaper: %v", err)
 			}
 		}
 	})

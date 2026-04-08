@@ -56,6 +56,12 @@ func handleConn(conn net.Conn, b *bus.Bus) {
 		return
 	}
 
+	if strings.HasPrefix(cmd, "set-wallpaper:") {
+		path := strings.TrimPrefix(cmd, "set-wallpaper:")
+		b.Publish(bus.TopicThemeChanged, bus.Event{Data: path})
+		return
+	}
+
 	b.Publish(bus.TopicSystemControls, cmd)
 }
 
