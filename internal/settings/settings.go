@@ -26,6 +26,7 @@ const (
 	keyVolumeStep            = "audio.volume_step"
 	keyBrightnessStep        = "brightness.step"
 	keyBlurStrength          = "theme.blur_strength"
+	keyWallpaperDaemon       = "theme.wallpaper_daemon"
 )
 
 type Config struct {
@@ -51,6 +52,7 @@ type Config struct {
 	VolumeStep           float64
 	BrightnessStep       float64
 	BlurStrength         int
+	WallpaperDaemon      string // "auto", "hyprpaper", "swww", "swaybg", "wbg"
 }
 
 func DefaultConfig() Config {
@@ -77,6 +79,7 @@ func DefaultConfig() Config {
 		VolumeStep:           0.05,
 		BrightnessStep:       0.05,
 		BlurStrength:         20,
+		WallpaperDaemon:      "auto",
 	}
 }
 
@@ -105,6 +108,7 @@ func Load() (Config, error) {
 		VolumeStep:           store.LookupOr(keyVolumeStep, d.VolumeStep),
 		BrightnessStep:       store.LookupOr(keyBrightnessStep, d.BrightnessStep),
 		BlurStrength:         store.LookupOr(keyBlurStrength, d.BlurStrength),
+		WallpaperDaemon:      store.LookupOr(keyWallpaperDaemon, d.WallpaperDaemon),
 	}, nil
 }
 
@@ -132,5 +136,6 @@ func Save(cfg Config) error {
 		keyVolumeStep:           cfg.VolumeStep,
 		keyBrightnessStep:       cfg.BrightnessStep,
 		keyBlurStrength:         cfg.BlurStrength,
+		keyWallpaperDaemon:      cfg.WallpaperDaemon,
 	})
 }

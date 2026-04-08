@@ -5,6 +5,7 @@ import (
 	"bufio"
 	"context"
 	"fmt"
+	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -90,6 +91,14 @@ func (m *Monitor) ForceUpdate() error {
 // SetWallpaper manually sets a wallpaper path and regenerates theme
 func (m *Monitor) SetWallpaper(path string) error {
 	m.current = path
+	
+	// Apply wallpaper using the configured daemon
+	if cfg, err := settings.Load(); err == nil {
+		if err := m.applyWallpaper(path, cfg.WallpaperDaemon); err != nil {
+			log.Printf("[THEME] Failed to apply wallpaper via daemon: %v", err)
+		}
+	}
+
 	if err := m.generator.SetWallpaper(path); err != nil {
 		return fmt.Errorf("set wallpaper: %w", err)
 	}
@@ -99,6 +108,47 @@ func (m *Monitor) SetWallpaper(path string) error {
 	}
 	m.bus.Publish(bus.TopicThemeChanged, bus.Event{Data: path})
 	return nil
+}
+
+func (m *Monitor) applyWallpaper(path, daemon string) error {
+	if daemon == "auto" {
+		// Detect which daemon is running and use it
+		if isProcessRunning("swww-daemon") {
+			daemon = "swww"
+		} else if isProcessRunning("hyprpaper") {
+			daemon = "hyprpaper"
+		} else if isProcessRunning("swaybg") {
+			daemon = "swaybg"
+		} else if isProcessRunning("wbg") {
+			daemon = "wbg"
+		} else {
+			return fmt.Errorf("no supported wallpaper daemon detected")
+		}
+	}
+
+	switch daemon {
+	case "swww":
+		return exec.Command("swww", "img", path).Run()
+	case "hyprpaper":
+		// This assumes hyprpaper is already running and has the file preloaded or we use hyprctl
+		exec.Command("hyprctl", "hyprpaper", "preload", path).Run()
+		return exec.Command("hyprctl", "hyprpaper", "wallpaper", ", "+path).Run()
+	case "swaybg":
+		// swaybg usually needs to be restarted or run as a persistent process.
+		// For simplicity, we just try to kill existing and start new.
+		exec.Command("pkill", "swaybg").Run()
+		return exec.Command("swaybg", "-i", path, "-m", "fill").Start()
+	case "wbg":
+		exec.Command("pkill", "wbg").Run()
+		return exec.Command("wbg", path).Start()
+	}
+
+	return fmt.Errorf("unsupported daemon: %s", daemon)
+}
+
+func isProcessRunning(name string) bool {
+	err := exec.Command("pgrep", "-x", name).Run()
+	return err == nil
 }
 
 func (m *Monitor) checkAndUpdate() error {
