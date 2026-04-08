@@ -53,16 +53,14 @@ type LockScreen struct {
 }
 
 type lockWindow struct {
-	win     *gtk.ApplicationWindow
-	mon     *gdk.Monitor
-	bg      *gtk.Picture
-	clock   *gtk.Label
-	date    *gtk.Label
-	entry   *gtk.Entry
-	status  *gtk.Label
-	unlock  *gtk.Button
-	authBox *gtk.Box
-	scroll  *gtk.ScrolledWindow
+	win    *gtk.ApplicationWindow
+	mon    *gdk.Monitor
+	bg     *gtk.Picture
+	clock  *gtk.Label
+	date   *gtk.Label
+	entry  *gtk.Entry
+	status *gtk.Label
+	unlock *gtk.Button
 }
 
 // New creates and returns the lockscreen manager. Windows are spawned per
@@ -117,35 +115,7 @@ func New(app *gtk.Application, b *bus.Bus) *LockScreen {
 		}
 	})
 
-	// Handle OSK visibility for layout adjustments
-	b.Subscribe(bus.TopicOSKState, func(e bus.Event) {
-		visible, ok := e.Data.(bool)
-		if !ok {
-			return
-		}
-		glib.IdleAdd(func() {
-			for _, w := range ls.windows {
-				ls.updateOSKLayout(w, visible)
-			}
-		})
-	})
-
 	return ls
-}
-
-func (ls *LockScreen) updateOSKLayout(lw *lockWindow, visible bool) {
-	if visible {
-		// When OSK is visible, scroll to bottom to ensure auth fields are above OSK
-		glib.IdleAdd(func() {
-			adj := lw.scroll.VAdjustment()
-			adj.SetValue(adj.Upper() - adj.PageSize())
-		})
-	} else {
-		// Scroll back to top when OSK hidden
-		glib.IdleAdd(func() {
-			lw.scroll.VAdjustment().SetValue(0)
-		})
-	}
 }
 
 // UpdateSettings updates the lockscreen configuration
@@ -229,13 +199,7 @@ func (ls *LockScreen) buildWindow(lw *lockWindow) {
 	dim.SetVExpand(true)
 	overlay.AddOverlay(dim)
 
-	// ── main content (Scrolled) ──────────────────────────────────────────────
-	lw.scroll = gtk.NewScrolledWindow()
-	lw.scroll.SetPolicy(gtk.PolicyNever, gtk.PolicyExternal)
-	lw.scroll.SetHExpand(true)
-	lw.scroll.SetVExpand(true)
-	overlay.AddOverlay(lw.scroll)
-
+	// ── main content ─────────────────────────────────────────────────────────
 	mainContent := gtk.NewBox(gtk.OrientationVertical, 0)
 	mainContent.SetHExpand(true)
 	mainContent.SetVExpand(true)
@@ -243,7 +207,7 @@ func (ls *LockScreen) buildWindow(lw *lockWindow) {
 	mainContent.SetMarginBottom(80)
 	mainContent.SetMarginStart(40)
 	mainContent.SetMarginEnd(40)
-	lw.scroll.SetChild(mainContent)
+	overlay.AddOverlay(mainContent)
 
 	// 1. Clock & Date (Top Aligned)
 	topBox := gtk.NewBox(gtk.OrientationVertical, 0)
@@ -262,17 +226,16 @@ func (ls *LockScreen) buildWindow(lw *lockWindow) {
 	topBox.Append(lw.date)
 	mainContent.Append(topBox)
 
-	// Large Spacer
+	// Spacer to push auth content to bottom
 	spacer := gtk.NewBox(gtk.OrientationVertical, 0)
 	spacer.SetVExpand(true)
-	spacer.SetSizeRequest(-1, 200) // Minimum separation
 	mainContent.Append(spacer)
 
 	// 2. Auth content (Bottom Aligned)
-	lw.authBox = gtk.NewBox(gtk.OrientationVertical, 24)
-	lw.authBox.SetVAlign(gtk.AlignEnd)
-	lw.authBox.SetHAlign(gtk.AlignCenter)
-	lw.authBox.AddCSSClass("lockscreen-auth-box")
+	authBox := gtk.NewBox(gtk.OrientationVertical, 24)
+	authBox.SetVAlign(gtk.AlignEnd)
+	authBox.SetHAlign(gtk.AlignCenter)
+	authBox.AddCSSClass("lockscreen-auth-box")
 
 	// User info
 	userRow := gtk.NewBox(gtk.OrientationVertical, 12)
@@ -287,7 +250,7 @@ func (ls *LockScreen) buildWindow(lw *lockWindow) {
 	
 	userRow.Append(userIcon)
 	userRow.Append(userLabel)
-	lw.authBox.Append(userRow)
+	authBox.Append(userRow)
 
 	// Password entry card
 	entryCard := gtk.NewBox(gtk.OrientationVertical, 16)
@@ -317,7 +280,7 @@ func (ls *LockScreen) buildWindow(lw *lockWindow) {
 	lw.status.SetHAlign(gtk.AlignCenter)
 	entryCard.Append(lw.status)
 
-	lw.authBox.Append(entryCard)
+	authBox.Append(entryCard)
 
 	// Unlock button & Actions
 	actionsRow := gtk.NewBox(gtk.OrientationHorizontal, 16)
@@ -330,9 +293,9 @@ func (ls *LockScreen) buildWindow(lw *lockWindow) {
 	
 	actionsRow.Append(emergencyBtn)
 	actionsRow.Append(lw.unlock)
-	lw.authBox.Append(actionsRow)
+	authBox.Append(actionsRow)
 
-	mainContent.Append(lw.authBox)
+	mainContent.Append(authBox)
 
 	lw.win.SetChild(overlay)
 
@@ -378,8 +341,6 @@ func (ls *LockScreen) setVisible(visible bool) {
 			w.entry.SetText("")
 			w.entry.RemoveCSSClass("error")
 			w.entry.GrabFocus()
-			// Ensure scrolled to top initially
-			w.scroll.VAdjustment().SetValue(0)
 		}
 	}
 }
@@ -394,7 +355,7 @@ func (ls *LockScreen) focusPrimary() {
 // ── wallpaper ────────────────────────────────────────────────────────────────
 
 func (ls *LockScreen) updateWallpaper() {
-	wp := store.LookupOr(wallpaperStoreKey, "")
+	wp := store.LookupOr(wallpaperStoreKey, "");
 	for _, w := range ls.windows {
 		if wp != "" {
 			w.bg.SetFilename(wp)
