@@ -192,9 +192,8 @@ func (n *nmConfigProvider) buildDeviceRow(dev state.NMDevice) gtk.Widgetter {
 	row.SetMarginTop(12)
 	row.SetMarginBottom(12)
 
-	icon := gtk.NewLabel(n.deviceIcon(dev.Type))
+	icon := gtkutil.MaterialIcon(n.deviceIcon(dev.Type))
 	icon.AddCSSClass("conn-row-icon")
-	icon.AddCSSClass("material-icon")
 
 	infoBox := gtk.NewBox(gtk.OrientationVertical, 4)
 	infoBox.SetHExpand(true)
@@ -347,18 +346,17 @@ func (n *nmConfigProvider) buildWiFiRow(net state.WiFiNetwork) gtk.Widgetter {
 	// Signal strength icon
 	signalIcon := "signal_wifi_0_bar"
 	if net.Signal > 75 {
-		signalIcon = "signal_wifi_4_bar"
+		signalIcon = "network_wifi_4_bar"
 	} else if net.Signal > 50 {
-		signalIcon = "signal_wifi_3_bar"
+		signalIcon = "network_wifi_3_bar"
 	} else if net.Signal > 25 {
-		signalIcon = "signal_wifi_2_bar"
+		signalIcon = "network_wifi_2_bar"
 	} else if net.Signal > 0 {
-		signalIcon = "signal_wifi_1_bar"
+		signalIcon = "network_wifi_1_bar"
 	}
 
-	icon := gtk.NewLabel(signalIcon)
+	icon := gtkutil.MaterialIcon(signalIcon)
 	icon.AddCSSClass("conn-row-icon")
-	icon.AddCSSClass("material-icon")
 
 	infoBox := gtk.NewBox(gtk.OrientationVertical, 4)
 	infoBox.SetHExpand(true)
@@ -491,9 +489,8 @@ func (n *nmConfigProvider) buildConnectionRow(conn state.NMConnection) gtk.Widge
 	// Main row with icon and info
 	mainRow := gtk.NewBox(gtk.OrientationHorizontal, 12)
 
-	icon := gtk.NewLabel(connectionIcon(conn.Type))
+	icon := gtkutil.MaterialIcon(connectionIcon(conn.Type))
 	icon.AddCSSClass("conn-row-icon")
-	icon.AddCSSClass("material-icon")
 
 	infoBox := gtk.NewBox(gtk.OrientationVertical, 4)
 	infoBox.SetHExpand(true)
