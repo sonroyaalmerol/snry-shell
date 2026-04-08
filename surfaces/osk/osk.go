@@ -258,6 +258,7 @@ func (o *OSK) scheduleFocusUpdate(want bool) {
 func (o *OSK) show() {
 	o.win.SetVisible(true)
 	o.visible = true
+	o.bus.Publish(bus.TopicOSKState, true)
 	// Always raise to top when showing, especially important when lock screen is active
 	glib.IdleAdd(func() {
 		o.win.PresentWithTime(uint32(glib.GetMonotonicTime() / 1000))
@@ -267,6 +268,7 @@ func (o *OSK) show() {
 func (o *OSK) hide() {
 	o.win.SetVisible(false)
 	o.visible = false
+	o.bus.Publish(bus.TopicOSKState, false)
 }
 
 func (o *OSK) updateExclusiveZone() {

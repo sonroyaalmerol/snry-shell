@@ -40,6 +40,7 @@ const (
 	TopicDarkMode         Topic = "darkmode"
 	TopicNetworkManager   Topic = "networkmanager"
 	TopicIdleInhibit      Topic = "idleinhibit"
+	TopicOSKState        Topic = "oskstate"
 )
 
 type Event struct {
