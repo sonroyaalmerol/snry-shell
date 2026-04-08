@@ -5,43 +5,60 @@ import (
 )
 
 const (
-	keyDarkMode           = "dark_mode"
-	keyDoNotDisturb       = "do_not_disturb"
-	keyInputMode          = "input_mode"
-	keyIdleLockTimeout    = "idle_lock_timeout"        // seconds; 0 = disabled
-	keyIdleDisplayOffTimeout = "idle_displayoff_timeout" // seconds after lock; 0 = disabled
-	keyIdleSuspendTimeout = "idle_suspend_timeout"     // seconds after lock; 0 = disabled
-	keyLockMaxAttempts    = "lock_max_attempts"        // max password attempts before lockout
-	keyLockoutDuration    = "lockout_duration"         // seconds to lock out after max attempts
-	keyLockShowClock      = "lock_show_clock"          // show clock on lockscreen
-	keyLockShowUser          = "lock_show_user"           // show username on lockscreen
-	keyLidCloseAction        = "lid_close_action"         // "suspend", "lock", "ignore"
-	keyPowerButtonAction     = "power_button_action"      // "shutdown", "lock", "ignore", "session-menu"
-	keyThemeWallpaper        = "theme.wallpaper"
-	)
+	keyDarkMode              = "dark_mode"
+	keyDoNotDisturb          = "do_not_disturb"
+	keyInputMode             = "input_mode"
+	keyIdleLockTimeout       = "idle_lock_timeout"
+	keyIdleDisplayOffTimeout = "idle_displayoff_timeout"
+	keyIdleSuspendTimeout    = "idle_suspend_timeout"
+	keyLockMaxAttempts       = "lock_max_attempts"
+	keyLockoutDuration       = "lockout_duration"
+	keyLockShowClock         = "lock_show_clock"
+	keyLockShowUser          = "lock_show_user"
+	keyLidCloseAction        = "lid_close_action"
+	keyPowerButtonAction     = "power_button_action"
+	keyBarPosition           = "bar.position"
+	keyBarShowBatteryPct     = "bar.show_battery_pct"
+	keyClockFormat           = "clock.format"
+	keyNotificationTimeout   = "notifications.timeout"
+	keyNotificationPosition  = "notifications.position"
+	keyVolumeStep            = "audio.volume_step"
+	keyBrightnessStep        = "brightness.step"
+	keyBlurStrength          = "theme.blur_strength"
+)
 
-	type Config struct {
+type Config struct {
 	DarkMode              bool
 	DoNotDisturb          bool
 	InputMode             string // "auto", "tablet", "desktop"
-	IdleLockTimeout       int    // seconds before locking; 0 = disabled
-	IdleDisplayOffTimeout int    // additional seconds after lock before display off; 0 = disabled
-	IdleSuspendTimeout    int    // additional seconds after lock before suspend; 0 = disabled
-	LockMaxAttempts       int    // max password attempts before lockout
-	LockoutDuration       int    // seconds to lock out after max attempts
-	LockShowClock         bool   // show clock on lockscreen
-	LockShowUser          bool   // show username on lockscreen
+	IdleLockTimeout       int    // seconds; 0 = disabled
+	IdleDisplayOffTimeout int    // additional seconds
+	IdleSuspendTimeout    int    // additional seconds
+	LockMaxAttempts       int
+	LockoutDuration       int
+	LockShowClock         bool
+	LockShowUser          bool
 	LidCloseAction        string // "suspend", "lock", "ignore"
 	PowerButtonAction     string // "shutdown", "lock", "ignore", "session-menu"
-	}
 
-	func DefaultConfig() Config {
+	// New settings
+	BarPosition          string  // "top", "bottom"
+	BarShowBatteryPct    bool
+	ClockFormat          string  // "12h", "24h"
+	NotificationTimeout  int     // milliseconds
+	NotificationPosition string  // "top-right", "top-left", "bottom-right", "bottom-left"
+	VolumeStep           float64 // 0.01 to 0.1
+	BrightnessStep       float64 // 0.01 to 0.1
+	BlurStrength         int     // 0 to 100
+}
+
+func DefaultConfig() Config {
 	return Config{
 		DarkMode:              true,
 		DoNotDisturb:          false,
 		InputMode:             "auto",
 		IdleLockTimeout:       300,
-		IdleDisplayOffTimeout: 30, // turn display off 30s after lock by default
+		IdleDisplayOffTimeout: 30,
 		IdleSuspendTimeout:    0,
 		LockMaxAttempts:       3,
 		LockoutDuration:       30,
@@ -49,10 +66,19 @@ const (
 		LockShowUser:          true,
 		LidCloseAction:        "suspend",
 		PowerButtonAction:     "shutdown",
-	}
-	}
 
-	func Load() (Config, error) {
+		BarPosition:          "top",
+		BarShowBatteryPct:    true,
+		ClockFormat:          "24h",
+		NotificationTimeout:  5000,
+		NotificationPosition: "top-right",
+		VolumeStep:           0.05,
+		BrightnessStep:       0.05,
+		BlurStrength:         20,
+	}
+}
+
+func Load() (Config, error) {
 	d := DefaultConfig()
 	return Config{
 		DarkMode:              store.LookupOr(keyDarkMode, d.DarkMode),
@@ -67,10 +93,19 @@ const (
 		LockShowUser:          store.LookupOr(keyLockShowUser, d.LockShowUser),
 		LidCloseAction:        store.LookupOr(keyLidCloseAction, d.LidCloseAction),
 		PowerButtonAction:     store.LookupOr(keyPowerButtonAction, d.PowerButtonAction),
-	}, nil
-	}
 
-	func Save(cfg Config) error {
+		BarPosition:          store.LookupOr(keyBarPosition, d.BarPosition),
+		BarShowBatteryPct:    store.LookupOr(keyBarShowBatteryPct, d.BarShowBatteryPct),
+		ClockFormat:          store.LookupOr(keyClockFormat, d.ClockFormat),
+		NotificationTimeout:  store.LookupOr(keyNotificationTimeout, d.NotificationTimeout),
+		NotificationPosition: store.LookupOr(keyNotificationPosition, d.NotificationPosition),
+		VolumeStep:           store.LookupOr(keyVolumeStep, d.VolumeStep),
+		BrightnessStep:       store.LookupOr(keyBrightnessStep, d.BrightnessStep),
+		BlurStrength:         store.LookupOr(keyBlurStrength, d.BlurStrength),
+	}, nil
+}
+
+func Save(cfg Config) error {
 	return store.SetMany(map[string]any{
 		keyDarkMode:              cfg.DarkMode,
 		keyDoNotDisturb:          cfg.DoNotDisturb,
@@ -84,5 +119,14 @@ const (
 		keyLockShowUser:          cfg.LockShowUser,
 		keyLidCloseAction:        cfg.LidCloseAction,
 		keyPowerButtonAction:     cfg.PowerButtonAction,
+
+		keyBarPosition:          cfg.BarPosition,
+		keyBarShowBatteryPct:    cfg.BarShowBatteryPct,
+		keyClockFormat:          cfg.ClockFormat,
+		keyNotificationTimeout:  cfg.NotificationTimeout,
+		keyNotificationPosition: cfg.NotificationPosition,
+		keyVolumeStep:           cfg.VolumeStep,
+		keyBrightnessStep:       cfg.BrightnessStep,
+		keyBlurStrength:         cfg.BlurStrength,
 	})
-	}
+}
