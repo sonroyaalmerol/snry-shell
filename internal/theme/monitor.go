@@ -2,384 +2,153 @@
 package theme
 
 import (
-	"bufio"
 	"context"
 	"fmt"
 	"log"
-	"os"
-	"os/exec"
-	"path/filepath"
-	"regexp"
-	"strings"
-	"time"
 
 	"github.com/sonroyaalmerol/snry-shell/internal/bus"
-	"github.com/sonroyaalmerol/snry-shell/internal/fileutil"
 	"github.com/sonroyaalmerol/snry-shell/internal/settings"
 	"github.com/sonroyaalmerol/snry-shell/internal/store"
 )
 
-// Monitor watches for wallpaper changes and regenerates themes
+// Monitor watches for wallpaper/settings changes and regenerates themes.
 type Monitor struct {
 	bus       *bus.Bus
 	generator *Generator
-	current   string
-	stop      chan struct{}
+	// current is the path of the processed wallpaper (what surfaces display).
+	current string
+	// source is the original user-selected path.
+	source string
 }
 
-// NewMonitor creates a new wallpaper monitor
+// NewMonitor creates a new wallpaper monitor.
 func NewMonitor(b *bus.Bus) *Monitor {
 	return &Monitor{
 		bus:       b,
 		generator: New(),
-		stop:      make(chan struct{}),
 	}
 }
 
-// Run starts monitoring for wallpaper changes
+// Run starts the monitor. It restores and re-processes the last wallpaper,
+// then stays alive to re-process whenever settings change.
 func (m *Monitor) Run(ctx context.Context) {
-	// Load initial settings
-	if cfg, err := settings.Load(); err == nil {
-		m.generator.SetBlurStrength(cfg.BlurStrength)
+	cfg, _ := settings.Load()
+	m.generator.SetBlurStrength(cfg.BlurStrength)
+
+	// Re-process and restore last wallpaper from saved source.
+	if cfg.WallpaperSource != "" {
+		m.source = cfg.WallpaperSource
+		if err := m.reprocess(cfg); err != nil {
+			log.Printf("[THEME] restore wallpaper: %v", err)
+		}
+	} else if last := GetLastWallpaper(); last != "" {
+		// Fallback: a processed path exists but source is not yet recorded
+		// (e.g. store from before source tracking was added).
+		m.current = last
+		if err := m.generator.SetWallpaper(last); err != nil {
+			log.Printf("[THEME] restore legacy wallpaper: %v", err)
+			store.Delete(storeKeyWallpaper)
+		} else {
+			m.bus.Publish(bus.TopicThemeChanged, bus.Event{Data: last})
+		}
 	}
 
-	// Subscribe to settings changes
+	// Re-process whenever processing-related settings change.
 	m.bus.Subscribe(bus.TopicSettingsChanged, func(e bus.Event) {
-		if cfg, ok := e.Data.(settings.Config); ok {
-			m.generator.SetBlurStrength(cfg.BlurStrength)
+		newCfg, ok := e.Data.(settings.Config)
+		if !ok {
+			return
+		}
+		m.generator.SetBlurStrength(newCfg.BlurStrength)
+
+		if m.source == "" {
+			// Blur-strength-only change still needs a theme CSS refresh.
+			if m.current != "" {
+				m.bus.Publish(bus.TopicThemeChanged, bus.Event{Data: m.current})
+			}
+			return
+		}
+
+		// Only re-process if the processing parameters changed.
+		oldCfg := cfg
+		cfg = newCfg
+		if newCfg.WallpaperBlur != oldCfg.WallpaperBlur ||
+			newCfg.WallpaperBrightness != oldCfg.WallpaperBrightness ||
+			newCfg.WallpaperGrayscale != oldCfg.WallpaperGrayscale {
+			go func() {
+				if err := m.reprocess(newCfg); err != nil {
+					log.Printf("[THEME] reprocess on settings change: %v", err)
+				}
+			}()
+		} else {
+			// CSS-only change (blur strength, etc.) — just republish.
 			m.bus.Publish(bus.TopicThemeChanged, bus.Event{Data: m.current})
 		}
 	})
 
-	// Restore last wallpaper from persistent store and regenerate theme
-	if lastWallpaper := store.LookupOr(storeKeyWallpaper, ""); lastWallpaper != "" {
-		m.current = lastWallpaper
-		// Apply to desktop
-		if cfg, err := settings.Load(); err == nil {
-			if err := m.applyWallpaper(lastWallpaper, cfg.WallpaperDaemon); err != nil {
-				log.Printf("[THEME] failed to apply initial wallpaper: %v", err)
-			}
-		}
-		// Generate theme
-		if err := m.generator.SetWallpaper(lastWallpaper); err != nil {
-			// If failed (file might be gone), clear it
-			store.Delete(storeKeyWallpaper)
-		}
-	}
-
-	// Initial check for new wallpaper
-	m.checkAndUpdate()
-
-	// Poll for changes every 5 seconds
-	ticker := time.NewTicker(5 * time.Second)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-m.stop:
-			return
-		case <-ticker.C:
-			m.checkAndUpdate()
-			m.ensureDaemonRunning()
-		}
-	}
+	<-ctx.Done()
 }
 
-// Stop stops the monitor
-func (m *Monitor) Stop() {
-	close(m.stop)
-}
-
-// ForceUpdate forces a theme regeneration from current wallpaper
+// ForceUpdate forces a theme CSS regeneration from the current processed wallpaper.
 func (m *Monitor) ForceUpdate() error {
-	return m.checkAndUpdate()
-}
-
-// SetWallpaper manually sets a wallpaper path and regenerates theme
-func (m *Monitor) SetWallpaper(path string) error {
-	m.current = path
-	
-	// Apply wallpaper using the configured daemon
-	if cfg, err := settings.Load(); err == nil {
-		if err := m.applyWallpaper(path, cfg.WallpaperDaemon); err != nil {
-			log.Printf("[THEME] Failed to apply wallpaper via daemon: %v", err)
-		}
+	if m.current == "" {
+		return nil
 	}
-
-	if err := m.generator.SetWallpaper(path); err != nil {
-		return fmt.Errorf("set wallpaper: %w", err)
+	if err := m.generator.Generate(); err != nil {
+		return fmt.Errorf("force update: %w", err)
 	}
-	// Save to persistent store
-	if err := store.Set(storeKeyWallpaper, path); err != nil {
-		return fmt.Errorf("save wallpaper path: %w", err)
-	}
-	m.bus.Publish(bus.TopicThemeChanged, bus.Event{Data: path})
+	m.bus.Publish(bus.TopicThemeChanged, bus.Event{Data: m.current})
 	return nil
 }
 
-func (m *Monitor) ensureDaemonRunning() {
+// SetWallpaper copies sourcePath to the fixed processed location (applying any
+// active adjustments), regenerates theme colours, and notifies subscribers.
+func (m *Monitor) SetWallpaper(sourcePath string) error {
 	cfg, err := settings.Load()
 	if err != nil {
-		return
+		return fmt.Errorf("load settings: %w", err)
 	}
 
-	daemon := cfg.WallpaperDaemon
-	if daemon == "auto" || daemon == "" {
-		// Auto-detect and pick one
-		if isProcessRunning("swww-daemon") {
-			daemon = "swww"
-		} else if isProcessRunning("hyprpaper") {
-			daemon = "hyprpaper"
-		} else if isProcessRunning("swaybg") {
-			daemon = "swaybg"
-		} else if isProcessRunning("wbg") {
-			daemon = "wbg"
-		} else {
-			// None running, try to find installed ones
-			if hasBinary("swww-daemon") {
-				daemon = "swww"
-			} else if hasBinary("hyprpaper") {
-				daemon = "hyprpaper"
-			} else if hasBinary("swaybg") {
-				daemon = "swaybg"
-			} else if hasBinary("wbg") {
-				daemon = "wbg"
-			} else {
-				return
-			}
-		}
+	m.source = sourcePath
+
+	// Persist the source path so it survives restarts.
+	cfg.WallpaperSource = sourcePath
+	if err := settings.Save(cfg); err != nil {
+		log.Printf("[THEME] save wallpaper source: %v", err)
 	}
 
-	exe := daemon
-	if daemon == "swww" {
-		exe = "swww-daemon"
-	}
-
-	if !isProcessRunning(exe) {
-		log.Printf("[THEME] watchdog: %s is not running, restarting...", daemon)
-		path := m.current
-		if path == "" {
-			path = GetLastWallpaper()
-		}
-		if err := m.startDaemon(path, daemon); err != nil {
-			log.Printf("[THEME] watchdog: failed to restart %s: %v", daemon, err)
-		}
-	}
+	return m.reprocess(cfg)
 }
 
-func hasBinary(name string) bool {
-	_, err := exec.LookPath(name)
-	return err == nil
-}
-
-func (m *Monitor) startDaemon(path, daemon string) error {
-	switch daemon {
-	case "swww":
-		// swww-daemon needs to be running before swww img
-		go exec.Command("swww-daemon").Run()
-		// Give it a moment to start
-		time.Sleep(500 * time.Millisecond)
-		if path != "" {
-			return exec.Command("swww", "img", path).Run()
-		}
-	case "hyprpaper":
-		if path != "" {
-			confPath := filepath.Join(fileutil.ConfigDir(), "hyprpaper.conf")
-			content := fmt.Sprintf("preload = %s\nwallpaper = , %s\n", path, path)
-			os.WriteFile(confPath, []byte(content), 0644)
-			return exec.Command("hyprpaper", "-c", confPath).Start()
-		}
-		return exec.Command("hyprpaper").Start()
-	case "swaybg":
-		if path != "" {
-			return exec.Command("swaybg", "-i", path, "-m", "fill").Start()
-		}
-	case "wbg":
-		if path != "" {
-			return exec.Command("wbg", path).Start()
-		}
-	}
-	return nil
-}
-
-func (m *Monitor) applyWallpaper(path, daemon string) error {
-	if daemon == "auto" {
-		// Detect which daemon is running and use it
-		if isProcessRunning("swww-daemon") {
-			daemon = "swww"
-		} else if isProcessRunning("hyprpaper") {
-			daemon = "hyprpaper"
-		} else if isProcessRunning("swaybg") {
-			daemon = "swaybg"
-		} else if isProcessRunning("wbg") {
-			daemon = "wbg"
-		} else {
-			return fmt.Errorf("no supported wallpaper daemon detected")
-		}
-	}
-
-	switch daemon {
-	case "swww":
-		if !isProcessRunning("swww-daemon") {
-			go exec.Command("swww-daemon").Run()
-			time.Sleep(500 * time.Millisecond)
-		}
-		return exec.Command("swww", "img", path).Run()
-	case "hyprpaper":
-		confPath := filepath.Join(fileutil.ConfigDir(), "hyprpaper.conf")
-		content := fmt.Sprintf("preload = %s\nwallpaper = , %s\n", path, path)
-		os.WriteFile(confPath, []byte(content), 0644)
-
-		if !isProcessRunning("hyprpaper") {
-			return exec.Command("hyprpaper", "-c", confPath).Start()
-		}
-		// If already running, use hyprctl to apply immediately
-		exec.Command("hyprctl", "hyprpaper", "preload", path).Run()
-		return exec.Command("hyprctl", "hyprpaper", "wallpaper", ", "+path).Run()
-	case "swaybg":
-		exec.Command("pkill", "swaybg").Run()
-		return exec.Command("swaybg", "-i", path, "-m", "fill").Start()
-	case "wbg":
-		exec.Command("pkill", "wbg").Run()
-		return exec.Command("wbg", path).Start()
-	}
-
-	return fmt.Errorf("unsupported daemon: %s", daemon)
-}
-
-func isProcessRunning(name string) bool {
-	err := exec.Command("pgrep", "-x", name).Run()
-	return err == nil
-}
-
-func (m *Monitor) checkAndUpdate() error {
-	wallpaper, err := getCurrentWallpaper()
-	if err != nil {
-		return err
-	}
-
-	if wallpaper == "" || wallpaper == m.current {
+// reprocess applies processing settings to m.source, updates m.current,
+// regenerates theme CSS, and publishes TopicThemeChanged.
+// Must be safe to call from any goroutine.
+func (m *Monitor) reprocess(cfg settings.Config) error {
+	if m.source == "" {
 		return nil
 	}
 
-	// Resolve to absolute path
-	if !filepath.IsAbs(wallpaper) {
-		if abs, err := filepath.Abs(wallpaper); err == nil {
-			wallpaper = abs
-		}
+	pcfg := ProcessConfig{
+		Blur:       cfg.WallpaperBlur,
+		Brightness: cfg.WallpaperBrightness,
+		Grayscale:  cfg.WallpaperGrayscale,
 	}
 
-	m.current = wallpaper
+	processed, err := ProcessWallpaper(m.source, pcfg)
+	if err != nil {
+		return fmt.Errorf("process wallpaper: %w", err)
+	}
 
-	if err := m.generator.SetWallpaper(wallpaper); err != nil {
+	m.current = processed
+
+	if err := store.Set(storeKeyWallpaper, processed); err != nil {
+		log.Printf("[THEME] save processed path: %v", err)
+	}
+
+	if err := m.generator.SetWallpaper(processed); err != nil {
 		return fmt.Errorf("generate theme: %w", err)
 	}
 
-	// Save to persistent store
-	if err := store.Set(storeKeyWallpaper, wallpaper); err != nil {
-		return fmt.Errorf("save wallpaper path: %w", err)
-	}
-
-	// Notify that theme changed
-	m.bus.Publish(bus.TopicThemeChanged, bus.Event{Data: wallpaper})
-
+	m.bus.Publish(bus.TopicThemeChanged, bus.Event{Data: processed})
 	return nil
-}
-
-// getCurrentWallpaper tries to get the current wallpaper from various sources
-func getCurrentWallpaper() (string, error) {
-	// Try hyprctl first (Hyprland)
-	if path := getHyprlandWallpaper(); path != "" {
-		return path, nil
-	}
-
-	// Try swww
-	if path := getSWWWWallpaper(); path != "" {
-		return path, nil
-	}
-
-	// Try nitrogen
-	if path := getNitrogenWallpaper(); path != "" {
-		return path, nil
-	}
-
-	// Try feh
-	if path := getFehWallpaper(); path != "" {
-		return path, nil
-	}
-
-	return "", fmt.Errorf("no wallpaper tool detected")
-}
-
-func getHyprlandWallpaper() string {
-	out, err := exec.Command("hyprctl", "hyprpaper", "listactive").Output()
-	if err != nil {
-		return ""
-	}
-
-	// Parse output like "monitor = HDMI-A-1, /path/to/wallpaper.jpg"
-	lines := strings.Split(string(out), "\n")
-	for _, line := range lines {
-		parts := strings.Split(line, ",")
-		if len(parts) >= 2 {
-			return strings.TrimSpace(parts[len(parts)-1])
-		}
-	}
-
-	return ""
-}
-
-func getSWWWWallpaper() string {
-	out, err := exec.Command("swww", "query").Output()
-	if err != nil {
-		return ""
-	}
-
-	// Parse output like "HDMI-A-1: /path/to/wallpaper.jpg"
-	lines := strings.Split(string(out), "\n")
-	for _, line := range lines {
-		parts := strings.Split(line, ": ")
-		if len(parts) >= 2 {
-			return strings.TrimSpace(parts[1])
-		}
-	}
-
-	return ""
-}
-
-var nitrogenBgRegex = regexp.MustCompile(`file=(.+)`)
-
-func getNitrogenWallpaper() string {
-	if _, err := exec.Command("nitrogen", "--save").Output(); err != nil {
-		// nitrogen not running — fall back to reading its config file directly.
-		cfgPath := filepath.Join(os.Getenv("HOME"), ".config", "nitrogen", "bg-saved.cfg")
-		data, err := os.ReadFile(cfgPath)
-		if err != nil {
-			return ""
-		}
-		if m := nitrogenBgRegex.FindSubmatch(data); len(m) >= 2 {
-			return strings.TrimSpace(string(m[1]))
-		}
-	}
-	return ""
-}
-
-var fehImgRe = regexp.MustCompile(`\S+\.(jpg|jpeg|png|gif|bmp|webp)`)
-
-func getFehWallpaper() string {
-	// feh stores its last command in ~/.fehbg, e.g.:
-	//   feh --no-fehbg --bg-fill /path/to/image.jpg
-	data, err := os.ReadFile(filepath.Join(os.Getenv("HOME"), ".fehbg"))
-	if err != nil {
-		return ""
-	}
-	sc := bufio.NewScanner(strings.NewReader(string(data)))
-	for sc.Scan() {
-		if m := fehImgRe.FindString(sc.Text()); m != "" {
-			return m
-		}
-	}
-	return ""
 }

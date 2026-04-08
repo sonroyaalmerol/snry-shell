@@ -25,8 +25,12 @@ const (
 	keyNotificationPosition  = "notifications.position"
 	keyVolumeStep            = "audio.volume_step"
 	keyBrightnessStep        = "brightness.step"
-	keyBlurStrength          = "theme.blur_strength"
-	keyWallpaperDaemon       = "theme.wallpaper_daemon"
+	keyBlurStrength        = "theme.blur_strength"
+	keyWallpaperSource     = "theme.wallpaper_source"
+	keyWallpaperFit        = "theme.wallpaper_fit"
+	keyWallpaperBlur       = "theme.wallpaper_blur"
+	keyWallpaperBrightness = "theme.wallpaper_brightness"
+	keyWallpaperGrayscale  = "theme.wallpaper_grayscale"
 )
 
 type Config struct {
@@ -51,8 +55,13 @@ type Config struct {
 	NotificationPosition string
 	VolumeStep           float64
 	BrightnessStep       float64
-	BlurStrength         int
-	WallpaperDaemon      string // "auto", "hyprpaper", "swww", "swaybg", "wbg"
+	BlurStrength int
+
+	WallpaperSource     string // original user-selected path
+	WallpaperFit        string // "cover", "contain", "fill", "scale-down"
+	WallpaperBlur       int    // 0–50
+	WallpaperBrightness int    // 0–200, 100 = no change
+	WallpaperGrayscale  bool
 }
 
 func DefaultConfig() Config {
@@ -78,8 +87,13 @@ func DefaultConfig() Config {
 		NotificationPosition: "top-right",
 		VolumeStep:           0.05,
 		BrightnessStep:       0.05,
-		BlurStrength:         20,
-		WallpaperDaemon:      "auto",
+		BlurStrength: 20,
+
+		WallpaperSource:     "",
+		WallpaperFit:        "cover",
+		WallpaperBlur:       0,
+		WallpaperBrightness: 100,
+		WallpaperGrayscale:  false,
 	}
 }
 
@@ -107,8 +121,13 @@ func Load() (Config, error) {
 		NotificationPosition: store.LookupOr(keyNotificationPosition, d.NotificationPosition),
 		VolumeStep:           store.LookupOr(keyVolumeStep, d.VolumeStep),
 		BrightnessStep:       store.LookupOr(keyBrightnessStep, d.BrightnessStep),
-		BlurStrength:         store.LookupOr(keyBlurStrength, d.BlurStrength),
-		WallpaperDaemon:      store.LookupOr(keyWallpaperDaemon, d.WallpaperDaemon),
+		BlurStrength: store.LookupOr(keyBlurStrength, d.BlurStrength),
+
+		WallpaperSource:     store.LookupOr(keyWallpaperSource, d.WallpaperSource),
+		WallpaperFit:        store.LookupOr(keyWallpaperFit, d.WallpaperFit),
+		WallpaperBlur:       store.LookupOr(keyWallpaperBlur, d.WallpaperBlur),
+		WallpaperBrightness: store.LookupOr(keyWallpaperBrightness, d.WallpaperBrightness),
+		WallpaperGrayscale:  store.LookupOr(keyWallpaperGrayscale, d.WallpaperGrayscale),
 	}, nil
 }
 
@@ -135,7 +154,12 @@ func Save(cfg Config) error {
 		keyNotificationPosition: cfg.NotificationPosition,
 		keyVolumeStep:           cfg.VolumeStep,
 		keyBrightnessStep:       cfg.BrightnessStep,
-		keyBlurStrength:         cfg.BlurStrength,
-		keyWallpaperDaemon:      cfg.WallpaperDaemon,
+		keyBlurStrength: cfg.BlurStrength,
+
+		keyWallpaperSource:     cfg.WallpaperSource,
+		keyWallpaperFit:        cfg.WallpaperFit,
+		keyWallpaperBlur:       cfg.WallpaperBlur,
+		keyWallpaperBrightness: cfg.WallpaperBrightness,
+		keyWallpaperGrayscale:  cfg.WallpaperGrayscale,
 	})
 }

@@ -61,6 +61,7 @@ import (
 	"github.com/sonroyaalmerol/snry-shell/surfaces/regionselector"
 	"github.com/sonroyaalmerol/snry-shell/surfaces/session"
 	"github.com/sonroyaalmerol/snry-shell/surfaces/settings"
+	"github.com/sonroyaalmerol/snry-shell/surfaces/wallpaper"
 )
 
 // Run creates the GTK application, initialises all services, wires every
@@ -162,6 +163,7 @@ func Run() int {
 	go idleSvc.Run(ctx)
 
 	var bars []*bar.Bar
+	var wallpapers []*wallpaper.Surface
 
 	// Update configs when settings change.
 	b.Subscribe(bus.TopicSettingsChanged, func(e bus.Event) {
@@ -184,6 +186,7 @@ func Run() int {
 					}
 				})
 			}
+
 			cfg = newCfg
 		}
 	})
@@ -406,8 +409,12 @@ func Run() int {
 			for _, c := range allCorners {
 				c.Close()
 			}
+			for _, wp := range wallpapers {
+				wp.Close()
+			}
 			bars = nil
 			allCorners = nil
+			wallpapers = nil
 
 			d := gdk.DisplayGetDefault()
 			if d == nil {
@@ -423,8 +430,9 @@ func Run() int {
 				mon := &gdk.Monitor{Object: item}
 				bars = append(bars, bar.New(app, b, refs, mon, cfg.BarPosition))
 				allCorners = append(allCorners, corners.New(app, b, mon))
+				wallpapers = append(wallpapers, wallpaper.New(app, b, mon))
 			}
-			log.Printf("[SHELL] monitors: %d bars created", len(bars))
+			log.Printf("[SHELL] monitors: %d bars, %d wallpaper surfaces created", len(bars), len(wallpapers))
 		}
 
 		refreshMonitors()

@@ -16,6 +16,7 @@ import (
 	"strings"
 
 	"github.com/sonroyaalmerol/snry-shell/internal/fileutil"
+	"github.com/sonroyaalmerol/snry-shell/internal/settings"
 	"github.com/sonroyaalmerol/snry-shell/internal/store"
 )
 
@@ -72,9 +73,18 @@ func New() *Generator {
 	}
 }
 
-// GetLastWallpaper returns the last wallpaper path from persistent store
+// GetLastWallpaper returns the path of the last processed wallpaper.
 func GetLastWallpaper() string {
 	return store.LookupOr(storeKeyWallpaper, "")
+}
+
+// GetWallpaperSource returns the original user-selected wallpaper path.
+// This is the path shown in the control panel file picker.
+func GetWallpaperSource() string {
+	if cfg, err := settings.Load(); err == nil && cfg.WallpaperSource != "" {
+		return cfg.WallpaperSource
+	}
+	return ""
 }
 
 // SetBlurStrength updates blur strength and regenerates theme
