@@ -9,19 +9,28 @@ import (
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/sonroyaalmerol/snry-shell/internal/bus"
 	"github.com/sonroyaalmerol/snry-shell/internal/layershell"
+	"github.com/sonroyaalmerol/snry-shell/internal/settings"
 	"github.com/sonroyaalmerol/snry-shell/internal/state"
 )
 
-// NotifPopup shows floating notification toasts at the top-right.
+// NotifPopup shows floating notification toasts.
 type NotifPopup struct {
-	win   *gtk.ApplicationWindow
-	bus   *bus.Bus
-	box   *gtk.Box
-	dnd   bool
-	dndMu sync.RWMutex
+	win      *gtk.ApplicationWindow
+	bus      *bus.Bus
+	box      *gtk.Box
+	dnd      bool
+	dndMu    sync.RWMutex
+	timeout  time.Duration
+	position string
 }
 
 func New(app *gtk.Application, b *bus.Bus) *NotifPopup {
+	p := &NotifPopup{
+		bus:      b,
+		timeout:  5000 * time.Millisecond,
+		position: "top-right",
+	}
+
 	win := layershell.NewWindow(app, layershell.WindowConfig{
 		Name:          "snry-notif-popup",
 		Layer:         layershell.LayerOverlay,
@@ -33,11 +42,9 @@ func New(app *gtk.Application, b *bus.Bus) *NotifPopup {
 	})
 
 	box := gtk.NewBox(gtk.OrientationVertical, 0)
-	box.SetHAlign(gtk.AlignEnd)
-	box.SetVAlign(gtk.AlignStart)
+	p.win = win
+	p.box = box
 	win.SetChild(box)
-
-	p := &NotifPopup{win: win, bus: b, box: box}
 
 	b.Subscribe(bus.TopicNotification, func(e bus.Event) {
 		if e.Data == nil {
@@ -62,22 +69,85 @@ func New(app *gtk.Application, b *bus.Bus) *NotifPopup {
 		}
 	})
 
+	b.Subscribe(bus.TopicSettingsChanged, func(e bus.Event) {
+		if cfg, ok := e.Data.(settings.Config); ok {
+			glib.IdleAdd(func() {
+				p.timeout = time.Duration(cfg.NotificationTimeout) * time.Millisecond
+				if p.position != cfg.NotificationPosition {
+					p.position = cfg.NotificationPosition
+					p.updateLayout()
+				}
+			})
+		}
+	})
+
 	win.SetVisible(false)
 	return p
+}
+
+func (p *NotifPopup) updateLayout() {
+	anchors := map[layershell.Edge]bool{}
+	margins := map[layershell.Edge]int{}
+
+	switch p.position {
+	case "top-right":
+		anchors[layershell.EdgeTop] = true
+		anchors[layershell.EdgeRight] = true
+		margins[layershell.EdgeTop] = 8
+		margins[layershell.EdgeRight] = 8
+		p.box.SetHAlign(gtk.AlignEnd)
+		p.box.SetVAlign(gtk.AlignStart)
+	case "top-left":
+		anchors[layershell.EdgeTop] = true
+		anchors[layershell.EdgeLeft] = true
+		margins[layershell.EdgeTop] = 8
+		margins[layershell.EdgeLeft] = 8
+		p.box.SetHAlign(gtk.AlignStart)
+		p.box.SetVAlign(gtk.AlignStart)
+	case "bottom-right":
+		anchors[layershell.EdgeBottom] = true
+		anchors[layershell.EdgeRight] = true
+		margins[layershell.EdgeBottom] = 8
+		margins[layershell.EdgeRight] = 8
+		p.box.SetHAlign(gtk.AlignEnd)
+		p.box.SetVAlign(gtk.AlignEnd)
+	case "bottom-left":
+		anchors[layershell.EdgeBottom] = true
+		anchors[layershell.EdgeLeft] = true
+		margins[layershell.EdgeBottom] = 8
+		margins[layershell.EdgeLeft] = 8
+		p.box.SetHAlign(gtk.AlignStart)
+		p.box.SetVAlign(gtk.AlignEnd)
+	}
+
+	for edge, val := range anchors {
+		layershell.SetAnchor(p.win, edge, val)
+	}
+	for edge, val := range margins {
+		layershell.SetMargin(p.win, edge, val)
+	}
 }
 
 func (p *NotifPopup) AddToast(n state.Notification) {
 	card := p.buildCard(n)
 	revealer := gtk.NewRevealer()
-	revealer.SetTransitionType(gtk.RevealerTransitionTypeSlideDown)
+	
+	transition := gtk.RevealerTransitionTypeSlideDown
+	if p.position == "bottom-right" || p.position == "bottom-left" {
+		transition = gtk.RevealerTransitionTypeSlideUp
+		p.box.Append(revealer)
+	} else {
+		p.box.Prepend(revealer)
+	}
+
+	revealer.SetTransitionType(transition)
 	revealer.SetTransitionDuration(250)
 	revealer.SetChild(card)
-	p.box.Prepend(revealer)
+	
 	p.win.SetVisible(true)
-
 	glib.IdleAdd(func() { revealer.SetRevealChild(true) })
 
-	timeout := 5000 * time.Millisecond
+	timeout := p.timeout
 	if n.Timeout > 0 {
 		timeout = time.Duration(n.Timeout) * time.Millisecond
 	}
