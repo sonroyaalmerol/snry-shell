@@ -53,14 +53,15 @@ type LockScreen struct {
 }
 
 type lockWindow struct {
-	win    *gtk.ApplicationWindow
-	mon    *gdk.Monitor
-	bg     *gtk.Picture
-	clock  *gtk.Label
-	date   *gtk.Label
-	entry  *gtk.Entry
-	status *gtk.Label
-	unlock *gtk.Button
+	win     *gtk.ApplicationWindow
+	mon     *gdk.Monitor
+	bg      *gtk.Picture
+	clock   *gtk.Label
+	date    *gtk.Label
+	entry   *gtk.Entry
+	status  *gtk.Label
+	unlock  *gtk.Button
+	authBox *gtk.Box
 }
 
 // New creates and returns the lockscreen manager. Windows are spawned per
@@ -115,7 +116,32 @@ func New(app *gtk.Application, b *bus.Bus) *LockScreen {
 		}
 	})
 
+	// Handle OSK visibility for layout adjustments
+	b.Subscribe(bus.TopicOSKState, func(e bus.Event) {
+		visible, ok := e.Data.(bool)
+		if !ok {
+			return
+		}
+		glib.IdleAdd(func() {
+			for _, w := range ls.windows {
+				ls.updateOSKLayout(w, visible)
+			}
+		})
+	})
+
 	return ls
+}
+
+func (ls *LockScreen) updateOSKLayout(lw *lockWindow, visible bool) {
+	if visible {
+		// Shift auth box up to avoid OSK
+		lw.authBox.SetVAlign(gtk.AlignStart)
+		lw.authBox.SetMarginTop(240) // Below clock but above OSK
+	} else {
+		// Restore to bottom
+		lw.authBox.SetVAlign(gtk.AlignEnd)
+		lw.authBox.SetMarginTop(0)
+	}
 }
 
 // UpdateSettings updates the lockscreen configuration
@@ -236,6 +262,7 @@ func (ls *LockScreen) buildWindow(lw *lockWindow) {
 	authBox.SetVAlign(gtk.AlignEnd)
 	authBox.SetHAlign(gtk.AlignCenter)
 	authBox.AddCSSClass("lockscreen-auth-box")
+	lw.authBox = authBox
 
 	// User info
 	userRow := gtk.NewBox(gtk.OrientationVertical, 12)
