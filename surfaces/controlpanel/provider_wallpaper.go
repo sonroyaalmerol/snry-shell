@@ -32,60 +32,46 @@ func (w *wallpaperConfigProvider) BuildWidget() gtk.Widgetter {
 	box := gtk.NewBox(gtk.OrientationVertical, 0)
 	box.AddCSSClass("settings-stack")
 
-	// 1. Current Wallpaper Preview
-	previewBox := gtk.NewBox(gtk.OrientationVertical, 12)
-	previewBox.AddCSSClass("settings-section")
-
-	subtitle := gtk.NewLabel("Current Wallpaper")
-	subtitle.AddCSSClass("settings-subtitle")
-	subtitle.SetHAlign(gtk.AlignStart)
-	previewBox.Append(subtitle)
-
-	card := gtk.NewBox(gtk.OrientationVertical, 0)
-	card.AddCSSClass("m3-card")
-	card.SetSizeRequest(-1, 200)
+	// ── Preview ──────────────────────────────────────────────────────────────
 
 	w.preview = gtk.NewPicture()
 	w.preview.SetContentFit(gtk.ContentFitCover)
 	w.preview.SetCanShrink(true)
 	w.preview.AddCSSClass("wallpaper-preview")
-	
-	wallpaperPath := theme.GetLastWallpaper()
-	if wallpaperPath != "" {
-		w.preview.SetFilename(wallpaperPath)
+
+	// Show the last processed wallpaper as the preview.
+	if processed := theme.GetLastWallpaper(); processed != "" {
+		w.preview.SetFilename(processed)
 	}
-	
-	card.Append(w.preview)
-	previewBox.Append(card)
-	box.Append(previewBox)
 
-	// 2. Select Wallpaper
-	selectionBox := gtk.NewBox(gtk.OrientationVertical, 12)
-	selectionBox.AddCSSClass("settings-section")
-	selectionBox.SetMarginTop(24)
+	previewCard := gtk.NewBox(gtk.OrientationVertical, 0)
+	previewCard.AddCSSClass("m3-card")
+	previewCard.SetSizeRequest(-1, 200)
+	previewCard.Append(w.preview)
 
-	selSubtitle := gtk.NewLabel("Selection")
-	selSubtitle.AddCSSClass("settings-subtitle")
-	selSubtitle.SetHAlign(gtk.AlignStart)
-	selectionBox.Append(selSubtitle)
+	previewSection := gtk.NewBox(gtk.OrientationVertical, 12)
+	previewSection.AddCSSClass("settings-section")
+	previewLbl := gtk.NewLabel("Current Wallpaper")
+	previewLbl.AddCSSClass("settings-subtitle")
+	previewLbl.SetHAlign(gtk.AlignStart)
+	previewSection.Append(previewLbl)
+	previewSection.Append(previewCard)
+	box.Append(previewSection)
 
-	selCard := gtk.NewBox(gtk.OrientationVertical, 0)
-	selCard.AddCSSClass("system-controls")
+	// ── File selection ───────────────────────────────────────────────────────
 
-	row := gtk.NewBox(gtk.OrientationHorizontal, 16)
-	row.AddCSSClass("m3-switch-row")
+	sourcePath := theme.GetWallpaperSource()
 
 	pathField := gtkutil.NewM3OutlinedTextField()
-	pathField.SetText(wallpaperPath)
+	pathField.SetText(sourcePath)
 	pathField.SetHExpand(true)
 	pathField.Entry().SetEditable(false)
 
 	browseBtn := gtkutil.M3IconButton("folder_open", "settings-btn")
 	browseBtn.SetTooltipText("Browse for wallpaper")
-	
 	browseBtn.ConnectClicked(func() {
 		chooser := gtk.NewFileChooserNative("Select Wallpaper", nil, gtk.FileChooserActionOpen, "Select", "Cancel")
-		
+
 		filter := gtk.NewFileFilter()
 		filter.SetName("Images")
 		filter.AddMIMEType("image/jpeg")
@@ -95,11 +81,12 @@ func (w *wallpaperConfigProvider) BuildWidget() gtk.Widgetter {
 
 		chooser.ConnectResponse(func(res int) {
 			if res == int(gtk.ResponseAccept) {
-				file := chooser.File()
-				if file != nil {
+				if file := chooser.File(); file != nil {
 					path := file.Path()
 					pathField.SetText(path)
-					w.updateWallpaper(path)
+					// Show source immediately in preview while the shell processes it.
+					w.preview.SetFilename(path)
+					w.applyWallpaper(path)
 				}
 			}
 			chooser.Destroy()
@@ -107,48 +94,81 @@ func (w *wallpaperConfigProvider) BuildWidget() gtk.Widgetter {
 		chooser.Show()
 	})
 
-	row.Append(pathField)
-	row.Append(browseBtn)
-	selCard.Append(row)
-	selectionBox.Append(selCard)
-	box.Append(selectionBox)
+	selRow := gtk.NewBox(gtk.OrientationHorizontal, 16)
+	selRow.AddCSSClass("m3-switch-row")
+	selRow.Append(pathField)
+	selRow.Append(browseBtn)
 
-	// 3. Wallpaper Daemon
-	daemonBox := gtk.NewBox(gtk.OrientationVertical, 12)
-	daemonBox.AddCSSClass("settings-section")
-	daemonBox.SetMarginTop(24)
+	selCard := gtk.NewBox(gtk.OrientationVertical, 0)
+	selCard.AddCSSClass("system-controls")
+	selCard.Append(selRow)
 
-	daemonSubtitle := gtk.NewLabel("Wallpaper Daemon")
-	daemonSubtitle.AddCSSClass("settings-subtitle")
-	daemonSubtitle.SetHAlign(gtk.AlignStart)
-	daemonBox.Append(daemonSubtitle)
+	selSection := gtk.NewBox(gtk.OrientationVertical, 12)
+	selSection.AddCSSClass("settings-section")
+	selSection.SetMarginTop(24)
+	selLbl := gtk.NewLabel("Selection")
+	selLbl.AddCSSClass("settings-subtitle")
+	selLbl.SetHAlign(gtk.AlignStart)
+	selSection.Append(selLbl)
+	selSection.Append(selCard)
+	box.Append(selSection)
 
-	daemonRow := gtkutil.DropdownRow("Background Daemon", "Tool used to set desktop wallpaper",
-		[]string{"auto", "hyprpaper", "swww", "swaybg", "wbg"}, w.cfg.WallpaperDaemon,
+	// ── Display options ──────────────────────────────────────────────────────
+
+	fitRow := gtkutil.DropdownRow(
+		"Fit Mode", "How the image fills the screen",
+		[]string{"cover", "contain", "fill", "scale-down"},
+		w.cfg.WallpaperFit,
 		func(v string) {
-			w.cfg.WallpaperDaemon = v
+			w.cfg.WallpaperFit = v
 			w.Save()
-		})
+		},
+	)
 
-	daemonBox.Append(gtkutil.SettingsSection("", daemonRow))
-	box.Append(daemonBox)
+	box.Append(gtkutil.SettingsSection("Display", fitRow))
+
+	// ── Processing options ───────────────────────────────────────────────────
+
+	blurRow := gtkutil.SpinRow(
+		"Blur", "Gaussian blur radius applied to the wallpaper (0 = off, 1–50)",
+		0, 50, w.cfg.WallpaperBlur,
+		func(v int) {
+			w.cfg.WallpaperBlur = v
+			w.Save()
+		},
+	)
+
+	brightnessRow := gtkutil.SpinRow(
+		"Brightness", "Brightness multiplier: 100 = original, <100 = darker, >100 = brighter",
+		0, 200, w.cfg.WallpaperBrightness,
+		func(v int) {
+			w.cfg.WallpaperBrightness = v
+			w.Save()
+		},
+	)
+
+	grayscaleRow, _ := gtkutil.SwitchRowFull(
+		"Grayscale", "Convert the wallpaper to black & white",
+		w.cfg.WallpaperGrayscale,
+		func(active bool) {
+			w.cfg.WallpaperGrayscale = active
+			w.Save()
+		},
+	)
+
+	box.Append(gtkutil.SettingsSection("Processing", blurRow, brightnessRow, grayscaleRow))
 
 	scroll.SetChild(box)
 	return scroll
 }
 
-func (w *wallpaperConfigProvider) updateWallpaper(path string) {
-	// 1. Update preview
-	w.preview.SetFilename(path)
-
-	// 2. Notify shell to apply and regenerate theme
+// applyWallpaper tells the running shell to process and apply a new wallpaper.
+func (w *wallpaperConfigProvider) applyWallpaper(path string) {
 	conn, err := net.Dial("unix", controlsocket.DefaultPath)
 	if err != nil {
-		log.Printf("[CONTROLPANEL] failed to connect to shell socket: %v", err)
+		log.Printf("[CONTROLPANEL] connect to shell socket: %v", err)
 		return
 	}
 	defer conn.Close()
-	
-	cmd := fmt.Sprintf("set-wallpaper:%s", path)
-	conn.Write([]byte(cmd))
+	fmt.Fprintf(conn, "set-wallpaper:%s", path)
 }
