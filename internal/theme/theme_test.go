@@ -81,7 +81,8 @@ func TestGenerateCSS(t *testing.T) {
 		Background: "#11111B",
 	}
 
-	css := generateCSS(scheme)
+	g := New()
+	css := g.generateCSS(scheme)
 
 	if css == "" {
 		t.Error("generateCSS returned empty string")
