@@ -152,9 +152,10 @@ func Run() int {
 
 	// Idle service — replaces hypridle.
 	idleCfg := idle.Config{
-		LockTimeout:       idleDuration(cfg.IdleLockTimeout),
-		DisplayOffTimeout: idleDuration(cfg.IdleDisplayOffTimeout),
-		SuspendTimeout:    idleDuration(cfg.IdleSuspendTimeout),
+		LockTimeout:           idleDuration(cfg.IdleLockTimeout),
+		IdleDisplayOffTimeout: idleDuration(cfg.IdleDisplayOffTimeout),
+		LockDisplayOffTimeout: idleDuration(cfg.LockDisplayOffTimeout),
+		SuspendTimeout:        idleDuration(cfg.IdleSuspendTimeout),
 	}
 	idleSvc := idle.New(b, sysConn, idleCfg)
 	go idleSvc.Run(ctx)
@@ -165,9 +166,10 @@ func Run() int {
 	b.Subscribe(bus.TopicSettingsChanged, func(e bus.Event) {
 		if newCfg, ok := e.Data.(shellsettings.Config); ok {
 			idleSvc.UpdateConfig(idle.Config{
-				LockTimeout:       idleDuration(newCfg.IdleLockTimeout),
-				DisplayOffTimeout: idleDuration(newCfg.IdleDisplayOffTimeout),
-				SuspendTimeout:    idleDuration(newCfg.IdleSuspendTimeout),
+				LockTimeout:           idleDuration(newCfg.IdleLockTimeout),
+				IdleDisplayOffTimeout: idleDuration(newCfg.IdleDisplayOffTimeout),
+				LockDisplayOffTimeout: idleDuration(newCfg.LockDisplayOffTimeout),
+				SuspendTimeout:        idleDuration(newCfg.IdleSuspendTimeout),
 			})
 			refs.SystemHandler.UpdateConfig(newCfg.LidCloseAction, newCfg.PowerButtonAction)
 			refs.Audio.UpdateStep(newCfg.VolumeStep)
