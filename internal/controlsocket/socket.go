@@ -45,7 +45,7 @@ func accept(ln net.Listener, b *bus.Bus) {
 func handleConn(conn net.Conn, b *bus.Bus) {
 	defer conn.Close()
 
-	buf := make([]byte, 256)
+	buf := make([]byte, 4096)
 	n, err := conn.Read(buf)
 	if err != nil {
 		return
@@ -53,12 +53,6 @@ func handleConn(conn net.Conn, b *bus.Bus) {
 
 	cmd := strings.TrimSpace(string(buf[:n]))
 	if cmd == "" {
-		return
-	}
-
-	if strings.HasPrefix(cmd, "set-wallpaper:") {
-		path := strings.TrimPrefix(cmd, "set-wallpaper:")
-		b.Publish(bus.TopicThemeChanged, bus.Event{Data: path})
 		return
 	}
 

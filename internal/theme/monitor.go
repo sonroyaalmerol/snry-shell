@@ -49,7 +49,7 @@ func (m *Monitor) Run(ctx context.Context) {
 			log.Printf("[THEME] restore legacy wallpaper: %v", err)
 			store.Delete(storeKeyWallpaper)
 		} else {
-			m.bus.Publish(bus.TopicThemeChanged, bus.Event{Data: last})
+			m.bus.Publish(bus.TopicThemeChanged, last)
 		}
 	}
 
@@ -64,7 +64,7 @@ func (m *Monitor) Run(ctx context.Context) {
 		if m.source == "" {
 			// Blur-strength-only change still needs a theme CSS refresh.
 			if m.current != "" {
-				m.bus.Publish(bus.TopicThemeChanged, bus.Event{Data: m.current})
+				m.bus.Publish(bus.TopicThemeChanged, m.current)
 			}
 			return
 		}
@@ -82,7 +82,7 @@ func (m *Monitor) Run(ctx context.Context) {
 			}()
 		} else {
 			// CSS-only change (blur strength, etc.) — just republish.
-			m.bus.Publish(bus.TopicThemeChanged, bus.Event{Data: m.current})
+			m.bus.Publish(bus.TopicThemeChanged, m.current)
 		}
 	})
 
@@ -97,7 +97,7 @@ func (m *Monitor) ForceUpdate() error {
 	if err := m.generator.Generate(); err != nil {
 		return fmt.Errorf("force update: %w", err)
 	}
-	m.bus.Publish(bus.TopicThemeChanged, bus.Event{Data: m.current})
+	m.bus.Publish(bus.TopicThemeChanged, m.current)
 	return nil
 }
 
@@ -149,6 +149,6 @@ func (m *Monitor) reprocess(cfg settings.Config) error {
 		return fmt.Errorf("generate theme: %w", err)
 	}
 
-	m.bus.Publish(bus.TopicThemeChanged, bus.Event{Data: processed})
+	m.bus.Publish(bus.TopicThemeChanged, processed)
 	return nil
 }

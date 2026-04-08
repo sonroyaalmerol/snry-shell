@@ -4,6 +4,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -227,5 +228,140 @@ func TestStartUsesDefaultPath(t *testing.T) {
 
 	if _, err := os.Stat(DefaultPath); err != nil {
 		t.Fatalf("default socket file not created: %v", err)
+	}
+}
+
+// TestSetWallpaperRoutesToSystemControls verifies the fix for the wallpaper
+// persistence bug: set-wallpaper: commands must reach TopicSystemControls so
+// that themeMonitor.SetWallpaper() is invoked and the source path is saved.
+func TestSetWallpaperRoutesToSystemControls(t *testing.T) {
+	t.Parallel()
+	path := tmpSocketPath(t)
+
+	b := bus.New()
+	var mu sync.Mutex
+	var gotCmd string
+
+	b.Subscribe(bus.TopicSystemControls, func(e bus.Event) {
+		if cmd, ok := e.Data.(string); ok {
+			mu.Lock()
+			gotCmd = cmd
+			mu.Unlock()
+		}
+	})
+
+	ln, err := StartAt(b, path)
+	if err != nil {
+		t.Fatalf("Start failed: %v", err)
+	}
+	defer ln.Close()
+
+	time.Sleep(10 * time.Millisecond)
+
+	conn, err := net.Dial("unix", path)
+	if err != nil {
+		t.Fatalf("dial failed: %v", err)
+	}
+	conn.Write([]byte("set-wallpaper:/home/user/Pictures/bg.png"))
+	conn.Close()
+
+	time.Sleep(50 * time.Millisecond)
+
+	mu.Lock()
+	got := gotCmd
+	mu.Unlock()
+
+	if got != "set-wallpaper:/home/user/Pictures/bg.png" {
+		t.Errorf("TopicSystemControls got %q, want set-wallpaper:...", got)
+	}
+}
+
+// TestSetWallpaperNotPublishedToThemeChanged verifies that set-wallpaper: does
+// NOT bypass themeMonitor by publishing a raw path directly to TopicThemeChanged.
+func TestSetWallpaperNotPublishedToThemeChanged(t *testing.T) {
+	t.Parallel()
+	path := tmpSocketPath(t)
+
+	b := bus.New()
+	var mu sync.Mutex
+	var themeChanged bool
+
+	b.Subscribe(bus.TopicThemeChanged, func(e bus.Event) {
+		mu.Lock()
+		themeChanged = true
+		mu.Unlock()
+	})
+
+	ln, err := StartAt(b, path)
+	if err != nil {
+		t.Fatalf("Start failed: %v", err)
+	}
+	defer ln.Close()
+
+	time.Sleep(10 * time.Millisecond)
+
+	conn, err := net.Dial("unix", path)
+	if err != nil {
+		t.Fatalf("dial failed: %v", err)
+	}
+	conn.Write([]byte("set-wallpaper:/home/user/Pictures/bg.png"))
+	conn.Close()
+
+	time.Sleep(50 * time.Millisecond)
+
+	mu.Lock()
+	got := themeChanged
+	mu.Unlock()
+
+	if got {
+		t.Error("set-wallpaper: must not publish directly to TopicThemeChanged (bypasses themeMonitor.SetWallpaper)")
+	}
+}
+
+// TestLongPathNotTruncated verifies that file paths longer than the old 256-byte
+// buffer are delivered intact to TopicSystemControls.
+func TestLongPathNotTruncated(t *testing.T) {
+	t.Parallel()
+	sockPath := tmpSocketPath(t)
+
+	// Build a wallpaper command with a path longer than the old 256-byte buffer.
+	longFilePath := "/home/user/Pictures/" + strings.Repeat("a", 280)
+	cmd := "set-wallpaper:" + longFilePath
+
+	b := bus.New()
+	var mu sync.Mutex
+	var gotCmd string
+
+	b.Subscribe(bus.TopicSystemControls, func(e bus.Event) {
+		if c, ok := e.Data.(string); ok {
+			mu.Lock()
+			gotCmd = c
+			mu.Unlock()
+		}
+	})
+
+	ln, err := StartAt(b, sockPath)
+	if err != nil {
+		t.Fatalf("Start failed: %v", err)
+	}
+	defer ln.Close()
+
+	time.Sleep(10 * time.Millisecond)
+
+	conn, err := net.Dial("unix", sockPath)
+	if err != nil {
+		t.Fatalf("dial failed: %v", err)
+	}
+	conn.Write([]byte(cmd))
+	conn.Close()
+
+	time.Sleep(50 * time.Millisecond)
+
+	mu.Lock()
+	got := gotCmd
+	mu.Unlock()
+
+	if got != cmd {
+		t.Errorf("long path truncated or lost:\n got  %q (len %d)\n want %q (len %d)", got, len(got), cmd, len(cmd))
 	}
 }
