@@ -1,17 +1,9 @@
 // Package idle monitors user inactivity and triggers screen locking and
 // optional system suspend. It replaces the functionality of hypridle.
-//
-// Activity is detected via the ext-idle-notify-v1 Wayland protocol,
-// which is standard on Hyprland setups.
-//
-// Logind integration: PrepareForSleep locks the screen before suspend;
-// the session Lock/Unlock D-Bus signals make loginctl lock-session
-// interoperable with the shell lockscreen.
 package idle
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"os/exec"
 	"sync"
@@ -28,49 +20,44 @@ import (
 
 // Config holds tunable idle parameters loaded from settings.
 type Config struct {
-	// LockTimeout is the duration of inactivity before the screen locks.
-	// Zero disables idle locking.
-	LockTimeout time.Duration
-	// DisplayOffTimeout is the additional duration after locking before the
-	// screen turns off. Zero disables display off.
-	DisplayOffTimeout time.Duration
-	// SuspendTimeout is the additional duration after locking before the
-	// system suspends. Zero disables auto-suspend.
-	SuspendTimeout time.Duration
+	LockTimeout           time.Duration
+	IdleDisplayOffTimeout time.Duration
+	LockDisplayOffTimeout time.Duration
+	SuspendTimeout        time.Duration
 }
 
 // DefaultConfig returns the factory defaults.
 func DefaultConfig() Config {
 	return Config{
-		LockTimeout:       5 * time.Minute,
-		DisplayOffTimeout: 30 * time.Second,
-		SuspendTimeout:    0,
+		LockTimeout:           5 * time.Minute,
+		IdleDisplayOffTimeout: 2 * time.Minute,
+		LockDisplayOffTimeout: 30 * time.Second,
+		SuspendTimeout:        0,
 	}
 }
 
 // Service detects user inactivity and triggers locking and optional suspend.
 type Service struct {
 	bus  *bus.Bus
-	conn *dbus.Conn // system bus; may be nil
+	conn *dbus.Conn
 	cfg  Config
 
 	mu          sync.Mutex
 	locked      bool
 	displayOff  bool
 	idleStarted time.Time
-	inhibited   bool // true if D-Bus or manual inhibition is active
+	inhibited   bool
 
 	// Wayland fields
-	waylandMu     sync.Mutex
-	display       *client.Display
-	manager       *protocol.ExtIdleNotifierV1
-	seat          *client.Seat
-	activeNotif   *protocol.ExtIdleNotificationV1
-	activeTimeout uint32
+	waylandMu       sync.Mutex
+	display         *client.Display
+	manager         *protocol.ExtIdleNotifierV1
+	seat            *client.Seat
+	lockNotif       *protocol.ExtIdleNotificationV1
+	displayOffNotif *protocol.ExtIdleNotificationV1
 }
 
-// New creates the idle service. conn may be nil; logind integration is
-// skipped when no system bus is available.
+// New creates the idle service.
 func New(b *bus.Bus, conn *dbus.Conn, cfg Config) *Service {
 	return &Service{
 		bus:  b,
@@ -79,70 +66,93 @@ func New(b *bus.Bus, conn *dbus.Conn, cfg Config) *Service {
 	}
 }
 
-// UpdateConfig replaces the running configuration.
+// UpdateConfig replaces the running configuration and recreates timers.
 func (s *Service) UpdateConfig(cfg Config) {
 	s.mu.Lock()
-	oldTimeout := s.cfg.LockTimeout
 	s.cfg = cfg
 	s.mu.Unlock()
 
-	// Only recreate if the timeout value changed.
-	if cfg.LockTimeout != oldTimeout {
-		s.waylandMu.Lock()
-		defer s.waylandMu.Unlock()
-		if s.manager != nil && s.seat != nil {
-			log.Printf("[IDLE] config updated, recreating notification")
-			s.recreateNotification(cfg.LockTimeout)
+	s.waylandMu.Lock()
+	defer s.waylandMu.Unlock()
+	if s.manager != nil && s.seat != nil {
+		log.Printf("[IDLE] config updated, recreating timers")
+		s.recreateTimers()
+	}
+}
+
+func (s *Service) recreateTimers() {
+	// Cleanup existing
+	if s.lockNotif != nil {
+		s.lockNotif.Destroy()
+		s.lockNotif = nil
+	}
+	if s.displayOffNotif != nil {
+		s.displayOffNotif.Destroy()
+		s.displayOffNotif = nil
+	}
+
+	s.mu.Lock()
+	cfg := s.cfg
+	locked := s.locked
+	s.mu.Unlock()
+
+	// 1. Lock Timer (only if not already locked)
+	if !locked && cfg.LockTimeout > 0 {
+		ms := uint32(cfg.LockTimeout.Milliseconds())
+		notif, err := s.manager.GetIdleNotification(ms, s.seat)
+		if err == nil {
+			notif.SetIdledHandler(func(protocol.ExtIdleNotificationV1IdledEvent) {
+				s.doLock()
+			})
+			s.lockNotif = notif
+		}
+	}
+
+	// 2. Display Off Timer
+	displayTimeout := cfg.IdleDisplayOffTimeout
+	if locked {
+		displayTimeout = cfg.LockDisplayOffTimeout
+	}
+
+	if displayTimeout > 0 {
+		ms := uint32(displayTimeout.Milliseconds())
+		notif, err := s.manager.GetIdleNotification(ms, s.seat)
+		if err == nil {
+			notif.SetIdledHandler(func(protocol.ExtIdleNotificationV1IdledEvent) {
+				s.setDisplay(false)
+			})
+			notif.SetResumedHandler(func(protocol.ExtIdleNotificationV1ResumedEvent) {
+				s.setDisplay(true)
+			})
+			s.displayOffNotif = notif
 		}
 	}
 }
 
-func (s *Service) recreateNotification(timeout time.Duration) {
-	if s.activeNotif != nil {
-		s.activeNotif.Destroy()
-		s.activeNotif = nil
-	}
-	s.activeTimeout = 0
-
-	ms := uint32(timeout.Milliseconds())
-	if ms == 0 {
-		return
-	}
-
-	notif, err := s.manager.GetIdleNotification(ms, s.seat)
-	if err != nil {
-		log.Printf("[IDLE] GetIdleNotification failed: %v", err)
-		return
-	}
-
-	notif.SetIdledHandler(func(protocol.ExtIdleNotificationV1IdledEvent) {
-		s.doLock()
-	})
-
-	notif.SetResumedHandler(func(protocol.ExtIdleNotificationV1ResumedEvent) {
-		s.mu.Lock()
-		s.locked = false
-		s.idleStarted = time.Time{}
-		wasDisplayOff := s.displayOff
-		s.displayOff = false
+func (s *Service) setDisplay(on bool) {
+	s.mu.Lock()
+	if s.displayOff == !on {
 		s.mu.Unlock()
-		if wasDisplayOff {
-			log.Printf("[IDLE] turning display on")
-			exec.Command("hyprctl", "dispatch", "dpms", "on").Run()
-		}
-		log.Printf("[IDLE] resumed activity")
-	})
+		return
+	}
+	s.displayOff = !on
+	s.mu.Unlock()
 
-	s.activeNotif = notif
-	s.activeTimeout = ms
+	if on {
+		log.Printf("[IDLE] turning display ON")
+		exec.Command("hyprctl", "dispatch", "dpms", "on").Run()
+	} else {
+		log.Printf("[IDLE] turning display OFF")
+		if err := exec.Command("hyprctl", "dispatch", "dpms", "off").Run(); err != nil {
+			exec.Command("xset", "dpms", "force", "off").Run()
+		}
+	}
 }
 
-// Run starts all monitoring goroutines and the idle check ticker.
-// Blocks until ctx is cancelled.
+// Run starts monitoring.
 func (s *Service) Run(ctx context.Context) error {
 	if s.conn != nil {
 		go s.monitorLogind(ctx)
-		// Register D-Bus ScreenSaver interface to bridge non-Wayland inhibitors.
 		if err := RegisterScreenSaver(s.conn, NewScreenSaver(s.bus)); err != nil {
 			log.Printf("[IDLE] screensaver dbus: %v", err)
 		}
@@ -150,33 +160,36 @@ func (s *Service) Run(ctx context.Context) error {
 
 	go s.waylandLoop(ctx)
 
-	// When the lockscreen is dismissed, reset idle state.
+	// Centralized lock state tracking.
 	s.bus.Subscribe(bus.TopicScreenLock, func(e bus.Event) {
-		if ls, ok := e.Data.(state.LockScreenState); ok && !ls.Locked {
+		if ls, ok := e.Data.(state.LockScreenState); ok {
 			s.mu.Lock()
-			s.locked = false
-			s.idleStarted = time.Time{}
+			changed := s.locked != ls.Locked
+			s.locked = ls.Locked
+			if ls.Locked {
+				s.idleStarted = time.Now()
+			} else {
+				s.idleStarted = time.Time{}
+			}
 			s.mu.Unlock()
+
+			if changed {
+				s.waylandMu.Lock()
+				if s.manager != nil {
+					s.recreateTimers()
+				}
+				s.waylandMu.Unlock()
+			}
 		}
 	})
 
-	// Watch for manual/dbus inhibition topic.
+	// Inhibition.
 	s.bus.Subscribe(bus.TopicIdleInhibit, func(e bus.Event) {
 		if active, ok := e.Data.(bool); ok {
 			s.mu.Lock()
 			s.inhibited = active
-			if active {
-				s.idleStarted = time.Time{}
-			}
 			s.mu.Unlock()
-			log.Printf("[IDLE] external inhibition: %v", active)
-		}
-	})
-
-	// Watch for DND (mapped to manual idle off in UI).
-	s.bus.Subscribe(bus.TopicDND, func(e bus.Event) {
-		if active, ok := e.Data.(bool); ok {
-			s.bus.Publish(bus.TopicIdleInhibit, active)
+			log.Printf("[IDLE] inhibition: %v", active)
 		}
 	})
 
@@ -192,6 +205,28 @@ func (s *Service) Run(ctx context.Context) error {
 	}
 }
 
+func (s *Service) tick() {
+	s.mu.Lock()
+	cfg := s.cfg
+	locked := s.locked
+	started := s.idleStarted
+	inhibited := s.inhibited
+	s.mu.Unlock()
+
+	if inhibited || !locked || started.IsZero() {
+		return
+	}
+
+	elapsed := time.Since(started)
+	if cfg.SuspendTimeout > 0 && elapsed >= cfg.SuspendTimeout {
+		s.mu.Lock()
+		s.idleStarted = time.Time{}
+		s.mu.Unlock()
+		log.Printf("[IDLE] suspending system")
+		go dbusutil.LogindSuspend(s.conn)
+	}
+}
+
 func (s *Service) waylandLoop(ctx context.Context) {
 	for {
 		select {
@@ -199,7 +234,7 @@ func (s *Service) waylandLoop(ctx context.Context) {
 			return
 		default:
 			if err := s.initAndDispatch(ctx); err != nil {
-				log.Printf("[IDLE] wayland connection error: %v, retrying in 5s", err)
+				log.Printf("[IDLE] wayland error: %v, retrying in 5s", err)
 				s.cleanupWayland()
 				time.Sleep(5 * time.Second)
 			}
@@ -210,8 +245,11 @@ func (s *Service) waylandLoop(ctx context.Context) {
 func (s *Service) cleanupWayland() {
 	s.waylandMu.Lock()
 	defer s.waylandMu.Unlock()
-	if s.activeNotif != nil {
-		s.activeNotif = nil
+	if s.lockNotif != nil {
+		s.lockNotif = nil
+	}
+	if s.displayOffNotif != nil {
+		s.displayOffNotif = nil
 	}
 	if s.display != nil {
 		s.display.Context().Close()
@@ -233,22 +271,14 @@ func (s *Service) initAndDispatch(ctx context.Context) error {
 		return err
 	}
 
-	var (
-		extIdleName uint32
-		extIdleVer  uint32
-		seatName    uint32
-		seatVer     uint32
-	)
-
+	var extIdleName, extIdleVer, seatName, seatVer uint32
 	registry.SetGlobalHandler(func(e client.RegistryGlobalEvent) {
 		switch e.Interface {
 		case "ext_idle_notifier_v1":
-			extIdleName = e.Name
-			extIdleVer = e.Version
+			extIdleName, extIdleVer = e.Name, e.Version
 		case "wl_seat":
 			if seatName == 0 {
-				seatName = e.Name
-				seatVer = e.Version
+				seatName, seatVer = e.Name, e.Version
 			}
 		}
 	})
@@ -258,47 +288,22 @@ func (s *Service) initAndDispatch(ctx context.Context) error {
 		return err
 	}
 
-	if extIdleName == 0 || seatName == 0 {
-		display.Destroy()
-		return fmt.Errorf("required interfaces (ext_idle_notifier_v1, wl_seat) not found")
-	}
-
 	s.waylandMu.Lock()
 	s.display = display
 	s.manager = protocol.NewExtIdleNotifierV1(display.Context())
-	if err := waylandutil.FixedBind(registry, extIdleName, "ext_idle_notifier_v1", extIdleVer, s.manager); err != nil {
-		s.waylandMu.Unlock()
-		display.Destroy()
-		return err
-	}
-
+	waylandutil.FixedBind(registry, extIdleName, "ext_idle_notifier_v1", extIdleVer, s.manager)
 	s.seat = client.NewSeat(display.Context())
-	if err := waylandutil.FixedBind(registry, seatName, "wl_seat", seatVer, s.seat); err != nil {
-		s.waylandMu.Unlock()
-		display.Destroy()
-		return err
-	}
-
+	waylandutil.FixedBind(registry, seatName, "wl_seat", seatVer, s.seat)
 	s.waylandMu.Unlock()
+
 	if err := waylandutil.Roundtrip(display); err != nil {
 		display.Destroy()
 		return err
 	}
 
 	s.waylandMu.Lock()
-	s.mu.Lock()
-	timeout := s.cfg.LockTimeout
-	s.mu.Unlock()
-	s.recreateNotification(timeout)
+	s.recreateTimers()
 	s.waylandMu.Unlock()
-
-	log.Printf("[IDLE] watching for ext-idle-notify-v1 events")
-
-	d := display
-	go func() {
-		<-ctx.Done()
-		d.Context().Close()
-	}()
 
 	for {
 		s.waylandMu.Lock()
@@ -308,52 +313,9 @@ func (s *Service) initAndDispatch(ctx context.Context) error {
 		}
 		dispCtx := s.display.Context()
 		s.waylandMu.Unlock()
-
 		if err := dispCtx.Dispatch(); err != nil {
 			return err
 		}
-	}
-}
-
-func (s *Service) tick() {
-	s.mu.Lock()
-	cfg := s.cfg
-	locked := s.locked
-	started := s.idleStarted
-	displayOff := s.displayOff
-	inhibited := s.inhibited
-	s.mu.Unlock()
-
-	// If inhibited, we manually prevent idling by "touching" the state.
-	if inhibited {
-		return
-	}
-
-	if !locked || started.IsZero() {
-		return
-	}
-
-	elapsed := time.Since(started)
-
-	if cfg.DisplayOffTimeout > 0 && !displayOff && elapsed >= cfg.DisplayOffTimeout {
-		log.Printf("[IDLE] turning display off after timeout")
-		s.mu.Lock()
-		s.displayOff = true
-		s.mu.Unlock()
-		go func() {
-			if err := exec.Command("hyprctl", "dispatch", "dpms", "off").Run(); err != nil {
-				// Fallback to generic DPMS if hyprctl fails or isn't available
-				exec.Command("xset", "dpms", "force", "off").Run()
-			}
-		}()
-	}
-
-	if cfg.SuspendTimeout > 0 && elapsed >= cfg.SuspendTimeout {
-		log.Printf("[IDLE] suspending after suspend timeout")
-		s.mu.Lock()
-		s.idleStarted = time.Time{}
-		s.mu.Unlock()
-		go dbusutil.LogindSuspend(s.conn)
 	}
 }
 
@@ -363,34 +325,23 @@ func (s *Service) doLock() {
 		s.mu.Unlock()
 		return
 	}
-	s.locked = true
-	s.idleStarted = time.Now()
 	s.mu.Unlock()
-	log.Printf("[IDLE] idle timeout reached — locking screen")
+	log.Printf("[IDLE] idle lock triggered")
 	s.bus.Publish(bus.TopicScreenLock, state.LockScreenState{Locked: true})
 }
-
-// ── logind integration ────────────────────────────────────────────────────────
 
 func (s *Service) monitorLogind(ctx context.Context) {
 	if err := s.conn.AddMatchSignal(
 		dbus.WithMatchInterface(dbusutil.LogindManager),
 		dbus.WithMatchMember("PrepareForSleep"),
 	); err != nil {
-		log.Printf("[IDLE] logind PrepareForSleep match: %v", err)
+		log.Printf("[IDLE] PrepareForSleep match: %v", err)
 	}
 
-	session, err := dbusutil.GetSessionPath(s.conn)
-	if err != nil {
-		log.Printf("[IDLE] cannot resolve logind session: %v", err)
-	}
+	session, _ := dbusutil.GetSessionPath(s.conn)
 	if session != "" {
-		for _, member := range []string{"Lock", "Unlock"} {
-			_ = s.conn.AddMatchSignal(
-				dbus.WithMatchObjectPath(session),
-				dbus.WithMatchMember(member),
-			)
-		}
+		_ = s.conn.AddMatchSignal(dbus.WithMatchObjectPath(session), dbus.WithMatchInterface(dbusutil.LogindSession), dbus.WithMatchMember("Lock"))
+		_ = s.conn.AddMatchSignal(dbus.WithMatchObjectPath(session), dbus.WithMatchInterface(dbusutil.LogindSession), dbus.WithMatchMember("Unlock"))
 	}
 
 	ch := make(chan *dbus.Signal, 16)
@@ -407,27 +358,12 @@ func (s *Service) monitorLogind(ctx context.Context) {
 			}
 			switch sig.Name {
 			case dbusutil.LogindManager + ".PrepareForSleep":
-				if len(sig.Body) > 0 {
-					if before, ok := sig.Body[0].(bool); ok {
-						if before {
-							s.doLock()
-						} else {
-							s.mu.Lock()
-							wasLocked := s.locked
-							s.mu.Unlock()
-							if wasLocked {
-								s.bus.Publish(bus.TopicScreenLock, state.LockScreenState{Locked: true})
-							}
-						}
-					}
+				if active, ok := sig.Body[0].(bool); ok && active {
+					s.doLock()
 				}
 			case dbusutil.LogindSession + ".Lock":
 				s.doLock()
 			case dbusutil.LogindSession + ".Unlock":
-				s.mu.Lock()
-				s.locked = false
-				s.idleStarted = time.Time{}
-				s.mu.Unlock()
 				s.bus.Publish(bus.TopicScreenLock, state.LockScreenState{Locked: false})
 			}
 		}
@@ -462,8 +398,6 @@ func (ss *ScreenSaver) Inhibit(appName string, reason string) (uint32, *dbus.Err
 	id := ss.id
 	ss.inhibitors[id] = appName
 	ss.mu.Unlock()
-
-	log.Printf("[IDLE] DBus inhibit from %s: %s (id=%d)", appName, reason, id)
 	ss.bus.Publish(bus.TopicIdleInhibit, true)
 	return id, nil
 }
@@ -473,8 +407,6 @@ func (ss *ScreenSaver) UnInhibit(id uint32) *dbus.Error {
 	delete(ss.inhibitors, id)
 	count := len(ss.inhibitors)
 	ss.mu.Unlock()
-
-	log.Printf("[IDLE] DBus uninhibit (id=%d), remaining=%d", id, count)
 	if count == 0 {
 		ss.bus.Publish(bus.TopicIdleInhibit, false)
 	}
@@ -486,24 +418,13 @@ func (ss *ScreenSaver) Lock() *dbus.Error {
 	return nil
 }
 
-func (ss *ScreenSaver) SimulateUserActivity() *dbus.Error {
-	return nil
-}
-
-func (ss *ScreenSaver) GetActive() (bool, *dbus.Error) {
-	return false, nil
-}
+func (ss *ScreenSaver) SimulateUserActivity() *dbus.Error { return nil }
+func (ss *ScreenSaver) GetActive() (bool, *dbus.Error)    { return false, nil }
 
 func RegisterScreenSaver(conn *dbus.Conn, ss *ScreenSaver) error {
 	if err := conn.Export(ss, screenSaverPath, screenSaverIface); err != nil {
-		return fmt.Errorf("export screensaver: %w", err)
+		return err
 	}
-	reply, err := conn.RequestName(screenSaverName, dbus.NameFlagReplaceExisting)
-	if err != nil {
-		return fmt.Errorf("request screensaver name: %w", err)
-	}
-	if reply != dbus.RequestNameReplyPrimaryOwner {
-		log.Printf("[IDLE] warning: could not own %s, reply=%d", screenSaverName, reply)
-	}
-	return nil
+	_, err := conn.RequestName(screenSaverName, dbus.NameFlagReplaceExisting)
+	return err
 }
