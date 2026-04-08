@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/sonroyaalmerol/snry-shell/internal/bus"
+	"github.com/sonroyaalmerol/snry-shell/internal/fileutil"
 	"github.com/sonroyaalmerol/snry-shell/internal/settings"
 	"github.com/sonroyaalmerol/snry-shell/internal/store"
 )
@@ -126,7 +127,29 @@ func (m *Monitor) ensureDaemonRunning() {
 
 	daemon := cfg.WallpaperDaemon
 	if daemon == "auto" || daemon == "" {
-		return
+		// Auto-detect and pick one
+		if isProcessRunning("swww-daemon") {
+			daemon = "swww"
+		} else if isProcessRunning("hyprpaper") {
+			daemon = "hyprpaper"
+		} else if isProcessRunning("swaybg") {
+			daemon = "swaybg"
+		} else if isProcessRunning("wbg") {
+			daemon = "wbg"
+		} else {
+			// None running, try to find installed ones
+			if hasBinary("swww-daemon") {
+				daemon = "swww"
+			} else if hasBinary("hyprpaper") {
+				daemon = "hyprpaper"
+			} else if hasBinary("swaybg") {
+				daemon = "swaybg"
+			} else if hasBinary("wbg") {
+				daemon = "wbg"
+			} else {
+				return
+			}
+		}
 	}
 
 	exe := daemon
@@ -136,12 +159,19 @@ func (m *Monitor) ensureDaemonRunning() {
 
 	if !isProcessRunning(exe) {
 		log.Printf("[THEME] watchdog: %s is not running, restarting...", daemon)
-		if m.current != "" {
-			if err := m.startDaemon(m.current, daemon); err != nil {
-				log.Printf("[THEME] watchdog: failed to restart %s: %v", daemon, err)
-			}
+		path := m.current
+		if path == "" {
+			path = GetLastWallpaper()
+		}
+		if err := m.startDaemon(path, daemon); err != nil {
+			log.Printf("[THEME] watchdog: failed to restart %s: %v", daemon, err)
 		}
 	}
+}
+
+func hasBinary(name string) bool {
+	_, err := exec.LookPath(name)
+	return err == nil
 }
 
 func (m *Monitor) startDaemon(path, daemon string) error {
@@ -151,20 +181,25 @@ func (m *Monitor) startDaemon(path, daemon string) error {
 		go exec.Command("swww-daemon").Run()
 		// Give it a moment to start
 		time.Sleep(500 * time.Millisecond)
-		return exec.Command("swww", "img", path).Run()
-	case "hyprpaper":
-		// Try to start the process
-		err := exec.Command("hyprpaper").Start()
-		if err != nil {
-			return err
+		if path != "" {
+			return exec.Command("swww", "img", path).Run()
 		}
-		time.Sleep(500 * time.Millisecond)
-		exec.Command("hyprctl", "hyprpaper", "preload", path).Run()
-		return exec.Command("hyprctl", "hyprpaper", "wallpaper", ", "+path).Run()
+	case "hyprpaper":
+		if path != "" {
+			confPath := filepath.Join(fileutil.ConfigDir(), "hyprpaper.conf")
+			content := fmt.Sprintf("preload = %s\nwallpaper = , %s\n", path, path)
+			os.WriteFile(confPath, []byte(content), 0644)
+			return exec.Command("hyprpaper", "-c", confPath).Start()
+		}
+		return exec.Command("hyprpaper").Start()
 	case "swaybg":
-		return exec.Command("swaybg", "-i", path, "-m", "fill").Start()
+		if path != "" {
+			return exec.Command("swaybg", "-i", path, "-m", "fill").Start()
+		}
 	case "wbg":
-		return exec.Command("wbg", path).Start()
+		if path != "" {
+			return exec.Command("wbg", path).Start()
+		}
 	}
 	return nil
 }
@@ -193,10 +228,14 @@ func (m *Monitor) applyWallpaper(path, daemon string) error {
 		}
 		return exec.Command("swww", "img", path).Run()
 	case "hyprpaper":
+		confPath := filepath.Join(fileutil.ConfigDir(), "hyprpaper.conf")
+		content := fmt.Sprintf("preload = %s\nwallpaper = , %s\n", path, path)
+		os.WriteFile(confPath, []byte(content), 0644)
+
 		if !isProcessRunning("hyprpaper") {
-			go exec.Command("hyprpaper").Start()
-			time.Sleep(500 * time.Millisecond)
+			return exec.Command("hyprpaper", "-c", confPath).Start()
 		}
+		// If already running, use hyprctl to apply immediately
 		exec.Command("hyprctl", "hyprpaper", "preload", path).Run()
 		return exec.Command("hyprctl", "hyprpaper", "wallpaper", ", "+path).Run()
 	case "swaybg":
