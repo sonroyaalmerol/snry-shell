@@ -702,6 +702,22 @@ scale.m3-scale slider {
     color: @col_on_primary;
 }
 
+/* Resize section */
+.windowmgmt-resize-box {
+    padding: 4px;
+}
+
+.windowmgmt-resize-row {
+    min-height: 36px;
+}
+
+.windowmgmt-resize-label {
+    font-size: var(--typescale-label-md);
+    font-weight: 600;
+    color: @col_on_surface_variant;
+    min-width: 16px;
+}
+
 /* ── Popup dialogs ──────────────────────────────────────────────────────────── */
 
 .popup-overlay {

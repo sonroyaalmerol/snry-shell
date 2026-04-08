@@ -44,9 +44,12 @@ type HyprMouse struct {
 
 // HyprActiveWindow is the focused window info from hyprctl activewindow -j.
 type HyprActiveWindow struct {
-	Class   string `json:"class"`
-	Title   string `json:"title"`
-	Address string `json:"address"`
+	Class    string `json:"class"`
+	Title    string `json:"title"`
+	Address  string `json:"address"`
+	At       [2]int `json:"at"`
+	Size     [2]int `json:"size"`
+	Floating bool   `json:"floating"`
 }
 
 type HyprKeyboard struct {

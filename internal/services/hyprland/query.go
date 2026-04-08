@@ -150,7 +150,14 @@ func (q *Querier) ToggleFullscreenWindow(address string) error {
 	if _, err := q.cmd.Run("dispatch", "focuswindow", "address:"+address); err != nil {
 		return err
 	}
-	_, err := q.cmd.Run("dispatch", "fullscreen", "1")
+	_, err := q.cmd.Run("dispatch", "fullscreen", "0")
+	return err
+}
+
+// ResizeWindow resizes the window with the given address to the exact pixel dimensions.
+func (q *Querier) ResizeWindow(address string, w, h int) error {
+	arg := fmt.Sprintf("exact %d %d, address:%s", w, h, address)
+	_, err := q.cmd.Run("dispatch", "resizewindowpixel", arg)
 	return err
 }
 
