@@ -99,7 +99,7 @@ func TestBatteryCharging(t *testing.T) {
 		},
 	}
 
-	svc := upower.NewWithConn(fake, b)
+	svc := upower.New(fake, b)
 	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 	defer cancel()
 	svc.Run(ctx) //nolint:errcheck
@@ -137,7 +137,7 @@ func TestBatteryDischarging(t *testing.T) {
 		},
 	}
 
-	svc := upower.NewWithConn(fake, b)
+	svc := upower.New(fake, b)
 	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 	defer cancel()
 	svc.Run(ctx) //nolint:errcheck

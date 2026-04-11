@@ -101,7 +101,7 @@ func TestNetworkConnectedState(t *testing.T) {
 		},
 	}
 
-	svc := network.NewWithConn(fake, b)
+	svc := network.New(fake, b)
 	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 	defer cancel()
 	svc.Run(ctx) //nolint:errcheck
@@ -127,7 +127,7 @@ func TestNetworkDisconnectedState(t *testing.T) {
 		},
 	}
 
-	svc := network.NewWithConn(fake, b)
+	svc := network.New(fake, b)
 	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 	defer cancel()
 	svc.Run(ctx) //nolint:errcheck
