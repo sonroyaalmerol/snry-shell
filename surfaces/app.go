@@ -99,14 +99,14 @@ func Run() int {
 	refs := &servicerefs.ServiceRefs{
 		Audio:      audio.NewWithDefaults(b),
 		Brightness: brightness.NewWithDefaults(b),
-		Mpris:      mpris.New(sysConn, b),
-		Bluetooth:  bluetooth.New(sysConn, b),
-		Network:    network.New(sysConn, b),
+		Mpris:      mpris.New(dbusutil.NewRealConn(sysConn), b),
+		Bluetooth:  bluetooth.New(dbusutil.NewRealConn(sysConn), b),
+		Network:    network.New(dbusutil.NewRealConn(sysConn), b),
 		NightMode:  nightmode.New(nightmode.NewRunner(), nightmode.NewKiller(), b),
 		Resources:  resources.New(resources.NewFileReader(), b),
 		Hyprland:   hyprland.NewQuerierWithDefaults(),
-		SNI:        sni.New(sesConn, b),
-		InputMode:  inputmode.New(b, sysConn, cfg, true),
+		SNI:        sni.New(dbusutil.NewRealConn(sesConn), b),
+		InputMode:  inputmode.New(b, dbusutil.NewRealConn(sysConn), cfg, true),
 		DarkMode:   darkmode.New(b, cfg),
 		SystemHandler: idle.NewSystemHandler(b, dbusutil.NewRealConn(sysConn), cfg.LidCloseAction, cfg.PowerButtonAction),
 	}
@@ -160,7 +160,7 @@ func Run() int {
 		LockDisplayOffTimeout: idleDuration(cfg.LockDisplayOffTimeout),
 		SuspendTimeout:        idleDuration(cfg.IdleSuspendTimeout),
 	}
-	idleSvc := idle.New(b, sysConn, idleCfg)
+	idleSvc := idle.New(b, dbusutil.NewRealConn(sysConn), idleCfg)
 	go idleSvc.Run(ctx)
 
 	var bars []*bar.Bar
@@ -350,7 +350,7 @@ func Run() int {
 
 	// UPower battery monitoring.
 	if sysConn != nil {
-		go upower.New(sysConn, b).Run(ctx)
+		go upower.New(dbusutil.NewRealConn(sysConn), b).Run(ctx)
 	}
 
 	// Force Hyprland config values while shell is alive, restore on exit.
