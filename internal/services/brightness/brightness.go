@@ -85,18 +85,18 @@ func (s *Service) poll() {
 }
 
 // SetBrightness sets brightness as a fraction 0.0–1.0 using DDC or backlight.
-func (s *Service) SetBrightness(v float64) error {
-	if v < 0 {
-		v = 0
+func (s *Service) SetBrightness(value float64) error {
+	if value < 0 {
+		value = 0
 	}
-	if v > 1 {
-		v = 1
+	if value > 1 {
+		value = 1
 	}
 
 	var err error
 	// Try DDC first.
 	if val, ddcErr := ddc.GetVCP(0x10); ddcErr == nil {
-		raw := int(v * float64(val.Max))
+		raw := int(value * float64(val.Max))
 		if raw > int(val.Max) {
 			raw = int(val.Max)
 		}
@@ -111,7 +111,7 @@ func (s *Service) SetBrightness(v float64) error {
 		if bErr != nil {
 			return bErr
 		}
-		err = backlightSet(dev, int(v*float64(max)))
+		err = backlightSet(dev, int(value*float64(max)))
 	}
 
 	if err == nil {

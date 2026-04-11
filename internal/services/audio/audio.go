@@ -207,13 +207,13 @@ func withClient(fn func(*proto.Client) error) error {
 	return fn(client)
 }
 
-// SetVolume sets the default sink volume. v is 0.0–1.5.
-func (s *Service) SetVolume(v float64) error {
-	if v < 0 {
-		v = 0
+// SetVolume sets the default sink volume. volume is 0.0–1.5.
+func (s *Service) SetVolume(volume float64) error {
+	if volume < 0 {
+		volume = 0
 	}
-	if v > 1.5 {
-		v = 1.5
+	if volume > 1.5 {
+		volume = 1.5
 	}
 	err := withClient(func(c *proto.Client) error {
 		var reply proto.GetSinkInfoReply
@@ -226,7 +226,7 @@ func (s *Service) SetVolume(v float64) error {
 		return c.Request(&proto.SetSinkVolume{
 			SinkIndex:      proto.Undefined,
 			SinkName:       defaultSink,
-			ChannelVolumes: floatToChannelVolumes(v, len(reply.ChannelVolumes)),
+			ChannelVolumes: floatToChannelVolumes(volume, len(reply.ChannelVolumes)),
 		}, nil)
 	})
 	if err == nil {
