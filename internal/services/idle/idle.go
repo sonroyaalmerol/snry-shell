@@ -39,7 +39,7 @@ func DefaultConfig() Config {
 // Service detects user inactivity and triggers locking and optional suspend.
 type Service struct {
 	bus  *bus.Bus
-	conn *dbus.Conn
+	conn dbusutil.DBusConn
 	cfg  Config
 
 	mu          sync.Mutex
@@ -58,12 +58,22 @@ type Service struct {
 }
 
 // New creates the idle service.
-func New(b *bus.Bus, conn *dbus.Conn, cfg Config) *Service {
+func New(b *bus.Bus, conn dbusutil.DBusConn, cfg Config) *Service {
 	return &Service{
 		bus:  b,
 		conn: conn,
 		cfg:  cfg,
 	}
+}
+
+// NewWithDefaults creates the idle service with a system bus connection
+// and default configuration.
+func NewWithDefaults(b *bus.Bus) *Service {
+	sysConn, err := dbus.ConnectSystemBus()
+	if err != nil {
+		return &Service{bus: b, cfg: DefaultConfig()}
+	}
+	return &Service{bus: b, conn: dbusutil.NewRealConn(sysConn), cfg: DefaultConfig()}
 }
 
 // UpdateConfig replaces the running configuration and recreates timers.
@@ -151,9 +161,9 @@ func (s *Service) setDisplay(on bool) {
 
 // Run starts monitoring.
 func (s *Service) Run(ctx context.Context) error {
-	if s.conn != nil {
+	if realConn, ok := s.conn.(*dbusutil.RealConn); ok && realConn.Conn != nil {
 		go s.monitorLogind(ctx)
-		if err := RegisterScreenSaver(s.conn, NewScreenSaver(s.bus)); err != nil {
+		if err := RegisterScreenSaver(realConn.Conn, NewScreenSaver(s.bus)); err != nil {
 			log.Printf("[IDLE] screensaver dbus: %v", err)
 		}
 	}
@@ -223,7 +233,11 @@ func (s *Service) tick() {
 		s.idleStarted = time.Time{}
 		s.mu.Unlock()
 		log.Printf("[IDLE] suspending system")
-		go dbusutil.LogindSuspend(s.conn)
+		go func() {
+			if realConn, ok := s.conn.(*dbusutil.RealConn); ok && realConn.Conn != nil {
+				dbusutil.LogindSuspend(realConn.Conn)
+			}
+		}()
 	}
 }
 
@@ -331,6 +345,11 @@ func (s *Service) doLock() {
 }
 
 func (s *Service) monitorLogind(ctx context.Context) {
+	var rawConn *dbus.Conn
+	if realConn, ok := s.conn.(*dbusutil.RealConn); ok && realConn.Conn != nil {
+		rawConn = realConn.Conn
+	}
+
 	if err := s.conn.AddMatchSignal(
 		dbus.WithMatchInterface(dbusutil.LogindManager),
 		dbus.WithMatchMember("PrepareForSleep"),
@@ -338,7 +357,7 @@ func (s *Service) monitorLogind(ctx context.Context) {
 		log.Printf("[IDLE] PrepareForSleep match: %v", err)
 	}
 
-	session, _ := dbusutil.GetSessionPath(s.conn)
+	session, _ := dbusutil.GetSessionPath(rawConn)
 	if session != "" {
 		_ = s.conn.AddMatchSignal(dbus.WithMatchObjectPath(session), dbus.WithMatchInterface(dbusutil.LogindSession), dbus.WithMatchMember("Lock"))
 		_ = s.conn.AddMatchSignal(dbus.WithMatchObjectPath(session), dbus.WithMatchInterface(dbusutil.LogindSession), dbus.WithMatchMember("Unlock"))
