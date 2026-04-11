@@ -74,14 +74,14 @@ func Run() int {
 
 	sysConn, err := dbus.ConnectSystemBus()
 	if err != nil {
-		log.Printf("[SHELL] system bus: %v", err)
+		log.Printf("[shell] system bus: %v", err)
 	}
 	if sysConn != nil {
 		defer sysConn.Close()
 	}
 	sesConn, err := dbus.ConnectSessionBus()
 	if err != nil {
-		log.Printf("[SHELL] session bus: %v", err)
+		log.Printf("[shell] session bus: %v", err)
 	}
 	if sesConn != nil {
 		defer sesConn.Close()
@@ -119,7 +119,7 @@ func Run() int {
 	if sysConn != nil {
 		nmManager := networkmanager.GetInstance(sysConn, b)
 		_ = nmManager // The manager starts itself and handles all network operations
-		log.Printf("[SHELL] Shared NetworkManager initialized")
+		log.Printf("[shell] Shared NetworkManager initialized")
 	}
 
 	// Start background services.
@@ -144,7 +144,7 @@ func Run() int {
 	// Input method watcher for per-field OSK triggering via zwp_input_method_v2.
 	imWatcher, err := inputmethod.New(b)
 	if err != nil {
-		log.Printf("[SHELL] inputmethod: %v", err)
+		log.Printf("[shell] inputmethod: %v", err)
 	}
 	if imWatcher != nil {
 		go imWatcher.Run(ctx)
@@ -309,7 +309,7 @@ func Run() int {
 	b.Subscribe(bus.TopicSystemControls, func(e bus.Event) {
 		if action, ok := e.Data.(string); ok && action == "toggle-reload-theme" {
 			if err := themeMonitor.ForceUpdate(); err != nil {
-				log.Printf("[THEME] Force update failed: %v", err)
+				log.Printf("[theme] Force update failed: %v", err)
 			}
 		}
 	})
@@ -327,19 +327,19 @@ func Run() int {
 				// Publish settings changed event so components can react
 				b.Publish(bus.TopicSettingsChanged, cfg)
 				refs.DarkMode.UpdateConfig(newCfg)
-				log.Printf("[SETTINGS] Reloaded settings from control panel")
+				log.Printf("[settings] Reloaded settings from control panel")
 			}
 		} else if strings.HasPrefix(action, "set-wallpaper:") {
 			path := strings.TrimPrefix(action, "set-wallpaper:")
 			if err := themeMonitor.SetWallpaper(path); err != nil {
-				log.Printf("[THEME] Failed to set wallpaper: %v", err)
+				log.Printf("[theme] Failed to set wallpaper: %v", err)
 			}
 		}
 	})
 
 	// Hyprland event stream.
 	if conn, err := net.Dial("unix", hyprland.SocketPath()); err != nil {
-		log.Printf("[SHELL] hyprland socket: %v (window events disabled)", err)
+		log.Printf("[shell] hyprland socket: %v (window events disabled)", err)
 	} else {
 		svc := hyprland.New(hyprland.NewSocketReader(conn), b)
 		if clients, err := refs.Hyprland.Clients(); err == nil {
@@ -358,12 +358,12 @@ func Run() int {
 	if err := forced.Apply([]hyprland.ForcedConfig{
 		{Option: "decoration:rounding", Value: "12"},
 	}); err != nil {
-		log.Printf("[SHELL] forced config error: %v", err)
+		log.Printf("[shell] forced config error: %v", err)
 	} else {
-		log.Printf("[SHELL] forced config: applied decoration:rounding=12")
+		log.Printf("[shell] forced config: applied decoration:rounding=12")
 	}
 	defer func() {
-		log.Printf("[SHELL] forced config: restoring original values")
+		log.Printf("[shell] forced config: restoring original values")
 		forced.Restore()
 	}()
 
@@ -433,7 +433,7 @@ func Run() int {
 				allCorners = append(allCorners, corners.New(app, b, mon))
 				wallpapers = append(wallpapers, wallpaper.New(app, b, mon))
 			}
-			log.Printf("[SHELL] monitors: %d bars, %d wallpaper surfaces created", len(bars), len(wallpapers))
+			log.Printf("[shell] monitors: %d bars, %d wallpaper surfaces created", len(bars), len(wallpapers))
 		}
 
 		refreshMonitors()
@@ -513,15 +513,15 @@ func setupHyprlandSystemBinds(q *hyprland.Querier) func() {
 	for _, b := range binds {
 		val := ", " + b.key + ", exec, snry-shell --" + b.cmd
 		if err := q.SetKeyword("bindl", val); err != nil {
-			log.Printf("[SHELL] hyprland bindl %s: %v", b.key, err)
+			log.Printf("[shell] hyprland bindl %s: %v", b.key, err)
 		} else {
-			log.Printf("[SHELL] hyprland bindl registered: %s -> %s", b.key, b.cmd)
+			log.Printf("[shell] hyprland bindl registered: %s -> %s", b.key, b.cmd)
 		}
 	}
 	return func() {
 		for _, b := range binds {
 			if err := q.SetKeyword("unbind", ", "+b.key); err != nil {
-				log.Printf("[SHELL] hyprland unbind %s: %v", b.key, err)
+				log.Printf("[shell] hyprland unbind %s: %v", b.key, err)
 			}
 		}
 	}
@@ -562,5 +562,5 @@ func loadThemeCSS(display *gdk.Display) {
 	provider.LoadFromPath(themePath)
 	// Load with higher priority than base CSS so it overrides fallback colors
 	gtk.StyleContextAddProviderForDisplay(display, provider, gtk.STYLE_PROVIDER_PRIORITY_USER+100)
-	log.Println("[THEME] Loaded dynamic theme from", themePath)
+	log.Println("[theme] Loaded dynamic theme from", themePath)
 }

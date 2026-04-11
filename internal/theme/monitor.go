@@ -39,14 +39,14 @@ func (m *Monitor) Run(ctx context.Context) {
 	if cfg.WallpaperSource != "" {
 		m.source = cfg.WallpaperSource
 		if err := m.reprocess(cfg); err != nil {
-			log.Printf("[THEME] restore wallpaper: %v", err)
+			log.Printf("[theme] restore wallpaper: %v", err)
 		}
 	} else if last := GetLastWallpaper(); last != "" {
 		// Fallback: a processed path exists but source is not yet recorded
 		// (e.g. store from before source tracking was added).
 		m.current = last
 		if err := m.generator.SetWallpaper(last); err != nil {
-			log.Printf("[THEME] restore legacy wallpaper: %v", err)
+			log.Printf("[theme] restore legacy wallpaper: %v", err)
 			store.Delete(storeKeyWallpaper)
 		} else {
 			m.bus.Publish(bus.TopicThemeChanged, last)
@@ -77,7 +77,7 @@ func (m *Monitor) Run(ctx context.Context) {
 			newCfg.WallpaperGrayscale != oldCfg.WallpaperGrayscale {
 			go func() {
 				if err := m.reprocess(newCfg); err != nil {
-					log.Printf("[THEME] reprocess on settings change: %v", err)
+					log.Printf("[theme] reprocess on settings change: %v", err)
 				}
 			}()
 		} else {
@@ -114,7 +114,7 @@ func (m *Monitor) SetWallpaper(sourcePath string) error {
 	// Persist the source path so it survives restarts.
 	cfg.WallpaperSource = sourcePath
 	if err := settings.Save(cfg); err != nil {
-		log.Printf("[THEME] save wallpaper source: %v", err)
+		log.Printf("[theme] save wallpaper source: %v", err)
 	}
 
 	return m.reprocess(cfg)
@@ -142,7 +142,7 @@ func (m *Monitor) reprocess(cfg settings.Config) error {
 	m.current = processed
 
 	if err := store.Set(storeKeyWallpaper, processed); err != nil {
-		log.Printf("[THEME] save processed path: %v", err)
+		log.Printf("[theme] save processed path: %v", err)
 	}
 
 	if err := m.generator.SetWallpaper(processed); err != nil {

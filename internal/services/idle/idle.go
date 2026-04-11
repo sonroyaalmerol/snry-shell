@@ -85,7 +85,7 @@ func (s *Service) UpdateConfig(cfg Config) {
 	s.waylandMu.Lock()
 	defer s.waylandMu.Unlock()
 	if s.manager != nil && s.seat != nil {
-		log.Printf("[IDLE] config updated, recreating timers")
+		log.Printf("[idle] config updated, recreating timers")
 		s.recreateTimers()
 	}
 }
@@ -149,10 +149,10 @@ func (s *Service) setDisplay(on bool) {
 	s.mu.Unlock()
 
 	if on {
-		log.Printf("[IDLE] turning display ON")
+		log.Printf("[idle] turning display ON")
 		exec.Command("hyprctl", "dispatch", "dpms", "on").Run()
 	} else {
-		log.Printf("[IDLE] turning display OFF")
+		log.Printf("[idle] turning display OFF")
 		if err := exec.Command("hyprctl", "dispatch", "dpms", "off").Run(); err != nil {
 			exec.Command("xset", "dpms", "force", "off").Run()
 		}
@@ -164,7 +164,7 @@ func (s *Service) Run(ctx context.Context) error {
 	if realConn, ok := s.conn.(*dbusutil.RealConn); ok && realConn.Conn != nil {
 		go s.monitorLogind(ctx)
 		if err := RegisterScreenSaver(realConn.Conn, NewScreenSaver(s.bus)); err != nil {
-			log.Printf("[IDLE] screensaver dbus: %v", err)
+			log.Printf("[idle] screensaver dbus: %v", err)
 		}
 	}
 
@@ -199,7 +199,7 @@ func (s *Service) Run(ctx context.Context) error {
 			s.mu.Lock()
 			s.inhibited = active
 			s.mu.Unlock()
-			log.Printf("[IDLE] inhibition: %v", active)
+			log.Printf("[idle] inhibition: %v", active)
 		}
 	})
 
@@ -232,7 +232,7 @@ func (s *Service) tick() {
 		s.mu.Lock()
 		s.idleStarted = time.Time{}
 		s.mu.Unlock()
-		log.Printf("[IDLE] suspending system")
+		log.Printf("[idle] suspending system")
 		go func() {
 			if realConn, ok := s.conn.(*dbusutil.RealConn); ok && realConn.Conn != nil {
 				dbusutil.LogindSuspend(realConn.Conn)
@@ -248,7 +248,7 @@ func (s *Service) waylandLoop(ctx context.Context) {
 			return
 		default:
 			if err := s.initAndDispatch(ctx); err != nil {
-				log.Printf("[IDLE] wayland error: %v, retrying in 5s", err)
+				log.Printf("[idle] wayland error: %v, retrying in 5s", err)
 				s.cleanupWayland()
 				time.Sleep(5 * time.Second)
 			}
@@ -340,7 +340,7 @@ func (s *Service) doLock() {
 		return
 	}
 	s.mu.Unlock()
-	log.Printf("[IDLE] idle lock triggered")
+	log.Printf("[idle] idle lock triggered")
 	s.bus.Publish(bus.TopicScreenLock, state.LockScreenState{Locked: true})
 }
 
@@ -354,7 +354,7 @@ func (s *Service) monitorLogind(ctx context.Context) {
 		dbus.WithMatchInterface(dbusutil.LogindManager),
 		dbus.WithMatchMember("PrepareForSleep"),
 	); err != nil {
-		log.Printf("[IDLE] PrepareForSleep match: %v", err)
+		log.Printf("[idle] PrepareForSleep match: %v", err)
 	}
 
 	session, _ := dbusutil.GetSessionPath(rawConn)

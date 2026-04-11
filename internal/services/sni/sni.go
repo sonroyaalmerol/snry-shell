@@ -67,13 +67,13 @@ func (s *Service) Run(ctx context.Context) error {
 		dbus.WithMatchInterface(watcherIface),
 		dbus.WithMatchMember("StatusNotifierItemRegistered"),
 	); err != nil {
-		log.Printf("[SNI] AddMatchSignal: %v", err)
+		log.Printf("[sni] AddMatchSignal: %v", err)
 	}
 	if err := s.conn.AddMatchSignal(
 		dbus.WithMatchInterface(watcherIface),
 		dbus.WithMatchMember("StatusNotifierItemUnregistered"),
 	); err != nil {
-		log.Printf("[SNI] AddMatchSignal: %v", err)
+		log.Printf("[sni] AddMatchSignal: %v", err)
 	}
 
 	// Fetch initial items.

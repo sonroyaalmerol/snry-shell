@@ -31,13 +31,13 @@ const (
 func New(b *bus.Bus) (*Watcher, error) {
 	display, err := client.Connect("")
 	if err != nil {
-		log.Printf("[IM] cannot connect to Wayland display: %v", err)
+		log.Printf("[inputmethod] cannot connect to Wayland display: %v", err)
 		return nil, nil
 	}
 
 	registry, err := display.GetRegistry()
 	if err != nil {
-		log.Printf("[IM] cannot get registry: %v", err)
+		log.Printf("[inputmethod] cannot get registry: %v", err)
 		display.Destroy()
 		return nil, nil
 	}
@@ -64,17 +64,17 @@ func New(b *bus.Bus) (*Watcher, error) {
 
 	// Round-trip to receive global events.
 	if err := waylandutil.Roundtrip(display); err != nil {
-		log.Printf("[IM] registry round-trip failed: %v", err)
+		log.Printf("[inputmethod] registry round-trip failed: %v", err)
 		display.Destroy()
 		return nil, nil
 	}
 
 	if imManagerName == 0 || seatName == 0 {
 		if imManagerName == 0 {
-			log.Printf("[IM] %s not advertised by compositor", imInterfaceName)
+			log.Printf("[inputmethod] %s not advertised by compositor", imInterfaceName)
 		}
 		if seatName == 0 {
-			log.Printf("[IM] %s not advertised by compositor", seatInterface)
+			log.Printf("[inputmethod] %s not advertised by compositor", seatInterface)
 		}
 		display.Destroy()
 		return nil, nil
@@ -83,28 +83,28 @@ func New(b *bus.Bus) (*Watcher, error) {
 	// Bind the input method manager and seat using the FixedBind workaround.
 	manager := protocol.NewInputMethodManager(display.Context())
 	if err := waylandutil.FixedBind(registry, imManagerName, imInterfaceName, min(imManagerVer, imVersion), manager); err != nil {
-		log.Printf("[IM] bind %s failed: %v", imInterfaceName, err)
+		log.Printf("[inputmethod] bind %s failed: %v", imInterfaceName, err)
 		display.Destroy()
 		return nil, nil
 	}
 
 	seat := client.NewSeat(display.Context())
 	if err := waylandutil.FixedBind(registry, seatName, seatInterface, min(seatVer, seatVersion), seat); err != nil {
-		log.Printf("[IM] bind %s failed: %v", seatInterface, err)
+		log.Printf("[inputmethod] bind %s failed: %v", seatInterface, err)
 		display.Destroy()
 		return nil, nil
 	}
 
 	// Wait for Binds to process.
 	if err := waylandutil.Roundtrip(display); err != nil {
-		log.Printf("[IM] bind round-trip failed: %v", err)
+		log.Printf("[inputmethod] bind round-trip failed: %v", err)
 		display.Destroy()
 		return nil, nil
 	}
 
 	im, err := manager.GetInputMethod(seat)
 	if err != nil {
-		log.Printf("[IM] GetInputMethod failed: %v", err)
+		log.Printf("[inputmethod] GetInputMethod failed: %v", err)
 		display.Destroy()
 		return nil, nil
 	}
@@ -112,17 +112,17 @@ func New(b *bus.Bus) (*Watcher, error) {
 	w := &Watcher{display: display, bus: b}
 
 	im.SetActivateHandler(func(protocol.InputMethodActivateEvent) {
-		log.Printf("[IM] activate")
+		log.Printf("[inputmethod] activate")
 		b.Publish(bus.TopicTextInputFocus, true)
 	})
 
 	im.SetDeactivateHandler(func(protocol.InputMethodDeactivateEvent) {
-		log.Printf("[IM] deactivate")
+		log.Printf("[inputmethod] deactivate")
 		b.Publish(bus.TopicTextInputFocus, false)
 	})
 
 	im.SetUnavailableHandler(func(protocol.InputMethodUnavailableEvent) {
-		log.Printf("[IM] unavailable")
+		log.Printf("[inputmethod] unavailable")
 		b.Publish(bus.TopicTextInputFocus, false)
 	})
 
@@ -134,13 +134,13 @@ func New(b *bus.Bus) (*Watcher, error) {
 		// Future: adjust keyboard layout based on hint/purpose (e.g. number pad).
 	})
 
-	log.Printf("[IM] connected to input-method-v2 protocol")
+	log.Printf("[inputmethod] connected to input-method-v2 protocol")
 	return w, nil
 }
 
 // Run dispatches Wayland events in a loop. Blocks until ctx is cancelled.
 func (w *Watcher) Run(ctx context.Context) {
-	log.Printf("[IM] watching for input-method events")
+	log.Printf("[inputmethod] watching for input-method events")
 
 	// Capture display for shutdown goroutine.
 	d := w.display
@@ -153,7 +153,7 @@ func (w *Watcher) Run(ctx context.Context) {
 
 	for {
 		if err := d.Context().Dispatch(); err != nil {
-			log.Printf("[IM] dispatch ended: %v", err)
+			log.Printf("[inputmethod] dispatch ended: %v", err)
 			return
 		}
 	}

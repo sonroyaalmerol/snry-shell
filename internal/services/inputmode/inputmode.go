@@ -143,7 +143,7 @@ func (s *Service) SetMode(mode string) {
 	}
 
 	if err := s.persist(); err != nil {
-		log.Printf("[INPUTMODE] persist: %v", err)
+		log.Printf("[inputmode] persist: %v", err)
 	}
 	s.publish()
 }
@@ -176,7 +176,7 @@ func (s *Service) publish() {
 			tablet = !s.kbActive && s.hasTouch
 		}
 	}
-	log.Printf("[INPUTMODE] mode=%s logind=%s kb=%v touch=%v → tablet=%v",
+	log.Printf("[inputmode] mode=%s logind=%s kb=%v touch=%v → tablet=%v",
 		s.mode, s.logindMode, s.kbActive, s.hasTouch, tablet)
 	s.bus.Publish(bus.TopicTabletMode, tablet)
 	s.bus.Publish(bus.TopicInputMode, s.mode)
@@ -186,12 +186,12 @@ func (s *Service) publish() {
 
 func (s *Service) monitorLogind(ctx context.Context) {
 	if s.conn == nil {
-		log.Printf("[INPUTMODE] no system bus, skipping logind monitor")
+		log.Printf("[inputmode] no system bus, skipping logind monitor")
 		return
 	}
 	session, err := s.resolveSession()
 	if err != nil {
-		log.Printf("[INPUTMODE] cannot resolve session: %v", err)
+		log.Printf("[inputmode] cannot resolve session: %v", err)
 		return
 	}
 	s.session = session
@@ -201,7 +201,7 @@ func (s *Service) monitorLogind(ctx context.Context) {
 	defer s.conn.RemoveSignal(ch)
 
 	if err := s.conn.AddMatchSignal(dbus.WithMatchObjectPath(dbus.ObjectPath(session))); err != nil {
-		log.Printf("[INPUTMODE] AddMatchSignal: %v", err)
+		log.Printf("[inputmode] AddMatchSignal: %v", err)
 		return
 	}
 
@@ -267,10 +267,10 @@ func (s *Service) queryLogind() {
 func (s *Service) monitorKeyboard(ctx context.Context) {
 	devices := findPhysicalKeyboardDevices()
 	if len(devices) == 0 {
-		log.Printf("[INPUTMODE] no physical keyboard devices found")
+		log.Printf("[inputmode] no physical keyboard devices found")
 		return
 	}
-	log.Printf("[INPUTMODE] monitoring %d keyboard device(s): %v", len(devices), devices)
+	log.Printf("[inputmode] monitoring %d keyboard device(s): %v", len(devices), devices)
 
 	for _, dev := range devices {
 		go s.readKeyboard(ctx, dev)

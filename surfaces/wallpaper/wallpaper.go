@@ -82,7 +82,7 @@ func New(app *gtk.Application, b *bus.Bus, mon *gdk.Monitor) *Surface {
 		}
 		glib.IdleAdd(func() {
 			picture.SetFilename(path)
-			log.Printf("[WALLPAPER] surface updated to %s", path)
+			log.Printf("[wallpaper] surface updated to %s", path)
 		})
 	})
 

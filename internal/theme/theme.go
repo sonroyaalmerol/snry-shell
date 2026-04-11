@@ -102,7 +102,7 @@ func (g *Generator) SetWallpaper(path string) error {
 
 	// Save to persistent store
 	if err := store.Set(storeKeyWallpaper, path); err != nil {
-		log.Printf("[THEME] Failed to save wallpaper path: %v", err)
+		log.Printf("[theme] Failed to save wallpaper path: %v", err)
 	}
 
 	return g.Generate()
@@ -301,7 +301,7 @@ func (g *Generator) writeThemeCSS(scheme *ColorScheme) error {
 		return err
 	}
 
-	log.Printf("[THEME] Generated theme.css from wallpaper: %s", g.wallpaperPath)
+	log.Printf("[theme] Generated theme.css from wallpaper: %s", g.wallpaperPath)
 	return nil
 }
 

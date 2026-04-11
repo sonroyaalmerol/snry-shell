@@ -47,7 +47,7 @@ func (s *Service) Run(ctx context.Context) error {
 		dbus.WithMatchMember("PropertiesChanged"),
 		dbus.WithMatchObjectPath(bluezAdapter),
 	); err != nil {
-		log.Printf("[BT] AddMatchSignal: %v", err)
+		log.Printf("[bluetooth] AddMatchSignal: %v", err)
 
 	}
 	for {
@@ -65,7 +65,7 @@ func (s *Service) Run(ctx context.Context) error {
 			if sig.Path != bluezAdapter {
 				continue
 			}
-			log.Printf("[BT] Run: received D-Bus signal: %v", sig)
+			log.Printf("[bluetooth] Run: received D-Bus signal: %v", sig)
 			_ = s.poll()
 		}
 	}
@@ -78,7 +78,7 @@ func (s *Service) poll() error {
 	obj := s.conn.Object(bluezService, bluezAdapter)
 	poweredV, err := obj.GetProperty(bluezIface + ".Powered")
 	if err != nil {
-		log.Printf("[BT] poll GetProperty error: %v", err)
+		log.Printf("[bluetooth] poll GetProperty error: %v", err)
 		return fmt.Errorf("bluetooth poll: %w", err)
 	}
 	powered, _ := poweredV.Value().(bool)
@@ -88,14 +88,14 @@ func (s *Service) poll() error {
 	// the adapter is disabling.
 	if psV, err := obj.GetProperty(bluezIface + ".PowerState"); err == nil {
 		if ps, ok := psV.Value().(string); ok {
-			log.Printf("[BT] poll: Powered=%v PowerState=%s", powered, ps)
+			log.Printf("[bluetooth] poll: Powered=%v PowerState=%s", powered, ps)
 			switch ps {
 			case "off", "on-disabling":
 				powered = false
 			}
 		}
 	} else {
-		log.Printf("[BT] poll: Powered=%v", powered)
+		log.Printf("[bluetooth] poll: Powered=%v", powered)
 	}
 
 	bs := state.BluetoothState{Powered: powered}
@@ -119,39 +119,39 @@ func (s *Service) poll() error {
 // If powering off and BlueZ is busy (discovery running), it stops discovery first.
 // On error, re-polls to publish the actual state so the UI reverts correctly.
 func (s *Service) SetPowered(enabled bool) error {
-	log.Printf("[BT] SetPowered(%v) called", enabled)
+	log.Printf("[bluetooth] SetPowered(%v) called", enabled)
 	obj := s.conn.Object(bluezService, bluezAdapter)
 	err := obj.SetProperty(bluezIface+".Powered", dbus.MakeVariant(enabled))
 	if err != nil && !enabled {
 		// BlueZ returns "Busy" if discovery is running; stop it and retry.
-		log.Printf("[BT] SetPowered(false) failed (%v), stopping discovery and retrying", err)
+		log.Printf("[bluetooth] SetPowered(false) failed (%v), stopping discovery and retrying", err)
 		_ = obj.Call(bluezIface+".StopDiscovery", 0).Err
 		err = obj.SetProperty(bluezIface+".Powered", dbus.MakeVariant(false))
 	}
 	if err != nil {
-		log.Printf("[BT] SetPowered(%v) failed: %v — re-polling to publish actual state", enabled, err)
+		log.Printf("[bluetooth] SetPowered(%v) failed: %v — re-polling to publish actual state", enabled, err)
 		_ = s.poll()
 		return err
 	}
-	log.Printf("[BT] SetPowered(%v) succeeded", enabled)
+	log.Printf("[bluetooth] SetPowered(%v) succeeded", enabled)
 	return nil
 }
 
 // StartScan requests a Bluetooth device discovery scan.
 // If discovery is already in progress, it stops and restarts.
 func (s *Service) StartScan() error {
-	log.Printf("[BT] StartScan called")
+	log.Printf("[bluetooth] StartScan called")
 	obj := s.conn.Object(bluezService, bluezAdapter)
 	err := obj.Call(bluezIface+".StartDiscovery", 0).Err
 	if err != nil {
-		log.Printf("[BT] StartScan failed (%v), stopping and retrying", err)
+		log.Printf("[bluetooth] StartScan failed (%v), stopping and retrying", err)
 		_ = obj.Call(bluezIface+".StopDiscovery", 0).Err
 		err = obj.Call(bluezIface+".StartDiscovery", 0).Err
 	}
 	if err != nil {
-		log.Printf("[BT] StartScan error: %v", err)
+		log.Printf("[bluetooth] StartScan error: %v", err)
 	} else {
-		log.Printf("[BT] StartScan succeeded")
+		log.Printf("[bluetooth] StartScan succeeded")
 	}
 	return err
 }
@@ -162,10 +162,10 @@ func (s *Service) GetDevices() ([]state.BluetoothDevice, error) {
 	var result map[dbus.ObjectPath]map[string]map[string]dbus.Variant
 	err := managed.Call("org.freedesktop.DBus.ObjectManager.GetManagedObjects", 0).Store(&result)
 	if err != nil {
-		log.Printf("[BT] GetDevices GetManagedObjects error: %v", err)
+		log.Printf("[bluetooth] GetDevices GetManagedObjects error: %v", err)
 		return nil, err
 	}
-	log.Printf("[BT] GetDevices: %d managed objects", len(result))
+	log.Printf("[bluetooth] GetDevices: %d managed objects", len(result))
 
 	var devices []state.BluetoothDevice
 	for path, ifaces := range result {
@@ -206,7 +206,7 @@ func (s *Service) GetDevices() ([]state.BluetoothDevice, error) {
 	}
 
 	s.bus.Publish(bus.TopicBluetoothDevices, devices)
-		log.Printf("[BT] GetDevices: published %d devices", len(devices))
+		log.Printf("[bluetooth] GetDevices: published %d devices", len(devices))
 	return devices, nil
 }
 
@@ -216,7 +216,7 @@ func (s *Service) PairDevice(addr string) error {
 	if err := obj.Call("org.bluez.Device1.Pair", 0).Err; err != nil {
 		return err
 	}
-	if err := s.SetTrusted(addr, true); err != nil { log.Printf("[BT] SetTrusted after pair: %v", err) }
+	if err := s.SetTrusted(addr, true); err != nil { log.Printf("[bluetooth] SetTrusted after pair: %v", err) }
 	return nil
 }
 

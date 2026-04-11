@@ -259,7 +259,7 @@ func (s *Service) ScanWiFi() ([]state.WiFiNetwork, error) {
 	for _, p := range paths {
 		devObj := s.conn.Object(nmDest, p)
 		err := devObj.Call(nmDeviceWireless+".RequestScan", 0, map[string]dbus.Variant{}).Err
-		log.Printf("[WIFI] RequestScan on %s: %v", p, err)
+		log.Printf("[network] RequestScan on %s: %v", p, err)
 	}
 	time.Sleep(3 * time.Second)
 
@@ -329,7 +329,7 @@ func (s *Service) ScanWiFi() ([]state.WiFiNetwork, error) {
 		}
 	}
 
-	log.Printf("[WIFI] ScanWiFi: returning %d networks, current SSID=%q", len(networks), currentSSID)
+	log.Printf("[network] ScanWiFi: returning %d networks, current SSID=%q", len(networks), currentSSID)
 	return networks, nil
 }
 func (s *Service) ConnectWiFi(ssid string) error {

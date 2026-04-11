@@ -201,10 +201,10 @@ func (q *Querier) ActiveWindow() (HyprActiveWindow, error) {
 
 // SetKeyword sets a Hyprland config option at runtime.
 func (q *Querier) SetKeyword(option, value string) error {
-	log.Printf("[HYPRLAND] keyword %s %s", option, value)
+	log.Printf("[hyprland] keyword %s %s", option, value)
 	out, err := q.cmd.Run("keyword", option, value)
 	if err != nil {
-		log.Printf("[HYPRLAND] keyword error: %s, output: %s", err, string(out))
+		log.Printf("[hyprland] keyword error: %s, output: %s", err, string(out))
 	}
 	return err
 }
@@ -212,13 +212,13 @@ func (q *Querier) SetKeyword(option, value string) error {
 // GetOption returns the current value of a Hyprland config option as a string.
 // Output format: "int: 10\nset: true" or "str: value\nset: true"
 func (q *Querier) GetOption(option string) (string, error) {
-	log.Printf("[HYPRLAND] getoption %s", option)
+	log.Printf("[hyprland] getoption %s", option)
 	out, err := q.cmd.Run("getoption", option)
 	if err != nil {
-		log.Printf("[HYPRLAND] getoption error: %s, output: %s", err, string(out))
+		log.Printf("[hyprland] getoption error: %s, output: %s", err, string(out))
 		return "", fmt.Errorf("hyprctl getoption %s: %w", option, err)
 	}
-	log.Printf("[HYPRLAND] getoption %s raw output: %s", option, string(out))
+	log.Printf("[hyprland] getoption %s raw output: %s", option, string(out))
 
 	line := strings.SplitN(strings.TrimSpace(string(out)), "\n", 2)[0]
 	// Format: "type: value"
