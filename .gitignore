@@ -37,5 +37,8 @@ Thumbs.db
 # Build cache
 .cache/
 
+# Superpowers plugin docs
+docs/superpowers/
+
 # Project-specific
 /tmp/snry-shell.sock
