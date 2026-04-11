@@ -59,10 +59,10 @@ type Service struct {
 
 // New creates the service.  hasTouch should reflect whether a touchscreen
 // is available (used as a fallback in auto mode).
-func New(b *bus.Bus, conn *dbus.Conn, cfg settings.Config, hasTouch bool) *Service {
+func New(b *bus.Bus, conn dbusutil.DBusConn, cfg settings.Config, hasTouch bool) *Service {
 	s := &Service{
 		bus:      b,
-		conn:     dbusutil.NewRealConn(conn),
+		conn:     conn,
 		mode:     cfg.InputMode,
 		hasTouch: hasTouch,
 	}
@@ -70,6 +70,21 @@ func New(b *bus.Bus, conn *dbus.Conn, cfg settings.Config, hasTouch bool) *Servi
 		s.mode = "auto"
 	}
 	return s
+}
+
+// NewWithDefaults creates the service with default system connection and settings.
+func NewWithDefaults(b *bus.Bus) *Service {
+	sysConn, err := dbus.ConnectSystemBus()
+	cfg := settings.DefaultConfig()
+	if err != nil {
+		return &Service{bus: b, mode: "auto", hasTouch: detectTouchDevice()}
+	}
+	return &Service{
+		bus:      b,
+		conn:     dbusutil.NewRealConn(sysConn),
+		mode:     cfg.InputMode,
+		hasTouch: detectTouchDevice(),
+	}
 }
 
 // Run starts logind monitoring, keyboard activity monitoring and the
