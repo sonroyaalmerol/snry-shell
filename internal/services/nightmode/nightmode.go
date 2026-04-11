@@ -50,6 +50,10 @@ func New(runner Runner, killer Killer, b *bus.Bus) *Service {
 	return &Service{runner: runner, killer: killer, bus: b, temp: "4500"}
 }
 
+func NewWithDefaults(b *bus.Bus) *Service {
+	return New(NewRunner(), NewKiller(), b)
+}
+
 // Toggle flips the night mode state. Starts or kills hyprsunset accordingly.
 func (s *Service) Toggle() {
 	s.mu.Lock()
