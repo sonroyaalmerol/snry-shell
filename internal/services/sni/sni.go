@@ -37,12 +37,20 @@ type Service struct {
 	items map[string]*TrayItem
 }
 
-func New(conn *dbus.Conn, b *bus.Bus) *Service {
+func New(conn dbusutil.DBusConn, b *bus.Bus) *Service {
 	return &Service{
-		conn:  dbusutil.NewRealConn(conn),
+		conn:  conn,
 		bus:   b,
 		items: make(map[string]*TrayItem),
 	}
+}
+
+func NewWithDefaults(b *bus.Bus) *Service {
+	conn, err := dbus.ConnectSessionBus()
+	if err != nil {
+		return &Service{bus: b, items: make(map[string]*TrayItem)}
+	}
+	return &Service{conn: dbusutil.NewRealConn(conn), bus: b, items: make(map[string]*TrayItem)}
 }
 
 // Run starts watching for tray item signals. Blocks until ctx is cancelled.
