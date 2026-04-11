@@ -11,6 +11,7 @@ import (
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/godbus/dbus/v5"
+	"github.com/sonroyaalmerol/snry-shell/internal/dbusutil"
 	"strings"
 	"time"
 
@@ -107,7 +108,7 @@ func Run() int {
 		SNI:        sni.New(sesConn, b),
 		InputMode:  inputmode.New(b, sysConn, cfg, true),
 		DarkMode:   darkmode.New(b, cfg),
-		SystemHandler: idle.NewSystemHandler(b, sysConn, cfg.LidCloseAction, cfg.PowerButtonAction),
+		SystemHandler: idle.NewSystemHandler(b, dbusutil.NewRealConn(sysConn), cfg.LidCloseAction, cfg.PowerButtonAction),
 	}
 
 	// Apply initial step settings
