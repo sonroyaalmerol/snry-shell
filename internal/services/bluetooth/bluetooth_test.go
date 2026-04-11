@@ -89,7 +89,7 @@ func TestBluetoothPollPublishes(t *testing.T) {
 		},
 	}}
 
-	svc := bluetooth.NewWithConn(conn, b)
+	svc := bluetooth.New(conn, b)
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()     // immediate cancel — poll runs once then exits
 	svc.Run(ctx) //nolint:errcheck
@@ -117,7 +117,7 @@ func TestBluetoothPollOff(t *testing.T) {
 		},
 	}}
 
-	svc := bluetooth.NewWithConn(conn, b)
+	svc := bluetooth.New(conn, b)
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	svc.Run(ctx) //nolint:errcheck
@@ -148,7 +148,7 @@ func TestSetPoweredChangesState(t *testing.T) {
 	}
 	conn := &fakeDBusConn{obj: obj}
 
-	svc := bluetooth.NewWithConn(conn, b)
+	svc := bluetooth.New(conn, b)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -212,7 +212,7 @@ func TestSetPoweredFailedRePublishesActualState(t *testing.T) {
 	}
 	conn := &fakeDBusConn{obj: obj}
 
-	svc := bluetooth.NewWithConn(conn, b)
+	svc := bluetooth.New(conn, b)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -260,7 +260,7 @@ func TestConcurrentPollSafety(t *testing.T) {
 		},
 	}
 	conn := &fakeDBusConn{obj: obj}
-	svc := bluetooth.NewWithConn(conn, b)
+	svc := bluetooth.New(conn, b)
 
 	var wg sync.WaitGroup
 	for i := 0; i < 10; i++ {

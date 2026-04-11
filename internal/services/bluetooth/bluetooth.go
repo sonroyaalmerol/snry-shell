@@ -24,12 +24,16 @@ type Service struct {
 	mu   sync.Mutex // serializes poll() — godbus BusObject is not thread-safe
 }
 
-func New(conn *dbus.Conn, b *bus.Bus) *Service {
-	return &Service{conn: dbusutil.NewRealConn(conn), bus: b}
+func New(conn dbusutil.DBusConn, b *bus.Bus) *Service {
+	return &Service{conn: conn, bus: b}
 }
 
-func NewWithConn(conn dbusutil.DBusConn, b *bus.Bus) *Service {
-	return &Service{conn: conn, bus: b}
+func NewWithDefaults(b *bus.Bus) *Service {
+	conn, err := dbus.ConnectSystemBus()
+	if err != nil {
+		return &Service{bus: b}
+	}
+	return &Service{conn: dbusutil.NewRealConn(conn), bus: b}
 }
 
 func (s *Service) Run(ctx context.Context) error {

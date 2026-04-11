@@ -27,12 +27,16 @@ type Service struct {
 	activePlayer  string
 }
 
-func New(conn *dbus.Conn, b *bus.Bus) *Service {
-	return &Service{conn: dbusutil.NewRealConn(conn), bus: b, playerNameMap: make(map[string]string)}
+func New(conn dbusutil.DBusConn, b *bus.Bus) *Service {
+	return &Service{conn: conn, bus: b, playerNameMap: make(map[string]string)}
 }
 
-func NewWithConn(conn dbusutil.DBusConn, b *bus.Bus) *Service {
-	return &Service{conn: conn, bus: b, playerNameMap: make(map[string]string)}
+func NewWithDefaults(b *bus.Bus) *Service {
+	conn, err := dbus.ConnectSessionBus()
+	if err != nil {
+		return &Service{bus: b, playerNameMap: make(map[string]string)}
+	}
+	return &Service{conn: dbusutil.NewRealConn(conn), bus: b, playerNameMap: make(map[string]string)}
 }
 
 func (s *Service) Run(ctx context.Context) error {

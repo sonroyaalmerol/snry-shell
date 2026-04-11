@@ -78,7 +78,7 @@ func TestMprisPublishesMediaEvent(t *testing.T) {
 	})
 
 	fake := newFakeConn()
-	svc := mpris.NewWithConn(&safeConn{fake}, b)
+	svc := mpris.New(&safeConn{fake}, b)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
