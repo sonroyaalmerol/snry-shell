@@ -31,6 +31,15 @@ func New(b *bus.Bus, cfg settings.Config) *Service {
 	}
 }
 
+// NewWithDefaults creates a new dark mode service with default configuration.
+func NewWithDefaults(b *bus.Bus) *Service {
+	cfg := settings.DefaultConfig()
+	if loaded, err := settings.Load(); err == nil {
+		cfg = loaded
+	}
+	return New(b, cfg)
+}
+
 // Run starts monitoring the system dark mode preference.
 // It polls for changes since there's no universal signal across all desktops.
 func (s *Service) Run(ctx context.Context) error {
