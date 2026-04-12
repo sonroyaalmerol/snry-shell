@@ -2252,7 +2252,7 @@ popover.menu list row:selected {
 .m3-outlined-field .m3-field-label {
     font-size: var(--typescale-title-sm);
     color: alpha(@col_on_surface, 0.6);
-    transition: all 200ms ease;
+    transition: all var(--duration-short4) ease;
     padding: 0 4px;
     background-color: transparent;
 }
@@ -2969,7 +2969,7 @@ popover.menu list row:selected {
 
 .lockscreen-entry.error {
     border-color: @col_error;
-    animation: shake 400ms ease-in-out;
+    animation: shake var(--duration-medium2) ease-in-out;
 }
 
 @keyframes shake {
