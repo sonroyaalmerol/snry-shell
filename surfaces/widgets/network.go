@@ -157,6 +157,7 @@ func NewNetworkWidget(b *bus.Bus, refs *servicerefs.ServiceRefs, parent *gtk.App
 		if !ok {
 			return
 		}
+		sortWiFiNetworks(networks)
 		glib.IdleAdd(func() {
 			wifiKL.Update(networks)
 
@@ -166,6 +167,26 @@ func NewNetworkWidget(b *bus.Bus, refs *servicerefs.ServiceRefs, parent *gtk.App
 	})
 
 	return box
+}
+
+func sortWiFiNetworks(nets []state.WiFiNetwork) {
+	for i := range nets {
+		for j := i + 1; j < len(nets); j++ {
+			if wifiRank(nets[j]) < wifiRank(nets[i]) {
+				nets[i], nets[j] = nets[j], nets[i]
+			}
+		}
+	}
+}
+
+func wifiRank(n state.WiFiNetwork) int {
+	if n.Connected {
+		return 0
+	}
+	if n.Saved {
+		return 1
+	}
+	return 2
 }
 
 func newWiFiRow(parent *gtk.ApplicationWindow, refs *servicerefs.ServiceRefs, net state.WiFiNetwork, rescan func()) gtk.Widgetter {

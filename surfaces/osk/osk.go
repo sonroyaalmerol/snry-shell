@@ -58,11 +58,12 @@ type keyButton struct {
 
 func New(app *gtk.Application, b *bus.Bus) *OSK {
 	win := layershell.NewWindow(app, layershell.WindowConfig{
-		Name:         "snry-osk",
-		Layer:        layershell.LayerOverlay,
-		Anchors:      layershell.BottomEdgeAnchors(),
-		KeyboardMode: layershell.KeyboardModeNone,
-		Namespace:    "snry-osk",
+		Name:          "snry-osk",
+		Layer:         layershell.LayerOverlay,
+		Anchors:       layershell.BottomEdgeAnchors(),
+		KeyboardMode:  layershell.KeyboardModeNone,
+		ExclusiveZone: -1,
+		Namespace:     "snry-osk",
 	})
 
 	osk := &OSK{win: win, bus: b, modBtns: make(map[string]*gtk.Button), viewMode: "keyboard"}
@@ -291,6 +292,7 @@ func (o *OSK) showLocked() bool {
 	if o.visible {
 		return false
 	}
+	layershell.SetLayer(o.win, layershell.LayerOverlay)
 	o.win.SetVisible(true)
 	o.visible = true
 	glib.IdleAdd(func() {

@@ -197,7 +197,28 @@ func (n *nmConfigProvider) refreshDevicesList() {
 		return
 	}
 
+	sortNMDevices(devices)
 	n.devicesKL.Update(devices)
+}
+
+func sortNMDevices(devices []state.NMDevice) {
+	for i := range devices {
+		for j := i + 1; j < len(devices); j++ {
+			if nmDeviceRank(devices[j]) < nmDeviceRank(devices[i]) {
+				devices[i], devices[j] = devices[j], devices[i]
+			}
+		}
+	}
+}
+
+func nmDeviceRank(d state.NMDevice) int {
+	if d.ActiveConnection != "" {
+		return 0
+	}
+	if d.State == 30 {
+		return 2
+	}
+	return 1
 }
 
 func (n *nmConfigProvider) buildDeviceRow(dev state.NMDevice) gtk.Widgetter {
@@ -336,6 +357,7 @@ func (n *nmConfigProvider) buildWiFiSection() gtk.Widgetter {
 
 func (n *nmConfigProvider) refreshWiFiList() {
 	networks := n.manager.GetWiFiNetworks()
+	sortCPWiFi(networks)
 	n.wifiKL.Update(networks)
 }
 
@@ -468,6 +490,7 @@ func (n *nmConfigProvider) buildConnectionsSection() gtk.Widgetter {
 
 func (n *nmConfigProvider) refreshConnectionsList() {
 	connections := n.manager.GetConnections()
+	sortCPConnections(connections)
 	n.connKL.Update(connections)
 }
 
@@ -1398,4 +1421,44 @@ func (n *nmConfigProvider) monitorSignals() {
 			n.refreshConnectionsList()
 		})
 	}
+}
+
+func sortCPWiFi(nets []state.WiFiNetwork) {
+	for i := range nets {
+		for j := i + 1; j < len(nets); j++ {
+			if cpWiFiRank(nets[j]) < cpWiFiRank(nets[i]) {
+				nets[i], nets[j] = nets[j], nets[i]
+			}
+		}
+	}
+}
+
+func cpWiFiRank(n state.WiFiNetwork) int {
+	if n.Connected {
+		return 0
+	}
+	if n.Saved {
+		return 1
+	}
+	return 2
+}
+
+func sortCPConnections(conns []state.NMConnection) {
+	for i := range conns {
+		for j := i + 1; j < len(conns); j++ {
+			if cpConnRank(conns[j]) < cpConnRank(conns[i]) {
+				conns[i], conns[j] = conns[j], conns[i]
+			}
+		}
+	}
+}
+
+func cpConnRank(c state.NMConnection) int {
+	if c.IsPrimary {
+		return 0
+	}
+	if c.Active {
+		return 1
+	}
+	return 2
 }
