@@ -30,7 +30,15 @@ type ConfigProvider interface {
 func Run() int {
 	app := gtk.NewApplication("sh.snry.shell.controlpanel", 0)
 
+	var win *gtk.ApplicationWindow
+
 	app.ConnectActivate(func() {
+		// If a window already exists, just present it.
+		if win != nil {
+			win.Present()
+			return
+		}
+
 		// Load embedded stylesheet (same as main shell)
 		display := gdk.DisplayGetDefault()
 		if display != nil {
@@ -47,10 +55,15 @@ func Run() int {
 			}
 		}
 
-		window := gtk.NewApplicationWindow(app)
-		window.SetTitle("Control Panel")
-		window.SetDefaultSize(900, 700)
-		window.SetResizable(true)
+		win = gtk.NewApplicationWindow(app)
+		win.SetTitle("Control Panel")
+		win.SetDefaultSize(900, 700)
+		win.SetResizable(true)
+
+		win.ConnectCloseRequest(func() bool {
+			win = nil
+			return false
+		})
 
 		// Load shell settings
 		cfg := settings.DefaultConfig()
@@ -61,9 +74,9 @@ func Run() int {
 		// Build the control panel UI
 		cp := newControlPanel(cfg)
 		widget := cp.build()
-		window.SetChild(widget)
+		win.SetChild(widget)
 
-		window.SetVisible(true)
+		win.SetVisible(true)
 	})
 
 	// Pass only the program name without arguments to avoid GTK parsing --control-panel
