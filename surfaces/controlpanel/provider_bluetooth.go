@@ -37,7 +37,7 @@ func newBTProviderWithConnection() ConfigProvider {
 }
 
 func (b *btConfigProvider) Name() string  { return "Bluetooth" }
-func (b *btConfigProvider) Icon() string  { return "bluetooth" }
+func (b *btConfigProvider) Icon() string  { return "headphones" }
 func (b *btConfigProvider) Load() error   { return nil }
 func (b *btConfigProvider) Save() error   { return nil }
 
@@ -318,7 +318,7 @@ func actionIcon(dev state.BluetoothDevice) string {
 	case dev.Paired:
 		return "link"
 	default:
-		return "pair"
+		return "add"
 	}
 }
 
