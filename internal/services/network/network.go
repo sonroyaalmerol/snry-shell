@@ -222,13 +222,19 @@ func (s *Service) fetchState() (state.NetworkState, error) {
 	}, nil
 }
 
-// SetWiFi enables or disables the WiFi adapter.
+// SetWiFi enables or disables the WiFi adapter and immediately publishes the
+// updated network state so the UI reflects the change without waiting for the
+// next D-Bus signal.
 func (s *Service) SetWiFi(enabled bool) error {
 	nmObj := s.conn.Object(nmDest, nmPath)
 	if nmObj == nil {
 		return fmt.Errorf("no D-Bus connection")
 	}
-	return nmObj.SetProperty(nmIface+".WirelessEnabled", dbus.MakeVariant(enabled))
+	if err := nmObj.SetProperty(nmIface+".WirelessEnabled", dbus.MakeVariant(enabled)); err != nil {
+		return err
+	}
+	s.query()
+	return nil
 }
 
 func (s *Service) getWifiSSID(devicePath dbus.ObjectPath) (string, bool) {

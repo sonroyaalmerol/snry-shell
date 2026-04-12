@@ -138,6 +138,8 @@ func (s *Service) SetPowered(enabled bool) error {
 		_ = s.poll()
 		return err
 	}
+	// Re-poll after success to publish the updated state immediately.
+	_ = s.poll()
 	log.Printf("[bluetooth] SetPowered(%v) succeeded", enabled)
 	return nil
 }

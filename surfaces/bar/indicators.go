@@ -103,18 +103,15 @@ func newNetworkIcon(b *bus.Bus) gtk.Widgetter {
 	b.Subscribe(bus.TopicNetwork, func(e bus.Event) {
 		ns := e.Data.(state.NetworkState)
 		glib.IdleAdd(func() {
-			if !ns.Connected {
-				icon.SetText("wifi_off")
-				return
-			}
-
-			switch ns.Type {
-			case "ethernet":
+			switch {
+			case ns.Connected && ns.Type == "ethernet":
 				icon.SetText("settings_ethernet")
-			case "wifi":
+			case ns.Connected && ns.Type == "wifi":
 				icon.SetText("wifi")
+			case ns.WirelessEnabled:
+				icon.SetText("wifi_1_bar")
 			default:
-				icon.SetText("wifi")
+				icon.SetText("wifi_off")
 			}
 		})
 	})
@@ -125,7 +122,6 @@ func newNetworkIcon(b *bus.Bus) gtk.Widgetter {
 func newBluetoothIcon(b *bus.Bus, refs *servicerefs.ServiceRefs) gtk.Widgetter {
 	icon := gtkutil.MaterialIcon("bluetooth_disabled")
 	icon.AddCSSClass("indicator-icon")
-	icon.SetVisible(refs.Bluetooth != nil)
 
 	b.Subscribe(bus.TopicBluetooth, func(e bus.Event) {
 		bs, ok := e.Data.(state.BluetoothState)
@@ -133,6 +129,7 @@ func newBluetoothIcon(b *bus.Bus, refs *servicerefs.ServiceRefs) gtk.Widgetter {
 			return
 		}
 		glib.IdleAdd(func() {
+			icon.SetVisible(true)
 			if bs.Powered {
 				if bs.Connected {
 					icon.SetText("bluetooth_connected")
