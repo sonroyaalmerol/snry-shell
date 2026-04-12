@@ -78,12 +78,16 @@ func (kl *KeyedList[T]) Update(items []T) {
 		}
 	}
 
-	// Build new widgets for new keys.
+	// Build new widgets for new keys and append them to the container.
 	for key, item := range newKeys {
 		if _, ok := kl.widgets[key]; !ok {
-			kl.widgets[key] = kl.buildFn(item)
+			w := kl.buildFn(item)
+			kl.widgets[key] = w
+			kl.container.Append(w)
 			if kl.dividers {
-				kl.dividerMap[key] = M3Divider()
+				d := M3Divider()
+				kl.dividerMap[key] = d
+				kl.container.Append(d)
 			}
 		}
 	}
