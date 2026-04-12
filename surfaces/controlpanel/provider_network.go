@@ -17,6 +17,7 @@ import (
 
 // nmConfigProvider implements ConfigProvider for NetworkManager settings
 type nmConfigProvider struct {
+	conn    *dbus.Conn
 	manager *networkmanager.Manager
 	// Track widgets that need updates
 	connectionsList *gtk.Box
@@ -33,10 +34,11 @@ func newNMProviderWithConnection() ConfigProvider {
 		return nil
 	}
 
-	// Get the singleton manager
+	// Get the singleton manager (nil bus since control panel has no shell bus)
 	manager := networkmanager.GetInstance(conn, nil)
 
 	return &nmConfigProvider{
+		conn:    conn,
 		manager: manager,
 	}
 }
@@ -95,6 +97,10 @@ func (n *nmConfigProvider) BuildWidget() gtk.Widgetter {
 	box.Append(n.buildConnectionsSection())
 
 	scroll.SetChild(box)
+
+	// Monitor NM D-Bus signals for real-time updates
+	go n.monitorSignals()
+
 	return scroll
 }
 
@@ -1394,4 +1400,23 @@ func (n *nmConfigProvider) showAddWireGuardDialog() {
 	buttonBox.Append(addBtn)
 	content.Append(buttonBox)
 	dialog.Show()
+}
+
+// monitorSignals listens for NM D-Bus property changes and refreshes the UI.
+func (n *nmConfigProvider) monitorSignals() {
+	ch := make(chan *dbus.Signal, 16)
+	n.conn.Signal(ch)
+	defer n.conn.RemoveSignal(ch)
+
+	busObj := n.conn.BusObject()
+	_ = busObj.Call("org.freedesktop.DBus.AddMatch", 0,
+		"type='signal',sender='org.freedesktop.NetworkManager',interface='org.freedesktop.DBus.Properties',member='PropertiesChanged'").Err
+
+	for range ch {
+		glib.IdleAdd(func() {
+			n.refreshDevicesList()
+			n.refreshWiFiList()
+			n.refreshConnectionsList()
+		})
+	}
 }

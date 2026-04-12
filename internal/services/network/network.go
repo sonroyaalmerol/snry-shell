@@ -50,7 +50,12 @@ func (s *Service) Run(ctx context.Context) error {
 	// Emit initial state for subscribers.
 	s.query()
 
-	// Redundant: Manager now handles background updates and publishes to TopicNetwork.
+	// Re-scan WiFi networks when NM state changes so the popup list
+	// stays up-to-date without manual refresh.
+	s.bus.Subscribe(bus.TopicNetworkManager, func(e bus.Event) {
+		go s.ScanWiFi()
+	})
+
 	<-ctx.Done()
 	return ctx.Err()
 }

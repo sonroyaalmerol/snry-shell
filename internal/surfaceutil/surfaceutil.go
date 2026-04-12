@@ -224,7 +224,7 @@ func NewPopupPanel(app *gtk.Application, b *bus.Bus, cfg PopupPanelConfig) (*gtk
 	clickBg.SetVExpand(true)
 	clickGesture := gtk.NewGestureClick()
 	clickGesture.SetButton(1)
-	clickGesture.SetPropagationLimit(gtk.LimitNone)
+	clickGesture.SetPropagationPhase(gtk.PhaseTarget)
 	clickGesture.ConnectReleased(func(_ int, _ float64, _ float64) {
 		win.SetVisible(false)
 	})

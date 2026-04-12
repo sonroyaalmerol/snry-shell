@@ -37,6 +37,11 @@ func newControlPanel(cfg settings.Config) *controlPanel {
 		cp.providers = append(cp.providers, nmProvider)
 	}
 
+	// Try to add bluetooth provider
+	if btProvider := newBTProviderWithConnection(); btProvider != nil {
+		cp.providers = append(cp.providers, btProvider)
+	}
+
 	return cp
 }
 
