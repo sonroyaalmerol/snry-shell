@@ -22,17 +22,7 @@ type OSK struct {
 	win            *gtk.ApplicationWindow
 	bus            *bus.Bus
 	ui             *uinput.Bridge
-	shift          bool
-	caps           bool
-	ctrlL          bool
-	altL           bool
 	hasTouch       bool
-	tabletMode     bool // dynamic: true when no physical keyboard (tablet/convertible folded)
-	manualOff      bool
-	manualMode     bool // true when OSK was manually opened via bar button
-	visible        bool
-	fullscreen     bool
-	viewMode       string // "keyboard", "emoji", "clipboard"
 	stack          *gtk.Stack
 	keys           []*keyButton           // all character keys, for label updates
 	modBtns        map[string]*gtk.Button // modifier name -> button widget
@@ -43,8 +33,20 @@ type OSK struct {
 	clipboardList  *gtk.Box               // clipboard list widget for refresh
 	emojiContainer *gtk.Box               // vertical box holding category FlowBoxes
 	backBtn        *gtk.Button            // floating back-to-keyboard button
-	mu             sync.Mutex
-	debounce       *time.Timer // coalesces rapid focus events
+
+	// mu guards all modifier and state fields below.
+	mu         sync.Mutex
+	shift      bool
+	caps       bool
+	ctrlL      bool
+	altL       bool
+	tabletMode bool   // true when no physical keyboard detected
+	manualOff  bool   // true when user explicitly closed OSK
+	manualMode bool   // true when OSK was manually opened via bar button
+	visible    bool
+	fullscreen bool
+	viewMode   string // "keyboard", "emoji", "clipboard"
+	debounce   *time.Timer
 }
 
 type keyButton struct {
@@ -90,47 +92,54 @@ func New(app *gtk.Application, b *bus.Bus) *OSK {
 		switch action {
 		case "toggle-osk":
 			glib.IdleAdd(func() {
+				osk.mu.Lock()
+				defer osk.mu.Unlock()
 				if osk.visible {
 					osk.manualOff = true
 					osk.manualMode = false
-					osk.hide()
+					osk.hideLocked()
 				} else {
 					osk.manualOff = false
 					osk.manualMode = false
 					osk.switchView("keyboard")
-					osk.show()
+					osk.showLocked()
 				}
 			})
 		case "toggle-osk-bar":
-			// Manual toggle from bar button - enables manual mode
 			glib.IdleAdd(func() {
+				osk.mu.Lock()
+				defer osk.mu.Unlock()
 				if osk.visible {
 					osk.manualOff = true
 					osk.manualMode = false
-					osk.hide()
+					osk.hideLocked()
 				} else {
 					osk.manualOff = false
 					osk.manualMode = true
 					osk.switchView("keyboard")
-					osk.show()
+					osk.showLocked()
 				}
 			})
 		case "toggle-emoji":
 			glib.IdleAdd(func() {
+				osk.mu.Lock()
+				defer osk.mu.Unlock()
 				if osk.visible && osk.viewMode == "emoji" {
 					osk.switchView("keyboard")
 				} else {
 					osk.switchView("emoji")
-					osk.show()
+					osk.showLocked()
 				}
 			})
 		case "toggle-clipboard":
 			glib.IdleAdd(func() {
+				osk.mu.Lock()
+				defer osk.mu.Unlock()
 				if osk.visible && osk.viewMode == "clipboard" {
 					osk.switchView("keyboard")
 				} else {
 					osk.switchView("clipboard")
-					osk.show()
+					osk.showLocked()
 				}
 			})
 		}
@@ -142,12 +151,15 @@ func New(app *gtk.Application, b *bus.Bus) *OSK {
 		if !ok {
 			return
 		}
+		osk.mu.Lock()
 		if isText && osk.manualOff {
+			osk.mu.Unlock()
 			return
 		}
 		if !isText {
 			osk.manualOff = false
 		}
+		osk.mu.Unlock()
 		osk.scheduleFocusUpdate(isText)
 	})
 
@@ -157,10 +169,17 @@ func New(app *gtk.Application, b *bus.Bus) *OSK {
 		if !ok {
 			return
 		}
+		osk.mu.Lock()
 		osk.tabletMode = tablet
-		log.Printf("[OSK] tablet mode: %v", osk.tabletMode)
-		if !osk.tabletMode && osk.visible && !osk.manualOff {
-			osk.hide()
+		shouldHide := !osk.tabletMode && osk.visible && !osk.manualOff
+		osk.mu.Unlock()
+		log.Printf("[OSK] tablet mode: %v", tablet)
+		if shouldHide {
+			glib.IdleAdd(func() {
+				osk.mu.Lock()
+				defer osk.mu.Unlock()
+				osk.hideLocked()
+			})
 		}
 	})
 
@@ -172,7 +191,9 @@ func New(app *gtk.Application, b *bus.Bus) *OSK {
 			return
 		}
 		glib.IdleAdd(func() {
+			osk.mu.Lock()
 			osk.fullscreen = fs
+			osk.mu.Unlock()
 			osk.updateExclusiveZone()
 		})
 	})
@@ -181,9 +202,10 @@ func New(app *gtk.Application, b *bus.Bus) *OSK {
 	b.Subscribe(bus.TopicScreenLock, func(e bus.Event) {
 		if ls, ok := e.Data.(state.LockScreenState); ok {
 			glib.IdleAdd(func() {
+				osk.mu.Lock()
+				defer osk.mu.Unlock()
 				if ls.Locked {
-					// Hide OSK when screen locks initially to clear it out
-					osk.hide()
+					osk.hideLocked()
 					log.Printf("[OSK] screen locked")
 				} else {
 					log.Printf("[OSK] screen unlocked")
@@ -195,13 +217,14 @@ func New(app *gtk.Application, b *bus.Bus) *OSK {
 	return osk
 }
 
+// switchView switches the visible panel. Must be called with mu held
+// (except for GTK widget calls which must run on the GTK thread).
 func (o *OSK) switchView(mode string) {
 	o.viewMode = mode
 	o.stack.SetVisibleChildName(mode)
 	o.updateExclusiveZone()
 	o.updateViewButtons()
-	switch mode {
-	case "clipboard":
+	if mode == "clipboard" {
 		o.refreshClipboard("")
 	}
 }
@@ -224,14 +247,18 @@ func (o *OSK) updateViewButtons() {
 	}
 	if o.backBtn != nil {
 		glib.IdleAdd(func() {
-			o.backBtn.SetVisible(o.viewMode != "keyboard")
+			o.mu.Lock()
+			vm := o.viewMode
+			o.mu.Unlock()
+			o.backBtn.SetVisible(vm != "keyboard")
 		})
 	}
 }
 
 func (o *OSK) scheduleFocusUpdate(want bool) {
-	// If in manual mode, don't auto-show/hide
+	o.mu.Lock()
 	if o.manualMode {
+		o.mu.Unlock()
 		return
 	}
 
@@ -243,41 +270,46 @@ func (o *OSK) scheduleFocusUpdate(want bool) {
 	}
 	o.debounce = time.AfterFunc(300*time.Millisecond, func() {
 		glib.IdleAdd(func() {
+			o.mu.Lock()
+			defer o.mu.Unlock()
 			if want && !o.visible {
 				log.Printf("[OSK] auto-showing")
 				o.switchView("keyboard")
-				o.show()
+				o.showLocked()
 			} else if !want && o.visible {
 				log.Printf("[OSK] auto-hiding")
-				o.hide()
+				o.hideLocked()
 			}
 		})
 	})
+	o.mu.Unlock()
 }
 
-func (o *OSK) show() {
+// showLocked sets the OSK visible. Must be called with mu held.
+func (o *OSK) showLocked() {
 	o.win.SetVisible(true)
 	o.visible = true
 	o.bus.Publish(bus.TopicOSKState, true)
-	// Always raise to top when showing, especially important when lock screen is active
 	glib.IdleAdd(func() {
 		o.win.PresentWithTime(uint32(glib.GetMonotonicTime() / 1000))
 	})
 }
 
-func (o *OSK) hide() {
+// hideLocked hides the OSK. Must be called with mu held.
+func (o *OSK) hideLocked() {
 	o.win.SetVisible(false)
 	o.visible = false
 	o.bus.Publish(bus.TopicOSKState, false)
 }
 
 func (o *OSK) updateExclusiveZone() {
-	if o.fullscreen {
+	o.mu.Lock()
+	fs := o.fullscreen
+	o.mu.Unlock()
+	if fs {
 		layershell.SetExclusiveZone(o.win, -1)
 		return
 	}
-	// Prefer allocated height (post-layout); fall back to natural height
-	// (pre-layout). Never use a hardcoded value.
 	h := o.win.AllocatedHeight()
 	if h <= 0 {
 		_, h, _, _ = gtk.BaseWidget(o.win).Measure(gtk.OrientationVertical, -1)
@@ -291,7 +323,16 @@ func (o *OSK) updateExclusiveZone() {
 func detectTouchDevice() bool {
 	out, err := exec.Command("libinput", "list-devices").Output()
 	if err == nil {
-		found := strings.Contains(string(out), "touch")
+		found := false
+		// Parse device blocks: look for Capabilities lines containing "touch"
+		// but NOT "touchpad" to avoid false positives.
+		for _, line := range strings.Split(string(out), "\n") {
+			line = strings.TrimSpace(line)
+			if strings.HasPrefix(line, "Capabilities:") && strings.Contains(line, "touch") {
+				found = true
+				break
+			}
+		}
 		log.Printf("[OSK] touch detect (libinput): %v", found)
 		return found
 	}
@@ -462,9 +503,11 @@ func (o *OSK) build() {
 	closeBtn.SetHAlign(gtk.AlignEnd)
 	closeBtn.SetVAlign(gtk.AlignStart)
 	closeBtn.ConnectClicked(func() {
+		o.mu.Lock()
+		defer o.mu.Unlock()
 		o.manualOff = true
 		o.manualMode = false
-		o.hide()
+		o.hideLocked()
 	})
 
 	// Floating back button — top-left corner, shown only in panel views.
@@ -687,20 +730,36 @@ func (o *OSK) refreshClipboard(filter string) {
 					continue
 				}
 
+				// Display text: strip the cliphist ID prefix for the label.
+				displayText := line
+				if idx := strings.Index(line, "\t"); idx >= 0 {
+					displayText = line[idx+1:]
+				}
+
 				row := gtk.NewButton()
 				row.SetCursorFromName("pointer")
 				row.AddCSSClass("clipboard-row")
 
-				lbl := gtk.NewLabel(line)
+				lbl := gtk.NewLabel(displayText)
 				lbl.AddCSSClass("clipboard-preview")
 				lbl.SetEllipsize(3)
 				lbl.SetHAlign(gtk.AlignStart)
 				lbl.SetXAlign(0)
 				row.SetChild(lbl)
-				text := line
+
+				// Capture line for closure.
+				clipEntry := line
 				row.ConnectClicked(func() {
 					go func() {
-						if err := exec.Command("wl-copy", text).Run(); err != nil {
+						// Decode the cliphist entry to get actual clipboard content.
+						decode := exec.Command("cliphist", "decode")
+						decode.Stdin = strings.NewReader(clipEntry)
+						decoded, err := decode.Output()
+						if err != nil {
+							log.Printf("clipboard decode: %v", err)
+							return
+						}
+						if err := exec.Command("wl-copy", string(decoded)).Run(); err != nil {
 							log.Printf("clipboard copy: %v", err)
 							glib.IdleAdd(func() { gtkutil.ErrorDialog(o.win, "Copy failed", "Could not copy to clipboard.") })
 							return
@@ -764,20 +823,26 @@ func (o *OSK) buildRow(parent *gtk.Box, defs []keyDef) {
 			o.emojiBtn = btn
 			label.AddCSSClass("material-icon")
 			gesture.ConnectReleased(func(int, float64, float64) {
+				o.mu.Lock()
+				defer o.mu.Unlock()
 				if o.viewMode == "emoji" {
 					o.switchView("keyboard")
 				} else {
 					o.switchView("emoji")
+					o.showLocked()
 				}
 			})
 		case d.action == "clipboard":
 			o.clipboardBtn = btn
 			label.AddCSSClass("material-icon")
 			gesture.ConnectReleased(func(int, float64, float64) {
+				o.mu.Lock()
+				defer o.mu.Unlock()
 				if o.viewMode == "clipboard" {
 					o.switchView("keyboard")
 				} else {
 					o.switchView("clipboard")
+					o.showLocked()
 				}
 			})
 		default:
@@ -816,7 +881,7 @@ func (o *OSK) typeKey(d keyDef, kb *keyButton) {
 		return
 	}
 
-	ch := o.activeChar(kb)
+	ch := o.activeCharLocked(kb)
 	ctrl, alt := o.ctrlL, o.altL
 	o.releaseAllModsLocked()
 	o.mu.Unlock()
@@ -825,39 +890,37 @@ func (o *OSK) typeKey(d keyDef, kb *keyButton) {
 	o.ui.TypeChar(ch, ctrl, alt)
 }
 
-func (o *OSK) activeChar(kb *keyButton) string {
+// activeCharLocked returns the active character for the given key.
+// Must be called with o.mu held.
+func (o *OSK) activeCharLocked(kb *keyButton) string {
 	shifted := o.shift != o.caps
-	ch := kb.normal
 	if shifted && kb.shifted != "" {
-		ch = kb.shifted
+		return kb.shifted
 	}
-	if len(ch) == 1 {
-		c := ch[0]
-		if (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') {
-			if shifted {
-				ch = strings.ToUpper(ch)
-			}
-		}
-	}
-	return ch
+	return kb.normal
 }
 
 func (o *OSK) updateKeyLabels() {
+	o.mu.Lock()
 	shifted := o.shift != o.caps
-	for _, k := range o.keys {
+	keys := make([]struct {
+		label *gtk.Label
+		ch    string
+	}, len(o.keys))
+	for i, k := range o.keys {
 		ch := k.normal
 		if shifted && k.shifted != "" {
 			ch = k.shifted
 		}
-		if len(ch) == 1 {
-			c := ch[0]
-			if (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') {
-				if shifted {
-					ch = strings.ToUpper(ch)
-				}
-			}
-		}
-		glib.IdleAdd(func() { k.label.SetText(ch) })
+		keys[i].label = k.label
+		keys[i].ch = ch
+	}
+	o.mu.Unlock()
+
+	for _, k := range keys {
+		lbl := k.label
+		ch := k.ch
+		glib.IdleAdd(func() { lbl.SetText(ch) })
 	}
 }
 
@@ -892,6 +955,7 @@ func (o *OSK) toggleMod(mod string) {
 func (o *OSK) updateModVisualsLocked() {
 	cls := "osk-key-active"
 	for _, btn := range o.shiftBtns {
+		btn := btn
 		if o.shift {
 			glib.IdleAdd(func() { btn.AddCSSClass(cls) })
 		} else {
@@ -899,23 +963,27 @@ func (o *OSK) updateModVisualsLocked() {
 		}
 	}
 	if o.capsBtn != nil {
+		btn := o.capsBtn
 		if o.caps {
-			glib.IdleAdd(func() { o.capsBtn.AddCSSClass(cls) })
+			glib.IdleAdd(func() { btn.AddCSSClass(cls) })
 		} else {
-			glib.IdleAdd(func() { o.capsBtn.RemoveCSSClass(cls) })
+			glib.IdleAdd(func() { btn.RemoveCSSClass(cls) })
 		}
 	}
 	for _, btn := range o.modBtns {
 		if btn != nil {
+			btn := btn
 			glib.IdleAdd(func() { btn.RemoveCSSClass(cls) })
 		}
 	}
 	if btn, ok := o.modBtns["Ctrl_L"]; ok {
+		btn := btn
 		if o.ctrlL {
 			glib.IdleAdd(func() { btn.AddCSSClass(cls) })
 		}
 	}
 	if btn, ok := o.modBtns["Alt_L"]; ok {
+		btn := btn
 		if o.altL {
 			glib.IdleAdd(func() { btn.AddCSSClass(cls) })
 		}

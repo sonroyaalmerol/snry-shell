@@ -2,7 +2,7 @@ package osk
 
 import "testing"
 
-func TestActiveChar(t *testing.T) {
+func TestActiveCharLocked(t *testing.T) {
 	tests := []struct {
 		name    string
 		normal  string
@@ -23,21 +23,24 @@ func TestActiveChar(t *testing.T) {
 		{"symbol_shift", "1", "!", true, false, "!"},
 		// Symbol without shift
 		{"symbol_no_shift", "1", "!", false, false, "1"},
-		// Letter with no shifted variant (falls through to ToUpper)
-		{"letter_no_shifted", "z", "", true, false, "Z"},
-		// Caps with no shifted variant
-		{"letter_caps_no_shifted", "z", "", false, true, "Z"},
-		// Both mods cancel for letter without shifted
+		// Letter with no shifted variant — returns normal
+		{"letter_no_shifted", "z", "", true, false, "z"},
+		// Caps with no shifted variant — returns normal
+		{"letter_caps_no_shifted", "z", "", false, true, "z"},
+		// Both mods cancel — returns normal
 		{"letter_both_no_shifted", "z", "", true, true, "z"},
 	}
-
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			o := &OSK{shift: tt.shift, caps: tt.caps}
+			o := &OSK{}
+			o.mu.Lock()
+			o.shift = tt.shift
+			o.caps = tt.caps
 			kb := &keyButton{normal: tt.normal, shifted: tt.shifted}
-			got := o.activeChar(kb)
+			got := o.activeCharLocked(kb)
+			o.mu.Unlock()
 			if got != tt.want {
-				t.Errorf("activeChar(normal=%q, shifted=%q, shift=%v, caps=%v) = %q, want %q",
+				t.Errorf("activeCharLocked(normal=%q, shifted=%q, shift=%v, caps=%v) = %q, want %q",
 					tt.normal, tt.shifted, tt.shift, tt.caps, got, tt.want)
 			}
 		})
@@ -60,10 +63,13 @@ func TestScheduleFocusUpdateSetsTimer(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			o := &OSK{hasTouch: tt.hasTouch}
 			o.scheduleFocusUpdate(tt.want)
-			if o.debounce == nil {
+			o.mu.Lock()
+			timer := o.debounce
+			o.mu.Unlock()
+			if timer == nil {
 				t.Errorf("scheduleFocusUpdate(%v) should set debounce timer", tt.want)
 			}
-			o.debounce.Stop()
+			timer.Stop()
 		})
 	}
 }
