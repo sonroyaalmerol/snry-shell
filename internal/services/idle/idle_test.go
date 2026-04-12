@@ -1,7 +1,6 @@
 package idle
 
 import (
-	"context"
 	"testing"
 	"time"
 
@@ -68,8 +67,7 @@ func TestScreenLockBusEvent(t *testing.T) {
 	svc := New(b, nil, DefaultConfig())
 
 	// Start a dummy run loop just to get the subscriptions
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	go svc.Run(ctx)
 

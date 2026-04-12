@@ -19,8 +19,8 @@ import (
 func createTestPNG(t *testing.T, dir string) string {
 	t.Helper()
 	img := image.NewNRGBA(image.Rect(0, 0, 8, 8))
-	for y := 0; y < 8; y++ {
-		for x := 0; x < 8; x++ {
+	for y := range 8 {
+		for x := range 8 {
 			img.SetNRGBA(x, y, color.NRGBA{R: 100, G: 150, B: 200, A: 255})
 		}
 	}
@@ -161,8 +161,7 @@ func TestRunRestoresWallpaperOnStartup(t *testing.T) {
 	})
 
 	m2 := NewMonitor(b2)
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	go m2.Run(ctx)
 

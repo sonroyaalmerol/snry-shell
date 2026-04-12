@@ -97,17 +97,17 @@ func Run() int {
 	}
 
 	refs := &servicerefs.ServiceRefs{
-		Audio:      audio.NewWithDefaults(b),
-		Brightness: brightness.NewWithDefaults(b),
-		Mpris:      mpris.New(dbusutil.NewRealConn(sysConn), b),
-		Bluetooth:  bluetooth.New(dbusutil.NewRealConn(sysConn), b),
-		Network:    network.New(dbusutil.NewRealConn(sysConn), b),
-		NightMode:  nightmode.New(nightmode.NewRunner(), nightmode.NewKiller(), b),
-		Resources:  resources.New(resources.NewFileReader(), b),
-		Hyprland:   hyprland.NewQuerierWithDefaults(),
-		SNI:        sni.New(dbusutil.NewRealConn(sesConn), b),
-		InputMode:  inputmode.New(b, dbusutil.NewRealConn(sysConn), cfg, true),
-		DarkMode:   darkmode.New(b, cfg),
+		Audio:         audio.NewWithDefaults(b),
+		Brightness:    brightness.NewWithDefaults(b),
+		Mpris:         mpris.New(dbusutil.NewRealConn(sysConn), b),
+		Bluetooth:     bluetooth.New(dbusutil.NewRealConn(sysConn), b),
+		Network:       network.New(dbusutil.NewRealConn(sysConn), b),
+		NightMode:     nightmode.New(nightmode.NewRunner(), nightmode.NewKiller(), b),
+		Resources:     resources.New(resources.NewFileReader(), b),
+		Hyprland:      hyprland.NewQuerierWithDefaults(),
+		SNI:           sni.New(dbusutil.NewRealConn(sesConn), b),
+		InputMode:     inputmode.New(b, dbusutil.NewRealConn(sysConn), cfg, true),
+		DarkMode:      darkmode.New(b, cfg),
 		SystemHandler: idle.NewSystemHandler(b, dbusutil.NewRealConn(sysConn), cfg.LidCloseAction, cfg.PowerButtonAction),
 	}
 
@@ -329,8 +329,8 @@ func Run() int {
 				refs.DarkMode.UpdateConfig(newCfg)
 				log.Printf("[settings] Reloaded settings from control panel")
 			}
-		} else if strings.HasPrefix(action, "set-wallpaper:") {
-			path := strings.TrimPrefix(action, "set-wallpaper:")
+		} else if after, ok0 := strings.CutPrefix(action, "set-wallpaper:"); ok0 {
+			path := after
 			if err := themeMonitor.SetWallpaper(path); err != nil {
 				log.Printf("[theme] Failed to set wallpaper: %v", err)
 			}
@@ -446,7 +446,7 @@ func Run() int {
 			}
 			monitors := d.Monitors()
 			n := monitors.NItems()
-			for i := uint(0); i < n; i++ {
+			for i := range n {
 				item := monitors.Item(i)
 				if item == nil {
 					continue

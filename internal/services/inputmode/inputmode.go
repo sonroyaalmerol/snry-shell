@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -81,8 +82,8 @@ func (s *Service) Run(ctx context.Context) error {
 
 	s.bus.Subscribe(bus.TopicSystemControls, func(e bus.Event) {
 		action, _ := e.Data.(string)
-		if strings.HasPrefix(action, "set-input-mode:") {
-			s.SetMode(strings.TrimPrefix(action, "set-input-mode:"))
+		if after, ok := strings.CutPrefix(action, "set-input-mode:"); ok {
+			s.SetMode(after)
 		}
 	})
 
@@ -189,26 +190,14 @@ func (s *Service) monitorEvdevSwitches(ctx context.Context) {
 			continue
 		}
 
-		hasSW := false
-		for _, t := range dev.CapableTypes() {
-			if t == evdev.EV_SW {
-				hasSW = true
-				break
-			}
-		}
+		hasSW := slices.Contains(dev.CapableTypes(), evdev.EV_SW)
 		if !hasSW {
 			dev.Close()
 			continue
 		}
 
 		// Check if this device specifically supports SW_TABLET_MODE
-		hasTabletMode := false
-		for _, code := range dev.CapableEvents(evdev.EV_SW) {
-			if code == evdev.SW_TABLET_MODE {
-				hasTabletMode = true
-				break
-			}
-		}
+		hasTabletMode := slices.Contains(dev.CapableEvents(evdev.EV_SW), evdev.SW_TABLET_MODE)
 		if !hasTabletMode {
 			dev.Close()
 			continue
@@ -417,26 +406,14 @@ func findPhysicalKeyboardDevices() []*evdev.InputDevice {
 		}
 
 		// Check if device supports EV_KEY
-		hasKey := false
-		for _, t := range dev.CapableTypes() {
-			if t == evdev.EV_KEY {
-				hasKey = true
-				break
-			}
-		}
+		hasKey := slices.Contains(dev.CapableTypes(), evdev.EV_KEY)
 		if !hasKey {
 			dev.Close()
 			continue
 		}
 
 		// Check for KEY_A (0x1e) as indicator of a real keyboard
-		hasKeyA := false
-		for _, code := range dev.CapableEvents(evdev.EV_KEY) {
-			if code == 0x1e { // KEY_A
-				hasKeyA = true
-				break
-			}
-		}
+		hasKeyA := slices.Contains(dev.CapableEvents(evdev.EV_KEY), 0x1e)
 		if !hasKeyA {
 			dev.Close()
 			continue
@@ -460,23 +437,15 @@ func detectTouchDevice() bool {
 			continue
 		}
 
-		hasABS := false
-		for _, t := range dev.CapableTypes() {
-			if t == evdev.EV_ABS {
-				hasABS = true
-				break
-			}
-		}
+		hasABS := slices.Contains(dev.CapableTypes(), evdev.EV_ABS)
 		if !hasABS {
 			dev.Close()
 			continue
 		}
 
-		for _, code := range dev.CapableEvents(evdev.EV_ABS) {
-			if code == evdev.ABS_MT_POSITION_X {
-				dev.Close()
-				return true
-			}
+		if slices.Contains(dev.CapableEvents(evdev.EV_ABS), evdev.ABS_MT_POSITION_X) {
+			dev.Close()
+			return true
 		}
 		dev.Close()
 	}

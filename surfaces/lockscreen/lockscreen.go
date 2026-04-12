@@ -123,15 +123,9 @@ func (ls *LockScreen) UpdateSettings(cfg settings.Config) {
 	ls.mu.Lock()
 	defer ls.mu.Unlock()
 
-	ls.maxAttempts = cfg.LockMaxAttempts
-	if ls.maxAttempts < 1 {
-		ls.maxAttempts = 1
-	}
+	ls.maxAttempts = max(cfg.LockMaxAttempts, 1)
 
-	ls.lockoutDuration = time.Duration(cfg.LockoutDuration) * time.Second
-	if ls.lockoutDuration < 5*time.Second {
-		ls.lockoutDuration = 5 * time.Second
-	}
+	ls.lockoutDuration = max(time.Duration(cfg.LockoutDuration)*time.Second, 5*time.Second)
 
 	ls.showClock = cfg.LockShowClock
 	ls.showUser = cfg.LockShowUser
@@ -243,11 +237,11 @@ func (ls *LockScreen) buildWindow(lw *lockWindow) {
 
 	userIcon := gtkutil.MaterialIcon("account_circle", "lockscreen-user-icon")
 	userIcon.SetSizeRequest(80, 80)
-	
+
 	username := currentUser()
 	userLabel := gtk.NewLabel(username)
 	userLabel.AddCSSClass("lockscreen-username")
-	
+
 	userRow.Append(userIcon)
 	userRow.Append(userLabel)
 	authBox.Append(userRow)
@@ -266,10 +260,10 @@ func (ls *LockScreen) buildWindow(lw *lockWindow) {
 	entryRow := gtk.NewBox(gtk.OrientationHorizontal, 8)
 	entryRow.AddCSSClass("lockscreen-entry-row")
 	entryRow.SetHAlign(gtk.AlignCenter)
-	
+
 	eyeBtn := gtkutil.M3IconButton("visibility_off", "lockscreen-eye-btn")
 	gtkutil.AddPasswordToggle(lw.entry, eyeBtn)
-	
+
 	entryRow.Append(lw.entry)
 	entryRow.Append(eyeBtn)
 	entryCard.Append(entryRow)
@@ -288,9 +282,9 @@ func (ls *LockScreen) buildWindow(lw *lockWindow) {
 
 	lw.unlock = gtkutil.M3FilledButton("Unlock", "lockscreen-unlock-btn")
 	lw.unlock.SetSizeRequest(120, -1)
-	
+
 	emergencyBtn := gtkutil.M3TextButton("Emergency", "lockscreen-action-btn")
-	
+
 	actionsRow.Append(emergencyBtn)
 	actionsRow.Append(lw.unlock)
 	authBox.Append(actionsRow)
@@ -310,7 +304,7 @@ func (ls *LockScreen) buildWindow(lw *lockWindow) {
 func (ls *LockScreen) startClock(lw *lockWindow) {
 	update := func() {
 		now := time.Now()
-		
+
 		ls.mu.Lock()
 		format := ls.clockFormat
 		ls.mu.Unlock()
@@ -319,7 +313,7 @@ func (ls *LockScreen) startClock(lw *lockWindow) {
 		if format == "12h" {
 			clockStr = "03:04"
 		}
-		
+
 		lw.clock.SetText(now.Format(clockStr))
 		lw.date.SetText(now.Format("Monday, January 02"))
 	}
@@ -355,7 +349,7 @@ func (ls *LockScreen) focusPrimary() {
 // ── wallpaper ────────────────────────────────────────────────────────────────
 
 func (ls *LockScreen) updateWallpaper() {
-	wp := store.LookupOr(wallpaperStoreKey, "");
+	wp := store.LookupOr(wallpaperStoreKey, "")
 	for _, w := range ls.windows {
 		if wp != "" {
 			w.bg.SetFilename(wp)

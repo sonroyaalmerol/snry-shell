@@ -17,8 +17,8 @@ import (
 
 // ProcessConfig holds image post-processing parameters for the wallpaper.
 type ProcessConfig struct {
-	Blur       int  // 0–50  (0 = no blur)
-	Brightness int  // 0–200 (100 = no change, <100 = darker, >100 = brighter)
+	Blur       int // 0–50  (0 = no blur)
+	Brightness int // 0–200 (100 = no change, <100 = darker, >100 = brighter)
 	Grayscale  bool
 }
 
@@ -136,7 +136,7 @@ func separableBoxBlurInto(src, horiz, dst *image.NRGBA, radius int) {
 	oy := b.Min.Y
 
 	// Horizontal pass: src → horiz
-	for y := 0; y < h; y++ {
+	for y := range h {
 		var sumR, sumG, sumB int
 		cnt := 0
 		for dx := 0; dx <= radius && dx < w; dx++ {
@@ -168,7 +168,7 @@ func separableBoxBlurInto(src, horiz, dst *image.NRGBA, radius int) {
 	}
 
 	// Vertical pass: horiz → dst
-	for x := 0; x < w; x++ {
+	for x := range w {
 		var sumR, sumG, sumB int
 		cnt := 0
 		for dy := 0; dy <= radius && dy < h; dy++ {

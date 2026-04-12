@@ -174,8 +174,8 @@ func (s *Service) parseChangedProps(sender string, props map[string]dbus.Variant
 
 // resolveArtURL converts a MPRIS art URL to a local file path.
 func resolveArtURL(url string) string {
-	if strings.HasPrefix(url, "file://") {
-		return strings.TrimPrefix(url, "file://")
+	if after, ok := strings.CutPrefix(url, "file://"); ok {
+		return after
 	}
 	return url
 }

@@ -158,10 +158,3 @@ func (w *Watcher) Run(ctx context.Context) {
 		}
 	}
 }
-
-func min(a, b uint32) uint32 {
-	if a < b {
-		return a
-	}
-	return b
-}

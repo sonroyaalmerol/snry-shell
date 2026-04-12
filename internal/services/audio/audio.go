@@ -70,7 +70,7 @@ func (s *Service) run(ctx context.Context) error {
 	updateCh := make(chan struct{}, 8)
 	errCh := make(chan error, 1)
 
-	client.Callback = func(val interface{}) {
+	client.Callback = func(val any) {
 		switch v := val.(type) {
 		case *proto.SubscribeEvent:
 			fac := v.Event.GetFacility()
@@ -181,10 +181,7 @@ func floatToChannelVolumes(v float64, channels int) proto.ChannelVolumes {
 	if channels <= 0 {
 		channels = 2
 	}
-	raw := uint32(v * float64(proto.VolumeNorm))
-	if raw > uint32(proto.VolumeMax) {
-		raw = uint32(proto.VolumeMax)
-	}
+	raw := min(uint32(v*float64(proto.VolumeNorm)), uint32(proto.VolumeMax))
 	vols := make(proto.ChannelVolumes, channels)
 	for i := range vols {
 		vols[i] = raw

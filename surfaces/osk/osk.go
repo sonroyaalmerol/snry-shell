@@ -309,8 +309,8 @@ func detectTouchDevice() bool {
 	}
 	rest := raw[idx:]
 	after := ""
-	if i := strings.Index(rest, ": ["); i >= 0 {
-		after = strings.TrimLeft(rest[i+3:], " \t\r\n")
+	if _, after0, ok := strings.Cut(rest, ": ["); ok {
+		after = strings.TrimLeft(after0, " \t\r\n")
 	}
 	found := len(after) > 0 && after[0] != ']'
 	log.Printf("[OSK] touch detect (hyprctl): %v", found)

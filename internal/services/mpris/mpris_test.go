@@ -31,7 +31,7 @@ func (f *fakeDBusConn) Signal(ch chan<- *dbus.Signal) {
 	}()
 }
 
-func (f *fakeDBusConn) RemoveSignal(ch chan<- *dbus.Signal)            {}
+func (f *fakeDBusConn) RemoveSignal(ch chan<- *dbus.Signal)           {}
 func (f *fakeDBusConn) BusObject() dbus.BusObject                     { return nil }
 func (f *fakeDBusConn) Object(string, dbus.ObjectPath) dbus.BusObject { return nil }
 func (f *fakeDBusConn) AddMatchSignal(opts ...dbus.MatchOption) error { return nil }
@@ -80,8 +80,7 @@ func TestMprisPublishesMediaEvent(t *testing.T) {
 	fake := newFakeConn()
 	svc := mpris.New(&safeConn{fake}, b)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 	go svc.Run(ctx) //nolint:errcheck
 
 	fake.signalCh <- &dbus.Signal{

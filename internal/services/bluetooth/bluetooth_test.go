@@ -149,8 +149,7 @@ func TestSetPoweredChangesState(t *testing.T) {
 	conn := &fakeDBusConn{obj: obj}
 
 	svc := bluetooth.New(conn, b)
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	// Start the service Run loop (it will poll once then block on signals).
 	go svc.Run(ctx)
@@ -213,8 +212,7 @@ func TestSetPoweredFailedRePublishesActualState(t *testing.T) {
 	conn := &fakeDBusConn{obj: obj}
 
 	svc := bluetooth.New(conn, b)
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	go svc.Run(ctx)
 
@@ -263,14 +261,12 @@ func TestConcurrentPollSafety(t *testing.T) {
 	svc := bluetooth.New(conn, b)
 
 	var wg sync.WaitGroup
-	for i := 0; i < 10; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+	for range 10 {
+		wg.Go(func() {
 			// poll() is unexported, but SetPowered triggers a poll after delay.
 			// Instead, we test by calling GetDevices which also does D-Bus calls.
 			_, _ = svc.GetDevices()
-		}()
+		})
 	}
 	wg.Wait()
 }

@@ -353,13 +353,6 @@ func writeColor(sb *strings.Builder, name, value string) {
 
 // Helper functions
 
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
-}
-
 func rgbToHsl(c color.Color) (h, s, l float64) {
 	r, g, b, _ := c.RGBA()
 

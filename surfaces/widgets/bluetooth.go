@@ -118,7 +118,7 @@ func NewBluetoothWidget(b *bus.Bus, refs *servicerefs.ServiceRefs, parent *gtk.A
 }
 
 func sortDevices(devices []state.BluetoothDevice) {
-	for i := 0; i < len(devices); i++ {
+	for i := range devices {
 		for j := i + 1; j < len(devices); j++ {
 			if deviceRank(devices[j]) < deviceRank(devices[i]) {
 				devices[i], devices[j] = devices[j], devices[i]
@@ -140,7 +140,7 @@ func deviceRank(d state.BluetoothDevice) int {
 func newBTDeviceRow(parent *gtk.ApplicationWindow, refs *servicerefs.ServiceRefs, dev state.BluetoothDevice, rescan func()) gtk.Widgetter {
 	row := gtk.NewBox(gtk.OrientationHorizontal, 12)
 	row.AddCSSClass("conn-row")
-		row.SetCursorFromName("pointer")
+	row.SetCursorFromName("pointer")
 	if dev.Connected {
 		row.AddCSSClass("conn-row-connected")
 	}
@@ -177,7 +177,7 @@ func newBTDeviceRow(parent *gtk.ApplicationWindow, refs *servicerefs.ServiceRefs
 
 		setLoading := func() {
 			row.AddCSSClass("conn-row-loading")
-				row.SetSensitive(false)
+			row.SetSensitive(false)
 			gtkutil.ClearChildren(&meta.Widget, meta.Remove)
 			meta.Append(gtkutil.M3Spinner())
 		}

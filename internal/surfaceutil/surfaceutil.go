@@ -83,7 +83,7 @@ func FormatTime(seconds float64) string {
 // using reflection.
 func AsWidget(w gtk.Widgetter) *gtk.Widget {
 	v := reflect.ValueOf(w)
-	if v.Kind() == reflect.Ptr {
+	if v.Kind() == reflect.Pointer {
 		v = v.Elem()
 	}
 	f := v.FieldByName("Widget")

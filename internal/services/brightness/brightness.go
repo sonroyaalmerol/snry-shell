@@ -96,10 +96,7 @@ func (s *Service) SetBrightness(value float64) error {
 	var err error
 	// Try DDC first.
 	if val, ddcErr := ddc.GetVCP(0x10); ddcErr == nil {
-		raw := int(value * float64(val.Max))
-		if raw > int(val.Max) {
-			raw = int(val.Max)
-		}
+		raw := min(int(value*float64(val.Max)), int(val.Max))
 		err = ddc.SetVCP(0x10, uint16(raw))
 	} else {
 		// Fall back to backlight sysfs.

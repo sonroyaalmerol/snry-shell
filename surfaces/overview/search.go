@@ -28,10 +28,7 @@ func newSearchWidget(b *bus.Bus, onDismiss func()) gtk.Widgetter {
 			return
 		}
 		filtered := launcher.Filter(apps, query)
-		limit := 8
-		if len(filtered) < limit {
-			limit = len(filtered)
-		}
+		limit := min(len(filtered), 8)
 		for _, app := range filtered[:limit] {
 			row := newAppRow(app, onDismiss)
 			resultBox.Append(row)

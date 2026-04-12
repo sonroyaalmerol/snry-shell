@@ -59,10 +59,10 @@ type helperSession struct {
 }
 
 type authRequest struct {
-	identity  Identity
-	actionID  string
-	message   string
-	iconName  string
+	identity Identity
+	actionID string
+	message  string
+	iconName string
 }
 
 // New creates a new polkit agent.
@@ -95,7 +95,7 @@ func (a *Agent) Register() error {
 
 	// Register with the Authority.
 	auth := a.conn.Object(authorityBus, authorityPath)
-	subject := []interface{}{"unix-session", map[string]dbus.Variant{
+	subject := []any{"unix-session", map[string]dbus.Variant{
 		"session-id": dbus.MakeVariant(sessionID),
 	}}
 	err := auth.Call(authorityIface+".RegisterAuthenticationAgent", 0,
@@ -139,9 +139,9 @@ func (a *Agent) BeginAuthentication(
 
 	a.pendingMu.Lock()
 	a.pending[cookie] = &helperSession{
-		agent: a,
+		agent:  a,
 		cookie: cookie,
-		req:   req,
+		req:    req,
 	}
 	a.pendingMu.Unlock()
 

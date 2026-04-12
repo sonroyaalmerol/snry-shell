@@ -123,7 +123,7 @@ func (sw *M3CustomSwitch) ConnectStateSet(callback func(bool) bool) {
 }
 
 // Connect connects a signal handler.
-func (sw *M3CustomSwitch) Connect(signal string, callback interface{}) glib.SignalHandle {
+func (sw *M3CustomSwitch) Connect(signal string, callback any) glib.SignalHandle {
 	return sw.Box.Connect(signal, callback)
 }
 

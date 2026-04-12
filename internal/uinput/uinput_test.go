@@ -25,7 +25,7 @@ func TestInputEventLayout(t *testing.T) {
 	buf := (*[24]byte)(unsafe.Pointer(&ev))
 
 	// Bytes 0-15: timeval (zeroed).
-	for i := 0; i < 16; i++ {
+	for i := range 16 {
 		if buf[i] != 0 {
 			t.Fatalf("timeval byte %d non-zero: %d", i, buf[i])
 		}

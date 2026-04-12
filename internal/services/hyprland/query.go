@@ -222,8 +222,8 @@ func (q *Querier) GetOption(option string) (string, error) {
 
 	line := strings.SplitN(strings.TrimSpace(string(out)), "\n", 2)[0]
 	// Format: "type: value"
-	if idx := strings.Index(line, ": "); idx >= 0 {
-		return strings.TrimSpace(line[idx+2:]), nil
+	if _, after, ok := strings.Cut(line, ": "); ok {
+		return strings.TrimSpace(after), nil
 	}
 	return strings.TrimSpace(line), nil
 }
