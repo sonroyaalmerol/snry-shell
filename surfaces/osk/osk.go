@@ -292,10 +292,13 @@ func (o *OSK) showLocked() bool {
 	if o.visible {
 		return false
 	}
-	layershell.SetLayer(o.win, layershell.LayerOverlay)
 	o.win.SetVisible(true)
 	o.visible = true
+	// Toggle layer to force compositor restacking above other overlays
+	// (app drawer, lockscreen, etc.), then present.
 	glib.IdleAdd(func() {
+		layershell.SetLayer(o.win, layershell.LayerTop)
+		layershell.SetLayer(o.win, layershell.LayerOverlay)
 		o.win.PresentWithTime(uint32(glib.GetMonotonicTime() / 1000))
 	})
 	return true
