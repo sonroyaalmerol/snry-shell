@@ -38,7 +38,7 @@ type Cheatsheet struct {
 func New(app *gtk.Application, b *bus.Bus) *Cheatsheet {
 	win := layershell.NewWindow(app, layershell.WindowConfig{
 		Name:         "snry-cheatsheet",
-		Layer:        layershell.LayerOverlay,
+		Layer:        layershell.LayerTop,
 		Anchors:      layershell.FullscreenAnchors(),
 		KeyboardMode: layershell.KeyboardModeOnDemand,
 		Namespace:    "snry-cheatsheet",

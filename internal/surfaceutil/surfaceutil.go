@@ -31,13 +31,14 @@ func AddEscapeToCloseWithCallback(win *gtk.ApplicationWindow, onClose func()) {
 }
 
 // NewFullscreenOverlay creates a layer-shell window that covers the entire screen
-// in the overlay layer with ExclusiveZone=-1. Use KeyboardModeExclusive for
-// surfaces that must capture all input (session menu, settings); KeyboardModeOnDemand
-// for surfaces that share the keyboard with other windows.
+// in the Top layer (below OSK and lockscreen which use Overlay) with
+// ExclusiveZone=-1. Use KeyboardModeExclusive for surfaces that must capture all
+// input (session menu, settings); KeyboardModeOnDemand for surfaces that share
+// the keyboard with other windows.
 func NewFullscreenOverlay(app *gtk.Application, name string, kbMode layershell.KeyboardMode) *gtk.ApplicationWindow {
 	return layershell.NewWindow(app, layershell.WindowConfig{
 		Name:          name,
-		Layer:         layershell.LayerOverlay,
+		Layer:         layershell.LayerTop,
 		Anchors:       layershell.FullscreenAnchors(),
 		KeyboardMode:  kbMode,
 		ExclusiveZone: -1,
@@ -212,7 +213,7 @@ type PopupPanelConfig struct {
 func NewPopupPanel(app *gtk.Application, b *bus.Bus, cfg PopupPanelConfig) (*gtk.ApplicationWindow, *gtk.Box, *gtk.Box) {
 	win := layershell.NewWindow(app, layershell.WindowConfig{
 		Name:          cfg.Name,
-		Layer:         layershell.LayerOverlay,
+		Layer:         layershell.LayerTop,
 		Anchors:       layershell.FullscreenAnchors(),
 		KeyboardMode:  layershell.KeyboardModeOnDemand,
 		ExclusiveZone: -1,

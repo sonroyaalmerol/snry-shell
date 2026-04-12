@@ -32,7 +32,7 @@ func New(app *gtk.Application, b *bus.Bus) *NotifPopup {
 
 	win := layershell.NewWindow(app, layershell.WindowConfig{
 		Name:          "snry-notif-popup",
-		Layer:         layershell.LayerOverlay,
+		Layer:         layershell.LayerTop,
 		Anchors:       map[layershell.Edge]bool{layershell.EdgeTop: true, layershell.EdgeRight: true},
 		Margins:       map[layershell.Edge]int{layershell.EdgeTop: 8, layershell.EdgeRight: 8},
 		KeyboardMode:  layershell.KeyboardModeNone,

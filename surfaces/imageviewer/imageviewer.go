@@ -17,7 +17,7 @@ type Viewer struct {
 func New(app *gtk.Application, b *bus.Bus) *Viewer {
 	win := layershell.NewWindow(app, layershell.WindowConfig{
 		Name:          "snry-image-viewer",
-		Layer:         layershell.LayerOverlay,
+		Layer:         layershell.LayerTop,
 		Anchors:       layershell.FullscreenAnchors(),
 		KeyboardMode:  layershell.KeyboardModeOnDemand,
 		ExclusiveZone: -1,

@@ -20,7 +20,7 @@ type Overview struct {
 func New(app *gtk.Application, b *bus.Bus, querier *hyprland.Querier) *Overview {
 	win := layershell.NewWindow(app, layershell.WindowConfig{
 		Name:         "snry-overview",
-		Layer:        layershell.LayerOverlay,
+		Layer:        layershell.LayerTop,
 		Anchors:      layershell.FullscreenAnchors(),
 		KeyboardMode: layershell.KeyboardModeOnDemand,
 		Namespace:    "snry-overview",

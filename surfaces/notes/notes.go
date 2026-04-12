@@ -26,7 +26,7 @@ type Overlay struct {
 func New(app *gtk.Application, b *bus.Bus) *Overlay {
 	win := layershell.NewWindow(app, layershell.WindowConfig{
 		Name:          "snry-notes",
-		Layer:         layershell.LayerOverlay,
+		Layer:         layershell.LayerTop,
 		Anchors:       layershell.FullscreenAnchors(),
 		KeyboardMode:  layershell.KeyboardModeExclusive,
 		ExclusiveZone: -1,
