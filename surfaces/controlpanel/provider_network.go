@@ -350,13 +350,15 @@ func (n *nmConfigProvider) buildWiFiRow(net state.WiFiNetwork) gtk.Widgetter {
 	row.SetMarginBottom(12)
 
 	// Signal strength icon
-	signalIcon := "wifi_1_bar"
+	signalIcon := "signal_wifi_0_bar"
 	if net.Signal > 75 {
-		signalIcon = "wifi"
+		signalIcon = "signal_wifi_4_bar"
 	} else if net.Signal > 50 {
-		signalIcon = "wifi_3_bar"
+		signalIcon = "network_wifi_3_bar"
 	} else if net.Signal > 25 {
-		signalIcon = "wifi_2_bar"
+		signalIcon = "network_wifi_2_bar"
+	} else if net.Signal > 0 {
+		signalIcon = "wifi_1_bar"
 	}
 
 	icon := gtkutil.MaterialIcon(signalIcon)
