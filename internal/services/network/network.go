@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"sync/atomic"
 	"time"
 
 	"github.com/godbus/dbus/v5"
@@ -28,13 +29,22 @@ const (
 	nmStateConnectedLocal  = uint32(50)
 )
 
+type wifiCache struct {
+	networks []state.WiFiNetwork
+	loaded   bool
+}
+
+type connDiff struct {
+	ssid      string
+	connected bool
+}
+
 type Service struct {
-	conn             dbusutil.DBusConn
-	bus              *bus.Bus
-	cachedWiFi       []state.WiFiNetwork
-	cachedWiFiLoaded bool
-	lastSSID         string
-	lastConnected    bool
+	conn dbusutil.DBusConn
+	bus  *bus.Bus
+
+	wifiCache  atomic.Pointer[wifiCache]
+	lastDiff   atomic.Pointer[connDiff]
 }
 
 func New(conn dbusutil.DBusConn, b *bus.Bus) *Service {
@@ -108,11 +118,10 @@ func (s *Service) monitorSignals(ctx context.Context) {
 		case <-debounce.C:
 			ns := s.fetchFullState()
 			// Skip publish if connection state hasn't meaningfully changed.
-			if ns.SSID == s.lastSSID && ns.Connected == s.lastConnected {
+			newDiff := &connDiff{ssid: ns.SSID, connected: ns.Connected}
+			if old := s.lastDiff.Swap(newDiff); old != nil && *old == *newDiff {
 				continue
 			}
-			s.lastSSID = ns.SSID
-			s.lastConnected = ns.Connected
 			s.bus.Publish(bus.TopicNetwork, ns)
 		}
 	}
@@ -245,9 +254,9 @@ func (s *Service) fetchFullState() state.NetworkState {
 		return ns
 	}
 
-	if s.cachedWiFiLoaded {
-		networks := make([]state.WiFiNetwork, len(s.cachedWiFi))
-		copy(networks, s.cachedWiFi)
+	if wc := s.wifiCache.Load(); wc != nil && wc.loaded {
+		networks := make([]state.WiFiNetwork, len(wc.networks))
+		copy(networks, wc.networks)
 		for i := range networks {
 			networks[i].Connected = (networks[i].SSID == ns.SSID)
 		}
@@ -415,8 +424,8 @@ func (s *Service) ScanWiFi() error {
 	}
 
 	// Cache scan results and publish.
-	s.cachedWiFi = s.scanAccessPoints()
-	s.cachedWiFiLoaded = true
+	s.wifiCache.Store(&wifiCache{networks: s.scanAccessPoints(), loaded: true})
+
 	ns := s.fetchFullState()
 	s.bus.Publish(bus.TopicNetwork, ns)
 	return nil
