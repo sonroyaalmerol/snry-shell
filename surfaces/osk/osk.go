@@ -310,10 +310,13 @@ func (o *OSK) hideLocked() bool {
 	return true
 }
 
+// updateExclusiveZone adjusts the layer shell exclusive zone.
+// Always called from the GTK main thread (directly or via glib.IdleAdd),
+// so reading o.fullscreen without mu is safe — it is only written from
+// glib.IdleAdd callbacks which also run on the main thread.
+// IMPORTANT: do NOT acquire o.mu here — callers (switchView) may already hold it.
 func (o *OSK) updateExclusiveZone() {
-	o.mu.Lock()
 	fs := o.fullscreen
-	o.mu.Unlock()
 	if fs {
 		layershell.SetExclusiveZone(o.win, -1)
 		return
