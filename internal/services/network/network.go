@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"time"
 
 	"github.com/godbus/dbus/v5"
 	"github.com/sonroyaalmerol/snry-shell/internal/bus"
@@ -52,7 +51,8 @@ func (s *Service) Run(ctx context.Context) error {
 	}
 
 	// Emit initial state for subscribers.
-	s.query()
+	ns := s.fetchFullState()
+	s.bus.Publish(bus.TopicNetwork, ns)
 
 	// Monitor D-Bus signals for live updates.
 	go s.monitorSignals(ctx)
@@ -91,17 +91,10 @@ func (s *Service) monitorSignals(ctx context.Context) {
 					break drain
 				}
 			}
-			s.query()
+			ns := s.fetchFullState()
+			s.bus.Publish(bus.TopicNetwork, ns)
 		}
 	}
-}
-
-func (s *Service) query() {
-	ns, err := s.fetchState()
-	if err != nil {
-		return
-	}
-	s.bus.Publish(bus.TopicNetwork, ns)
 }
 
 func (s *Service) fetchState() (state.NetworkState, error) {
@@ -222,6 +215,102 @@ func (s *Service) fetchState() (state.NetworkState, error) {
 	}, nil
 }
 
+// fetchFullState returns NetworkState enriched with WiFi scan results.
+// It stamps Connected=true on the WiFiNetwork matching the current SSID.
+func (s *Service) fetchFullState() state.NetworkState {
+	ns, err := s.fetchState()
+	if err != nil {
+		return ns
+	}
+
+	networks := s.scanAccessPoints()
+	for i := range networks {
+		networks[i].Connected = (networks[i].SSID == ns.SSID)
+	}
+	ns.WiFiNetworks = networks
+	return ns
+}
+
+// scanAccessPoints returns visible WiFi access points without publishing.
+func (s *Service) scanAccessPoints() []state.WiFiNetwork {
+	if s.conn == nil {
+		return nil
+	}
+
+	savedSet := make(map[string]bool)
+	if saved, err := s.GetSavedSSIDs(); err == nil {
+		for _, ssid := range saved {
+			savedSet[ssid] = true
+		}
+	}
+
+	paths, err := s.wifiDevicePaths()
+	if err != nil || len(paths) == 0 {
+		return nil
+	}
+
+	seen := make(map[string]bool)
+	var networks []state.WiFiNetwork
+
+	for _, p := range paths {
+		devObj := s.conn.Object(nmDest, p)
+		apsV, err := devObj.GetProperty(nmDeviceWireless + ".AccessPoints")
+		if err != nil {
+			continue
+		}
+		apPaths, ok := apsV.Value().([]dbus.ObjectPath)
+		if !ok {
+			continue
+		}
+		for _, apPath := range apPaths {
+			apObj := s.conn.Object(nmDest, apPath)
+			ssidV, err := apObj.GetProperty(nmAccessPoint + ".Ssid")
+			if err != nil {
+				continue
+			}
+			ssidBytes, ok := ssidV.Value().([]byte)
+			if !ok {
+				continue
+			}
+			apSSID := string(ssidBytes)
+			if apSSID == "" || seen[apSSID] {
+				continue
+			}
+			seen[apSSID] = true
+
+			sig := 0
+			if strV, err := apObj.GetProperty(nmAccessPoint + ".Strength"); err == nil {
+				if v, ok := strV.Value().(uint8); ok {
+					sig = int(v)
+				}
+			}
+
+			security := ""
+			if flagsV, err := apObj.GetProperty(nmAccessPoint + ".WpaFlags"); err == nil {
+				flags, _ := flagsV.Value().(uint32)
+				if flags > 0 {
+					security = "WPA"
+				}
+			}
+			if rsnV, err := apObj.GetProperty(nmAccessPoint + ".RsnFlags"); err == nil {
+				flags, _ := rsnV.Value().(uint32)
+				if flags > 0 {
+					security = "WPA2"
+				}
+			}
+
+			networks = append(networks, state.WiFiNetwork{
+				SSID:     apSSID,
+				Signal:   sig,
+				Security: security,
+				Saved:    savedSet[apSSID],
+			})
+		}
+	}
+
+	return networks
+}
+
 // SetWiFi enables or disables the WiFi adapter.
 func (s *Service) SetWiFi(enabled bool) error {
 	nmObj := s.conn.Object(nmDest, nmPath)
@@ -282,112 +371,31 @@ func (s *Service) wifiDevicePaths() ([]dbus.ObjectPath, error) {
 	return wifiPaths, nil
 }
 
-// ScanWiFi requests a WiFi scan and returns available networks.
-// It always publishes to TopicWiFiNetworks so the widget can update.
+// ScanWiFi triggers a WiFi scan via NetworkManager.
+// Results arrive asynchronously via D-Bus signals which trigger fetchFullState.
 func (s *Service) ScanWiFi(ctx context.Context) ([]state.WiFiNetwork, error) {
-	networks := []state.WiFiNetwork{}
-	defer func() { s.bus.Publish(bus.TopicWiFiNetworks, networks) }()
-
 	if s.conn == nil {
-		return networks, fmt.Errorf("no D-Bus connection")
-	}
-
-	// Build saved SSID set.
-	savedSet := make(map[string]bool)
-	if saved, err := s.GetSavedSSIDs(); err == nil {
-		for _, ssid := range saved {
-			savedSet[ssid] = true
-		}
+		return nil, fmt.Errorf("no D-Bus connection")
 	}
 
 	paths, err := s.wifiDevicePaths()
 	if err != nil {
-		return networks, err
+		return nil, err
 	}
 
-	seen := make(map[string]bool)
-
-	// Request scan on all WiFi devices.
 	for _, p := range paths {
 		devObj := s.conn.Object(nmDest, p)
 		err := devObj.Call(nmDeviceWireless+".RequestScan", 0, map[string]dbus.Variant{}).Err
-		log.Printf("[network] RequestScan on %s: %v", p, err)
-	}
-
-	// Wait for scan to complete, respecting context cancellation.
-	select {
-	case <-time.After(3 * time.Second):
-	case <-ctx.Done():
-		return networks, ctx.Err()
-	}
-
-	// Get currently connected SSID after scan wait.
-	currentSSID := ""
-	if ns, err := s.fetchState(); err == nil {
-		currentSSID = ns.SSID
-	}
-
-	for _, p := range paths {
-		devObj := s.conn.Object(nmDest, p)
-
-		apsV, err := devObj.GetProperty(nmDeviceWireless + ".AccessPoints")
 		if err != nil {
-			continue
-		}
-		apPaths, ok := apsV.Value().([]dbus.ObjectPath)
-		if !ok {
-			continue
-		}
-
-		for _, apPath := range apPaths {
-			apObj := s.conn.Object(nmDest, apPath)
-			ssidV, err := apObj.GetProperty(nmAccessPoint + ".Ssid")
-			if err != nil {
-				continue
-			}
-			ssidBytes, ok := ssidV.Value().([]byte)
-			if !ok {
-				continue
-			}
-			apSSID := string(ssidBytes)
-			if apSSID == "" || seen[apSSID] {
-				continue
-			}
-			seen[apSSID] = true
-
-			sig := 0
-			if strV, err := apObj.GetProperty(nmAccessPoint + ".Strength"); err == nil {
-				if v, ok := strV.Value().(uint8); ok {
-					sig = int(v)
-				}
-			}
-
-			security := ""
-			if flagsV, err := apObj.GetProperty(nmAccessPoint + ".WpaFlags"); err == nil {
-				flags, _ := flagsV.Value().(uint32)
-				if flags > 0 {
-					security = "WPA"
-				}
-			}
-			if rsnV, err := apObj.GetProperty(nmAccessPoint + ".RsnFlags"); err == nil {
-				flags, _ := rsnV.Value().(uint32)
-				if flags > 0 {
-					security = "WPA2"
-				}
-			}
-
-			networks = append(networks, state.WiFiNetwork{
-				SSID:      apSSID,
-				Signal:    sig,
-				Security:  security,
-				Connected: apSSID == currentSSID,
-				Saved:     savedSet[apSSID],
-			})
+			log.Printf("[network] RequestScan on %s: %v", p, err)
 		}
 	}
 
-	log.Printf("[network] ScanWiFi: returning %d networks, current SSID=%q", len(networks), currentSSID)
-	return networks, nil
+	// Publish current AP list immediately (no wait).
+	ns := s.fetchFullState()
+	s.bus.Publish(bus.TopicNetwork, ns)
+
+	return ns.WiFiNetworks, nil
 }
 
 func (s *Service) ConnectWiFi(ssid string) error {
