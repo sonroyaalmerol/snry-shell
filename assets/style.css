@@ -259,19 +259,19 @@ scale.m3-scale slider {
     background-color: @col_surface_container_low;
     border-radius: var(--radius-xl);
     border: 1px solid alpha(@col_outline, 0.12);
-    padding: 16px;
+    padding: var(--space-lg);
 }
 .m3-card-filled {
     background-color: @col_surface_container_highest;
     border-radius: var(--radius-xl);
     border: none;
-    padding: 16px;
+    padding: var(--space-lg);
 }
 .m3-card-outlined {
     background-color: @col_surface;
     border-radius: var(--radius-xl);
     border: 1px solid @col_outline_variant;
-    padding: 16px;
+    padding: var(--space-lg);
 }
 
 /* Spinner (animated loading icon) */
@@ -539,7 +539,7 @@ scale.m3-scale slider {
     background-color: @col_surface_container;
     border-radius: var(--radius-xl);
     padding: 4px 0;
-    margin-top: 8px;
+    margin-top: var(--space-sm);
 }
 
 .search-result-row {
@@ -565,7 +565,7 @@ scale.m3-scale slider {
 }
 
 .window-grid {
-    padding: 12px;
+    padding: var(--space-md);
 }
 
 .window-preview-card {
@@ -610,7 +610,7 @@ scale.m3-scale slider {
 .windowmgmt-widget {
     background-color: @col_surface_container;
     border-radius: var(--radius-lg);
-    padding: 12px;
+    padding: var(--space-md);
     margin: 4px 0;
 }
 
@@ -733,8 +733,8 @@ scale.m3-scale slider {
     font-size: var(--typescale-headline-sm);
     font-weight: 600;
     color: @col_on_surface;
-    margin-bottom: 12px;
-    padding-bottom: 8px;
+    margin-bottom: var(--space-md);
+    padding-bottom: var(--space-sm);
 }
 
 .popup-scroll {
@@ -778,15 +778,15 @@ scale.m3-scale slider {
 .appdrawer-content {
     background-color: @col_surface_container_low;
     border-radius: var(--radius-xl) var(--radius-xl) 0 0;
-    margin: 16px;
+    margin: var(--space-lg);
     margin-top: 0;
-    padding: 24px;
+    padding: var(--space-xl);
     box-shadow: var(--elevation-3);
 }
 
 /* App Drawer Header - Material 3 style */
 .appdrawer-header {
-    margin-bottom: 8px;
+    margin-bottom: var(--space-sm);
 }
 
 .appdrawer-title {
@@ -815,7 +815,7 @@ scale.m3-scale slider {
 
 .appdrawer-search-entry image {
     color: @col_on_surface_variant;
-    margin-right: 12px;
+    margin-right: var(--space-md);
 }
 
 .appdrawer-scroll {
@@ -889,7 +889,7 @@ scale.m3-scale slider {
 .appdrawer-empty-icon {
     font-size: 48px;
     color: @col_outline;
-    margin-bottom: 16px;
+    margin-bottom: var(--space-lg);
 }
 
 .notification-list {
@@ -900,7 +900,7 @@ scale.m3-scale slider {
 .notification-card {
     background-color: @col_surface_container;
     border-radius: var(--radius-lg);
-    padding: 16px;
+    padding: var(--space-lg);
     margin: 6px 0;
     box-shadow: var(--elevation-1);
     transition: background-color var(--duration-short3) var(--ease-standard-decel),
@@ -983,7 +983,7 @@ scale.m3-scale slider {
 .notification-empty-icon {
     font-size: 48px;
     color: @col_outline_variant;
-    margin-bottom: 16px;
+    margin-bottom: var(--space-lg);
 }
 
 .notification-empty-label {
@@ -1005,7 +1005,7 @@ scale.m3-scale slider {
     font-family: "Material Symbols Rounded";
     font-size: var(--icon-lg);
     color: @col_on_surface;
-    margin-right: 16px;
+    margin-right: var(--space-lg);
 }
 
 scale.osd-slider {
@@ -1032,7 +1032,7 @@ scale.osd-slider {
     font-size: var(--typescale-title-sm);
     font-weight: 600;
     color: @col_on_surface;
-    margin-bottom: 8px;
+    margin-bottom: var(--space-sm);
 }
 
 .cheatsheet-key {
@@ -1056,7 +1056,7 @@ scale.osd-slider {
     background-color: alpha(@col_surface_container_high, 0.98);
     border-radius: var(--radius-xl);
     padding: 16px 20px;
-    margin-bottom: 8px;
+    margin-bottom: var(--space-sm);
     min-width: 320px;
     box-shadow: var(--elevation-3);
     border-left: none;
@@ -1093,8 +1093,8 @@ scale.osd-slider {
 
 /* Toast actions */
 .notif-toast-actions {
-    margin-top: 12px;
-    padding-top: 12px;
+    margin-top: var(--space-md);
+    padding-top: var(--space-md);
     border-top: 1px solid alpha(@col_outline, 0.15);
 }
 
@@ -1110,7 +1110,7 @@ scale.osd-slider {
 .media-controls {
     background-color: @col_surface_container;
     border-radius: var(--radius-md);
-    padding: 12px;
+    padding: var(--space-md);
     margin: 4px 0;
 }
 
@@ -1166,7 +1166,7 @@ scale.osd-slider {
 .media-overlay {
     background-color: alpha(@col_surface, 0.95);
     border-radius: var(--radius-xl);
-    padding: 16px;
+    padding: var(--space-lg);
     min-width: 340px;
     box-shadow: var(--elevation-3);
 }
@@ -1199,7 +1199,7 @@ scale.osd-slider {
 .calendar-group {
     background-color: @col_surface_container;
     border-radius: var(--radius-lg);
-    padding: 16px;
+    padding: var(--space-lg);
     margin: 4px 0;
 }
 
@@ -1230,7 +1230,7 @@ scale.osd-slider {
 }
 
 .cal-dow-row {
-    margin-top: 12px;
+    margin-top: var(--space-md);
     padding: 0 4px;
 }
 
@@ -1276,7 +1276,7 @@ scale.osd-slider {
 .system-controls {
     background-color: @col_surface_container;
     border-radius: var(--radius-xl);
-    padding: 12px;
+    padding: var(--space-md);
     margin: 4px 0;
 }
 
@@ -1377,7 +1377,7 @@ scale.osd-slider {
 }
 
 scale.quick-slider {
-    margin-left: 12px;
+    margin-left: var(--space-md);
 }
 
 /* ── Connectivity widgets (WiFi & Bluetooth) ─────────────────────────────── */
@@ -1390,7 +1390,7 @@ scale.quick-slider {
 }
 
 .conn-section-header {
-    padding: 12px 16px;
+    padding: var(--space-md) var(--space-lg);
     margin: 8px 0 4px 0;
     border-radius: var(--radius-md);
     transition: background-color var(--duration-short3) var(--ease-standard-decel);
@@ -1410,7 +1410,7 @@ scale.quick-slider {
 .conn-section-count {
     font-size: var(--typescale-body-sm);
     color: @col_on_surface_variant;
-    margin-left: 8px;
+    margin-left: var(--space-sm);
 }
 
 .conn-section-arrow {
@@ -1768,7 +1768,7 @@ scale.quick-slider {
 }
 
 .session-container {
-    padding: 24px;
+    padding: var(--space-xl);
     border-radius: var(--radius-xxl);
     background-color: @col_surface_container_low;
 }
@@ -1776,8 +1776,8 @@ scale.quick-slider {
 .session-btn {
     background-color: @col_surface_container;
     border-radius: var(--radius-xl);
-    padding: 24px;
-    margin: 12px;
+    padding: var(--space-xl);
+    margin: var(--space-md);
     min-width: 100px;
     min-height: 100px;
     border: none;
@@ -1804,7 +1804,7 @@ scale.quick-slider {
 .session-btn-label {
     font-size: var(--typescale-body-sm);
     color: @col_on_surface_variant;
-    margin-top: 8px;
+    margin-top: var(--space-sm);
 }
 
 /* ── Lock screen ─────────────────────────────────────────────────────────────── */
@@ -1973,7 +1973,7 @@ scale.quick-slider {
 }
 
 .settings-stack {
-    padding: 24px;
+    padding: var(--space-xl);
 }
 
 .settings-page {
@@ -2050,7 +2050,7 @@ popover.menu list row:selected {
 /* Arrow button in dropdown */
 .settings-dropdown > button > box > image {
     color: @col_on_surface_variant;
-    margin-left: 8px;
+    margin-left: var(--space-sm);
 }
 
 .settings-spin-entry {
@@ -2073,18 +2073,18 @@ popover.menu list row:selected {
     font-size: var(--typescale-headline-md);
     font-weight: 600;
     color: @col_on_surface;
-    margin-bottom: 8px;
+    margin-bottom: var(--space-sm);
 }
 
 .settings-subtitle {
     font-size: var(--typescale-title-sm);
     font-weight: 600;
     color: @col_on_surface;
-    margin-bottom: 8px;
+    margin-bottom: var(--space-sm);
 }
 
 .settings-section {
-    margin-bottom: 8px;
+    margin-bottom: var(--space-sm);
 }
 
 .settings-empty-label {
@@ -2173,7 +2173,7 @@ popover.menu list row:selected {
     font-size: var(--typescale-headline-sm);
     font-weight: 600;
     color: @col_on_surface;
-    margin-bottom: 8px;
+    margin-bottom: var(--space-sm);
 }
 
 .popup-panel .settings-entry {
@@ -2407,7 +2407,7 @@ popover.menu list row:selected {
     background-color: @col_surface_container;
     border: 1px solid alpha(@col_outline, 0.6);
     border-radius: var(--radius-md);
-    padding: 12px;
+    padding: var(--space-md);
 }
 
 .m3-dropdown:hover {
@@ -2636,7 +2636,7 @@ popover.menu list row:selected {
     background-color: alpha(@col_surface_container, 0.92);
     border-radius: var(--radius-xl);
     border: 1px solid alpha(@col_outline_variant, 0.3);
-    padding: 12px;
+    padding: var(--space-md);
 }
 
 .notes-toolbar {
@@ -2721,7 +2721,7 @@ popover.menu list row:selected {
     background-color: @col_surface_container;
     border-radius: var(--radius-xl);
     border: 1px solid alpha(@col_outline_variant, 0.3);
-    padding: 24px;
+    padding: var(--space-xl);
     box-shadow: var(--elevation-4);
 }
 
@@ -2798,7 +2798,7 @@ popover.menu list row:selected {
     background-color: @col_surface_container_high;
     border-radius: var(--radius-xl);
     border: 1px solid alpha(@col_outline_variant, 0.3);
-    padding: 24px;
+    padding: var(--space-xl);
     box-shadow: var(--elevation-4);
     min-width: 280px;
 }
@@ -2807,14 +2807,14 @@ popover.menu list row:selected {
     font-size: var(--typescale-headline-lg);
     font-weight: 500;
     color: @col_on_surface;
-    margin-bottom: 16px;
+    margin-bottom: var(--space-lg);
 }
 
 .m3-dialog-content {
     font-size: var(--typescale-body-lg);
     font-weight: 400;
     color: @col_on_surface_variant;
-    margin-bottom: 24px;
+    margin-bottom: var(--space-xl);
 }
 
 .m3-dialog-error-content {
@@ -2868,7 +2868,7 @@ popover.menu list row:selected {
     font-size: var(--typescale-body-lg);
     caret-color: @col_primary;
     border: none;
-    margin-bottom: 16px;
+    margin-bottom: var(--space-lg);
 }
 
 .m3-password-entry:focus {
@@ -2878,7 +2878,7 @@ popover.menu list row:selected {
 .m3-password-box {
     background-color: @col_surface_container_high;
     border-radius: var(--radius-md);
-    margin-bottom: 16px;
+    margin-bottom: var(--space-lg);
 }
 
 .m3-password-box:focus-within {
@@ -3072,7 +3072,7 @@ popover.menu list row:selected {
 }
 
 .lockscreen-entry-card {
-    margin-top: 16px;
+    margin-top: var(--space-lg);
 }
 
 .lockscreen-entry {
@@ -3109,12 +3109,12 @@ popover.menu list row:selected {
 .lockscreen-status {
     font-size: var(--typescale-body-lg);
     color: @col_error;
-    margin-top: 8px;
+    margin-top: var(--space-sm);
     min-height: 20px;
 }
 
 .lockscreen-unlock-btn {
-    margin-top: 8px;
+    margin-top: var(--space-sm);
 }
 
 .lockscreen-action-btn {
