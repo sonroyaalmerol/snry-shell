@@ -88,10 +88,13 @@
     --duration-medium1: 250ms;
     --duration-medium2: 300ms;
 
-    /* State layer opacities */
+    /* State layer opacities (hover/focus/press only) */
     --state-hover: 0.08;
     --state-focus: 0.12;
     --state-press: 0.12;
+
+    /* Resting container background opacity (not affected by touch mode) */
+    --container-opacity: 0.08;
 
     /* Elevation shadows */
     --elevation-1: 0 2px 8px  alpha(#000000, 0.15);
@@ -628,7 +631,7 @@ scale.m3-scale slider {
 }
 
 .windowmgmt-action-btn {
-    background-color: alpha(@col_on_surface, var(--state-hover));
+    background-color: alpha(@col_on_surface, var(--container-opacity));
     border: none;
     border-radius: var(--radius-md);
     padding: 12px 8px;
@@ -662,7 +665,7 @@ scale.m3-scale slider {
 }
 
 .windowmgmt-ws-btn {
-    background-color: alpha(@col_on_surface, var(--state-hover));
+    background-color: alpha(@col_on_surface, var(--container-opacity));
     border-radius: var(--radius-md);
     padding: 10px;
     min-height: 36px;
@@ -1316,7 +1319,7 @@ scale.osd-slider {
 }
 
 .quick-toggle {
-    background-color: alpha(@col_on_surface, var(--state-hover));
+    background-color: alpha(@col_on_surface, var(--container-opacity));
     border-radius: var(--radius-md);
     padding: 10px 16px;
     border: none;
@@ -1990,7 +1993,7 @@ popover.menu list row:selected {
 }
 
 .settings-btn {
-    background-color: alpha(@col_on_surface, var(--state-hover));
+    background-color: alpha(@col_on_surface, var(--container-opacity));
     border: none;
     border-radius: var(--radius-pill);
     color: @col_on_surface;
@@ -2803,7 +2806,7 @@ popover.menu list row:selected {
 
 .quick-toggle-segmented {
     border-radius: var(--radius-md);
-    background: alpha(@col_on_surface, var(--state-hover));
+    background: alpha(@col_on_surface, var(--container-opacity));
 }
 
 .quick-toggle-segment {
