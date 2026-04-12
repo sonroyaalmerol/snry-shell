@@ -261,11 +261,6 @@ func (n *nmConfigProvider) buildDeviceRow(dev state.NMDevice) gtk.Widgetter {
 				log.Printf("[CONTROLPANEL] failed to disconnect: %v", err)
 				gtkutil.ErrorDialog(nil, "Error", fmt.Sprintf("Failed to disconnect: %v", err))
 			}
-			// Refresh after a moment
-			glib.TimeoutAdd(1000, func() bool {
-				n.refreshDevicesList()
-				return false
-			})
 		})
 		row.Append(icon)
 		row.Append(infoBox)
@@ -545,10 +540,6 @@ func (n *nmConfigProvider) buildConnectionRow(conn state.NMConnection) gtk.Widge
 				log.Printf("[CONTROLPANEL] failed to disconnect: %v", err)
 				gtkutil.ErrorDialog(nil, "Error", fmt.Sprintf("Failed to disconnect: %v", err))
 			}
-			glib.TimeoutAdd(1000, func() bool {
-				n.refreshConnectionsList()
-				return false
-			})
 		})
 		mainRow.Append(disconnectBtn)
 	} else {

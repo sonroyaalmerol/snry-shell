@@ -1,8 +1,6 @@
 package widgets
 
 import (
-	"context"
-
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/sonroyaalmerol/snry-shell/internal/bus"
@@ -71,7 +69,7 @@ func NewNetworkWidget(b *bus.Bus, refs *servicerefs.ServiceRefs, parent *gtk.App
 
 	rescan := func() {
 		if refs.Network != nil {
-			go refs.Network.ScanWiFi(context.Background())
+			go refs.Network.ScanWiFi()
 		}
 	}
 
@@ -105,7 +103,7 @@ func NewNetworkWidget(b *bus.Bus, refs *servicerefs.ServiceRefs, parent *gtk.App
 		}
 		scanBtn.SetSensitive(false)
 		scanBtn.SetChild(gtkutil.M3Spinner())
-		go refs.Network.ScanWiFi(context.Background())
+		go refs.Network.ScanWiFi()
 	})
 	scanBtnWrapper := gtk.NewBox(gtk.OrientationHorizontal, 0)
 	scanBtnWrapper.SetHAlign(gtk.AlignEnd)
@@ -114,7 +112,7 @@ func NewNetworkWidget(b *bus.Bus, refs *servicerefs.ServiceRefs, parent *gtk.App
 
 	// Scan on creation.
 	if refs.Network != nil {
-		go refs.Network.ScanWiFi(context.Background())
+		go refs.Network.ScanWiFi()
 	}
 
 	// Keyed WiFi list for diff-based updates (no flickering).
@@ -152,14 +150,12 @@ func NewNetworkWidget(b *bus.Bus, refs *servicerefs.ServiceRefs, parent *gtk.App
 			}
 
 			// Update WiFi list from unified state.
-			if len(ns.WiFiNetworks) > 0 {
-				sorted := make([]state.WiFiNetwork, len(ns.WiFiNetworks))
-				copy(sorted, ns.WiFiNetworks)
-				sortWiFiNetworks(sorted)
-				wifiKL.Update(sorted)
-				gtkutil.UpdateSectionHeader(sectionHeader, len(sorted))
-				restoreScanBtn()
-			}
+			sorted := make([]state.WiFiNetwork, len(ns.WiFiNetworks))
+			copy(sorted, ns.WiFiNetworks)
+			sortWiFiNetworks(sorted)
+			wifiKL.Update(sorted)
+			gtkutil.UpdateSectionHeader(sectionHeader, len(sorted))
+			restoreScanBtn()
 		})
 	})
 

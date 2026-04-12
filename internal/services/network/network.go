@@ -373,29 +373,24 @@ func (s *Service) wifiDevicePaths() ([]dbus.ObjectPath, error) {
 
 // ScanWiFi triggers a WiFi scan via NetworkManager.
 // Results arrive asynchronously via D-Bus signals which trigger fetchFullState.
-func (s *Service) ScanWiFi(ctx context.Context) ([]state.WiFiNetwork, error) {
+func (s *Service) ScanWiFi() error {
 	if s.conn == nil {
-		return nil, fmt.Errorf("no D-Bus connection")
+		return fmt.Errorf("no D-Bus connection")
 	}
 
 	paths, err := s.wifiDevicePaths()
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	for _, p := range paths {
 		devObj := s.conn.Object(nmDest, p)
-		err := devObj.Call(nmDeviceWireless+".RequestScan", 0, map[string]dbus.Variant{}).Err
-		if err != nil {
+		if err := devObj.Call(nmDeviceWireless+".RequestScan", 0, map[string]dbus.Variant{}).Err; err != nil {
 			log.Printf("[network] RequestScan on %s: %v", p, err)
 		}
 	}
 
-	// Publish current AP list immediately (no wait).
-	ns := s.fetchFullState()
-	s.bus.Publish(bus.TopicNetwork, ns)
-
-	return ns.WiFiNetworks, nil
+	return nil
 }
 
 func (s *Service) ConnectWiFi(ssid string) error {

@@ -1,8 +1,6 @@
 package network
 
 import (
-	"context"
-
 	"github.com/diamondburned/gotk4/pkg/gdk/v4"
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
@@ -90,7 +88,7 @@ func (n *Network) Toggle() {
 		}
 		surfaceutil.PositionUnderTrigger(n.root, n.trigger, panelWidth, panelMargin, n.monitor)
 		if n.refs.Network != nil {
-			go n.refs.Network.ScanWiFi(context.Background())
+			go n.refs.Network.ScanWiFi()
 		}
 		// Update max height based on current monitor and scroll to top when opening
 		if n.scroll != nil {
