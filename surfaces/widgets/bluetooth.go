@@ -98,64 +98,16 @@ func NewBluetoothWidget(b *bus.Bus, refs *servicerefs.ServiceRefs, parent *gtk.A
 		nil,
 	)
 
-	// Track connected device from TopicBluetooth and reconcile device list.
-	var connectedAddr string
-	var latestDevices []state.BluetoothDevice
-
-	b.Subscribe(bus.TopicBluetooth, func(e bus.Event) {
-		bs, ok := e.Data.(state.BluetoothState)
-		if !ok {
-			return
-		}
-		newAddr := ""
-		if bs.Connected {
-			// Find the connected device's address from the latest device list.
-			for _, d := range latestDevices {
-				if d.Connected {
-					newAddr = d.Address
-					break
-				}
-			}
-		}
-		if newAddr == connectedAddr {
-			return
-		}
-		connectedAddr = newAddr
-		if len(latestDevices) == 0 {
-			return
-		}
-		changed := false
-		for i := range latestDevices {
-			was := latestDevices[i].Connected
-			latestDevices[i].Connected = (latestDevices[i].Address == connectedAddr)
-			if latestDevices[i].Connected != was {
-				changed = true
-			}
-		}
-		if changed {
-			sorted := make([]state.BluetoothDevice, len(latestDevices))
-			copy(sorted, latestDevices)
-			sortDevices(sorted)
-			glib.IdleAdd(func() {
-				btKL.Update(sorted)
-			})
-		}
-	})
-
-	// Subscribe to device list updates.
 	b.Subscribe(bus.TopicBluetoothDevices, func(e bus.Event) {
 		devices, ok := e.Data.([]state.BluetoothDevice)
 		if !ok {
 			return
 		}
-		latestDevices = make([]state.BluetoothDevice, len(devices))
-		copy(latestDevices, devices)
 		sorted := make([]state.BluetoothDevice, len(devices))
 		copy(sorted, devices)
 		sortDevices(sorted)
 		glib.IdleAdd(func() {
 			btKL.Update(sorted)
-
 			gtkutil.UpdateSectionHeader(sectionHeader, len(devices))
 			restoreScanBtn()
 		})
