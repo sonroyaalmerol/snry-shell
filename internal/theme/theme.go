@@ -419,6 +419,10 @@ func hslToHex(h, s, l float64) string {
 	g = math.Round((g + m) * 255.0)
 	b = math.Round((b + m) * 255.0)
 
+	r = math.Max(0, math.Min(255, r))
+	g = math.Max(0, math.Min(255, g))
+	b = math.Max(0, math.Min(255, b))
+
 	return fmt.Sprintf("#%02X%02X%02X", int(r), int(g), int(b))
 }
 

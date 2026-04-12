@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"sync"
+	"sync/atomic"
 
 	"github.com/godbus/dbus/v5"
 	"github.com/sonroyaalmerol/snry-shell/internal/bus"
@@ -18,29 +18,27 @@ import (
 type SystemHandler struct {
 	bus  *bus.Bus
 	conn dbusutil.DBusConn
-	mu   sync.Mutex
 
-	lidAction   string
-	powerAction string
+	lidAction   atomic.Pointer[string]
+	powerAction atomic.Pointer[string]
 
 	// Inhibitor lock file descriptor
 	lockFD dbus.UnixFD
 }
 
 func NewSystemHandler(b *bus.Bus, conn dbusutil.DBusConn, lidAction, powerAction string) *SystemHandler {
-	return &SystemHandler{
-		bus:         b,
-		conn:        conn,
-		lidAction:   lidAction,
-		powerAction: powerAction,
+	h := &SystemHandler{
+		bus:  b,
+		conn: conn,
 	}
+	h.lidAction.Store(&lidAction)
+	h.powerAction.Store(&powerAction)
+	return h
 }
 
 func (h *SystemHandler) UpdateConfig(lidAction, powerAction string) {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-	h.lidAction = lidAction
-	h.powerAction = powerAction
+	h.lidAction.Store(&lidAction)
+	h.powerAction.Store(&powerAction)
 	log.Printf("[system] config updated: lid=%s, power=%s", lidAction, powerAction)
 }
 
@@ -50,7 +48,7 @@ func (h *SystemHandler) Run(ctx context.Context) error {
 		return fmt.Errorf("no system bus connection")
 	}
 
-	// Take a block inhibitor so logind does not handle these events itself.
+	// Take a block inhibitor so logind does not handle these events themselves.
 	// The actual detection is done via Hyprland bindl keybindings set up by
 	// SetupHyprlandBinds, which send toggle-power-action / toggle-lid-action
 	// through the control socket.
@@ -68,18 +66,18 @@ func (h *SystemHandler) Run(ctx context.Context) error {
 		if !ok {
 			return
 		}
-		h.mu.Lock()
-		lidAction := h.lidAction
-		powerAction := h.powerAction
-		h.mu.Unlock()
 
 		switch cmd {
 		case "toggle-power-action":
 			log.Printf("[system] power button press received")
-			h.executeAction(powerAction)
+			if p := h.powerAction.Load(); p != nil {
+				h.executeAction(*p)
+			}
 		case "toggle-lid-action":
 			log.Printf("[system] lid close received")
-			h.executeAction(lidAction)
+			if l := h.lidAction.Load(); l != nil {
+				h.executeAction(*l)
+			}
 		}
 	})
 

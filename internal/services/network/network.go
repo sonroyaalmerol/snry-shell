@@ -46,6 +46,11 @@ func NewWithDefaults(b *bus.Bus) *Service {
 }
 
 func (s *Service) Run(ctx context.Context) error {
+	if s.conn == nil {
+		<-ctx.Done()
+		return ctx.Err()
+	}
+
 	// Emit initial state for subscribers.
 	s.query()
 

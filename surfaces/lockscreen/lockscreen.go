@@ -10,7 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"strings"
-	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/diamondburned/gotk4/pkg/gdk/v4"
@@ -36,13 +36,12 @@ type LockScreen struct {
 	app *gtk.Application
 	bus *bus.Bus
 
-	// shared auth state
-	mu        sync.Mutex
-	inAuth    bool
-	attempts  int
-	lockedOut bool
+	// shared auth state (lock-free via atomics)
+	inAuth    atomic.Bool
+	attempts  atomic.Int32
+	lockedOut atomic.Bool
 
-	// configurable settings
+	// configurable settings (GTK main-thread only, no lock needed)
 	maxAttempts     int
 	lockoutDuration time.Duration
 	showClock       bool
@@ -120,9 +119,6 @@ func New(app *gtk.Application, b *bus.Bus) *LockScreen {
 
 // UpdateSettings updates the lockscreen configuration
 func (ls *LockScreen) UpdateSettings(cfg settings.Config) {
-	ls.mu.Lock()
-	defer ls.mu.Unlock()
-
 	ls.maxAttempts = max(cfg.LockMaxAttempts, 1)
 
 	ls.lockoutDuration = max(time.Duration(cfg.LockoutDuration)*time.Second, 5*time.Second)
@@ -305,9 +301,7 @@ func (ls *LockScreen) startClock(lw *lockWindow) {
 	update := func() {
 		now := time.Now()
 
-		ls.mu.Lock()
 		format := ls.clockFormat
-		ls.mu.Unlock()
 
 		clockStr := "15:04"
 		if format == "12h" {
@@ -360,35 +354,26 @@ func (ls *LockScreen) updateWallpaper() {
 // ── authentication ───────────────────────────────────────────────────────────
 
 func (ls *LockScreen) unlock(lw *lockWindow) {
-	ls.mu.Lock()
-	if ls.inAuth || ls.lockedOut {
-		ls.mu.Unlock()
+	if ls.inAuth.Load() || ls.lockedOut.Load() {
 		return
 	}
 	pw := lw.entry.Text()
 	if pw == "" {
-		ls.mu.Unlock()
 		return
 	}
-	ls.inAuth = true
-	ls.mu.Unlock()
+	ls.inAuth.Store(true)
 
 	go func() {
 		err := authenticate(pw)
 		glib.IdleAdd(func() {
-			ls.mu.Lock()
-			ls.inAuth = false
-			ls.mu.Unlock()
+			ls.inAuth.Store(false)
 
 			if err == nil {
 				ls.bus.Publish(bus.TopicScreenLock, state.LockScreenState{Locked: false})
 				return
 			}
 
-			ls.mu.Lock()
-			ls.attempts++
-			attempts := ls.attempts
-			ls.mu.Unlock()
+			attempts := ls.attempts.Add(1)
 
 			// Shake all entries.
 			for _, w := range ls.windows {
@@ -400,10 +385,10 @@ func (ls *LockScreen) unlock(lw *lockWindow) {
 				})
 			}
 
-			if attempts >= ls.maxAttempts {
+			if int(attempts) >= ls.maxAttempts {
 				ls.startLockout()
 			} else {
-				remaining := ls.maxAttempts - attempts
+				remaining := ls.maxAttempts - int(attempts)
 				ls.setStatus(fmt.Sprintf("Incorrect password. %d attempt(s) remaining.", remaining))
 			}
 		})
@@ -411,9 +396,7 @@ func (ls *LockScreen) unlock(lw *lockWindow) {
 }
 
 func (ls *LockScreen) startLockout() {
-	ls.mu.Lock()
-	ls.lockedOut = true
-	ls.mu.Unlock()
+	ls.lockedOut.Store(true)
 
 	ls.setLockoutButtons(true)
 
@@ -421,10 +404,8 @@ func (ls *LockScreen) startLockout() {
 	glib.TimeoutAdd(1000, func() bool {
 		remaining := time.Until(deadline)
 		if remaining <= 0 {
-			ls.mu.Lock()
-			ls.lockedOut = false
-			ls.attempts = 0
-			ls.mu.Unlock()
+			ls.lockedOut.Store(false)
+			ls.attempts.Store(0)
 			ls.setStatus("")
 			ls.setLockoutButtons(false)
 			return false
@@ -448,11 +429,9 @@ func (ls *LockScreen) setStatus(msg string) {
 }
 
 func (ls *LockScreen) resetAuth() {
-	ls.mu.Lock()
-	ls.attempts = 0
-	ls.lockedOut = false
-	ls.inAuth = false
-	ls.mu.Unlock()
+	ls.attempts.Store(0)
+	ls.lockedOut.Store(false)
+	ls.inAuth.Store(false)
 	ls.setStatus("")
 	ls.setLockoutButtons(false)
 }

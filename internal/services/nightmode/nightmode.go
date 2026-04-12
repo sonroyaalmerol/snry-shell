@@ -3,7 +3,7 @@ package nightmode
 import (
 	"log"
 	"os/exec"
-	"sync"
+	"sync/atomic"
 
 	"github.com/sonroyaalmerol/snry-shell/internal/bus"
 )
@@ -21,7 +21,12 @@ type Killer interface {
 type execRunner struct{}
 
 func (e execRunner) Start(args ...string) error {
-	return exec.Command(args[0], args[1:]...).Start()
+	cmd := exec.Command(args[0], args[1:]...)
+	if err := cmd.Start(); err != nil {
+		return err
+	}
+	go cmd.Wait()
+	return nil
 }
 
 type execKiller struct{}
@@ -38,8 +43,7 @@ func NewKiller() Killer { return execKiller{} }
 
 // Service toggles hyprsunset on/off and publishes the enabled state.
 type Service struct {
-	mu      sync.Mutex
-	enabled bool
+	enabled atomic.Bool
 	runner  Runner
 	killer  Killer
 	bus     *bus.Bus
@@ -56,10 +60,9 @@ func NewWithDefaults(b *bus.Bus) *Service {
 
 // Toggle flips the night mode state. Starts or kills hyprsunset accordingly.
 func (s *Service) Toggle() {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.enabled = !s.enabled
-	if s.enabled {
+	newVal := !s.enabled.Load()
+	s.enabled.Store(newVal)
+	if newVal {
 		if err := s.runner.Start("hyprsunset", "-t", s.temp); err != nil {
 			log.Printf("nightmode start: %v", err)
 		}
@@ -68,13 +71,11 @@ func (s *Service) Toggle() {
 			log.Printf("nightmode stop: %v", err)
 		}
 	}
-	s.bus.Publish(bus.TopicNightMode, s.enabled)
+	s.bus.Publish(bus.TopicNightMode, newVal)
 }
 
 // Enabled returns the current state.
 func (s *Service) Enabled() bool {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	return s.enabled
+	return s.enabled.Load()
 }
 

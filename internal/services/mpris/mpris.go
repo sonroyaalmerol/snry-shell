@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
-	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/godbus/dbus/v5"
@@ -23,8 +23,7 @@ type Service struct {
 	conn          dbusutil.DBusConn
 	bus           *bus.Bus
 	playerNameMap map[string]string
-	mu            sync.Mutex
-	activePlayer  string
+	activePlayer  atomic.Pointer[string]
 }
 
 func New(conn dbusutil.DBusConn, b *bus.Bus) *Service {
@@ -103,9 +102,7 @@ func (s *Service) handlePropertiesChanged(sig *dbus.Signal) {
 	// Track the most recently active (playing) player.
 	if v, ok := changed["PlaybackStatus"]; ok {
 		if status, ok := v.Value().(string); ok && status == "Playing" {
-			s.mu.Lock()
-			s.activePlayer = wellKnown
-			s.mu.Unlock()
+			s.activePlayer.Store(&wellKnown)
 		}
 	}
 
@@ -222,7 +219,7 @@ func (s *Service) SeekTo(playerBusName string, positionSeconds float64) error {
 	obj := s.conn.Object(playerBusName, "/org/mpris/MediaPlayer2")
 	pos := int64(positionSeconds * 1e6)
 	return obj.Call(playerIface+".SetPosition", 0,
-		"/org/mpris/MediaPlayer2", dbus.MakeVariant(pos)).Err
+		dbus.ObjectPath("/org/mpris/MediaPlayer2"), pos).Err
 }
 
 // GetPosition queries the current playback position (in seconds) for the player.
@@ -259,10 +256,8 @@ func (s *Service) Previous(playerBusName string) error {
 // ActivePlayer returns the bus name of the most recently playing MPRIS player,
 // or an empty string if none has been seen yet.
 func (s *Service) ActivePlayer() string {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if s.activePlayer != "" {
-		return s.activePlayer
+	if p := s.activePlayer.Load(); p != nil && *p != "" {
+		return *p
 	}
 	// Fall back to the first player found on the bus.
 	var names []string

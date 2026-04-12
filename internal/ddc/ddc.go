@@ -72,12 +72,16 @@ func BusFromDRM() ([]int, error) {
 
 // cachedBus stores the bus number that last responded to a VCP read.
 // This avoids scanning all buses on every poll.
-var cachedBus int
+// cachedBusValid tracks whether cachedBus has been set.
+var (
+	cachedBus      int
+	cachedBusValid bool
+)
 
 // GetVCP reads a VCP feature. Uses the cached bus if available,
 // otherwise scans all buses.
 func GetVCP(code byte) (VCPValue, error) {
-	if cachedBus > 0 {
+	if cachedBusValid {
 		v, err := getVCPBus(cachedBus, code)
 		if err == nil {
 			return v, nil
@@ -96,7 +100,8 @@ func scanGetVCP(code byte) (VCPValue, error) {
 		v, err := getVCPBus(bus, code)
 		if err == nil {
 			cachedBus = bus
-			return v, nil
+				cachedBusValid = true
+				return v, nil
 		}
 		lastErr = err
 	}
@@ -106,7 +111,7 @@ func scanGetVCP(code byte) (VCPValue, error) {
 // SetVCP writes a VCP feature value. Tries the cached bus first,
 // then scans all buses.
 func SetVCP(code byte, value uint16) error {
-	if cachedBus > 0 {
+	if cachedBusValid {
 		if err := setVCPBus(cachedBus, code, value); err == nil {
 			return nil
 		}
@@ -119,7 +124,8 @@ func SetVCP(code byte, value uint16) error {
 	for _, bus := range buses {
 		if err := setVCPBus(bus, code, value); err == nil {
 			cachedBus = bus
-			return nil
+				cachedBusValid = true
+				return nil
 		} else {
 			lastErr = err
 		}

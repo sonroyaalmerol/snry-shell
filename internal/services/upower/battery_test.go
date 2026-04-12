@@ -13,12 +13,17 @@ import (
 
 type fakeBusObject struct {
 	properties map[string]dbus.Variant
+	methods    map[string]any // method name → result to Store
 }
 
 var _ dbus.BusObject = (*fakeBusObject)(nil)
 
 func (f *fakeBusObject) Call(method string, flags dbus.Flags, args ...any) *dbus.Call {
-	return &dbus.Call{}
+	result, ok := f.methods[method]
+	if !ok {
+		return &dbus.Call{Err: dbus.ErrMsgNoObject}
+	}
+	return &dbus.Call{Body: []any{result}}
 }
 func (f *fakeBusObject) CallWithContext(ctx context.Context, method string, flags dbus.Flags, args ...any) *dbus.Call {
 	return &dbus.Call{}
@@ -87,8 +92,8 @@ func TestBatteryCharging(t *testing.T) {
 	fake := newFakeConn()
 	devicePath := "/org/freedesktop/UPower/devices/battery_BAT0"
 	fake.objects[batteryKey("/org/freedesktop/UPower")] = &fakeBusObject{
-		properties: map[string]dbus.Variant{
-			"org.freedesktop.UPower.EnumerateDevices": dbus.MakeVariant([]dbus.ObjectPath{dbus.ObjectPath(devicePath)}),
+		methods: map[string]any{
+			"org.freedesktop.UPower.EnumerateDevices": []dbus.ObjectPath{dbus.ObjectPath(devicePath)},
 		},
 	}
 	fake.objects[batteryKey(devicePath)] = &fakeBusObject{
@@ -125,8 +130,8 @@ func TestBatteryDischarging(t *testing.T) {
 	fake := newFakeConn()
 	devicePath := "/org/freedesktop/UPower/devices/battery_BAT0"
 	fake.objects[batteryKey("/org/freedesktop/UPower")] = &fakeBusObject{
-		properties: map[string]dbus.Variant{
-			"org.freedesktop.UPower.EnumerateDevices": dbus.MakeVariant([]dbus.ObjectPath{dbus.ObjectPath(devicePath)}),
+		methods: map[string]any{
+			"org.freedesktop.UPower.EnumerateDevices": []dbus.ObjectPath{dbus.ObjectPath(devicePath)},
 		},
 	}
 	fake.objects[batteryKey(devicePath)] = &fakeBusObject{

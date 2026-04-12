@@ -1,14 +1,12 @@
-// Package sni implements a StatusNotifierItem host that watches for system
-// tray items via DBus and publishes their state on the event bus.
 package sni
 
 import (
 	"context"
 	"log"
-	"path"
-	"sync"
+	"strings"
 
 	"github.com/godbus/dbus/v5"
+	"github.com/puzpuzpuz/xsync/v4"
 	"github.com/sonroyaalmerol/snry-shell/internal/bus"
 	"github.com/sonroyaalmerol/snry-shell/internal/dbusutil"
 )
@@ -31,26 +29,25 @@ type TrayItem struct {
 }
 
 type Service struct {
-	mu    sync.RWMutex
 	conn  dbusutil.DBusConn
 	bus   *bus.Bus
-	items map[string]*TrayItem
+	items *xsync.Map[string, *TrayItem]
 }
 
 func New(conn dbusutil.DBusConn, b *bus.Bus) *Service {
 	return &Service{
 		conn:  conn,
 		bus:   b,
-		items: make(map[string]*TrayItem),
+		items: xsync.NewMap[string, *TrayItem](),
 	}
 }
 
 func NewWithDefaults(b *bus.Bus) *Service {
 	conn, err := dbus.ConnectSessionBus()
 	if err != nil {
-		return &Service{bus: b, items: make(map[string]*TrayItem)}
+		return &Service{bus: b, items: xsync.NewMap[string, *TrayItem]()}
 	}
-	return &Service{conn: dbusutil.NewRealConn(conn), bus: b, items: make(map[string]*TrayItem)}
+	return &Service{conn: dbusutil.NewRealConn(conn), bus: b, items: xsync.NewMap[string, *TrayItem]()}
 }
 
 // Run starts watching for tray item signals. Blocks until ctx is cancelled.
@@ -124,17 +121,13 @@ func (s *Service) fetchRegisteredItems() {
 }
 
 // addItem parses the service path and queries item properties.
-// The path format is either "busName" or "busName/objectPath".
 func (s *Service) addItem(servicePath string) {
 	busName, objPath := parseServicePath(servicePath)
 	key := busName + string(objPath)
 
-	s.mu.Lock()
-	if _, exists := s.items[key]; exists {
-		s.mu.Unlock()
+	if _, exists := s.items.Load(key); exists {
 		return
 	}
-	s.mu.Unlock()
 
 	item := &TrayItem{
 		BusName: busName,
@@ -142,10 +135,7 @@ func (s *Service) addItem(servicePath string) {
 	}
 	s.queryItemProps(item)
 
-	s.mu.Lock()
-	s.items[key] = item
-	s.mu.Unlock()
-
+	s.items.Store(key, item)
 	s.bus.Publish(bus.TopicTrayItems, s.AllItems())
 }
 
@@ -153,10 +143,7 @@ func (s *Service) removeItem(servicePath string) {
 	busName, objPath := parseServicePath(servicePath)
 	key := busName + string(objPath)
 
-	s.mu.Lock()
-	delete(s.items, key)
-	s.mu.Unlock()
-
+	s.items.Delete(key)
 	s.bus.Publish(bus.TopicTrayItems, s.AllItems())
 }
 
@@ -179,20 +166,17 @@ func (s *Service) queryItemProps(item *TrayItem) {
 
 // AllItems returns a snapshot of current tray items.
 func (s *Service) AllItems() []*TrayItem {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	items := make([]*TrayItem, 0, len(s.items))
-	for _, item := range s.items {
+	items := make([]*TrayItem, 0)
+	s.items.Range(func(_ string, item *TrayItem) bool {
 		items = append(items, item)
-	}
+		return true
+	})
 	return items
 }
 
 // Activate sends the Activate message to the tray item.
 func (s *Service) Activate(key string) {
-	s.mu.RLock()
-	item, ok := s.items[key]
-	s.mu.RUnlock()
+	item, ok := s.items.Load(key)
 	if !ok {
 		return
 	}
@@ -206,9 +190,8 @@ func parseServicePath(servicePath string) (busName string, objPath dbus.ObjectPa
 		return watcherDest, dbus.ObjectPath(servicePath)
 	}
 	// Try to split busName/objectPath.
-	busName, objPathStr := path.Split(servicePath)
-	if objPathStr != "" {
-		return busName, dbus.ObjectPath("/" + objPathStr)
+	if idx := strings.Index(servicePath, "/"); idx > 0 {
+		return servicePath[:idx], dbus.ObjectPath(servicePath[idx:])
 	}
 	return servicePath, dbus.ObjectPath("/StatusNotifierItem")
 }

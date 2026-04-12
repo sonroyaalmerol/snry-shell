@@ -7,6 +7,7 @@ import (
 )
 
 func TestSetAndGet(t *testing.T) {
+	store.Reset()
 	dir := t.TempDir()
 	t.Setenv("HOME", dir)
 
@@ -24,6 +25,7 @@ func TestSetAndGet(t *testing.T) {
 }
 
 func TestLookupOr(t *testing.T) {
+	store.Reset()
 	dir := t.TempDir()
 	t.Setenv("HOME", dir)
 
@@ -34,6 +36,7 @@ func TestLookupOr(t *testing.T) {
 }
 
 func TestSetBool(t *testing.T) {
+	store.Reset()
 	dir := t.TempDir()
 	t.Setenv("HOME", dir)
 
@@ -47,6 +50,7 @@ func TestSetBool(t *testing.T) {
 }
 
 func TestDelete(t *testing.T) {
+	store.Reset()
 	dir := t.TempDir()
 	t.Setenv("HOME", dir)
 
@@ -61,6 +65,7 @@ func TestDelete(t *testing.T) {
 }
 
 func TestDeleteMissing(t *testing.T) {
+	store.Reset()
 	dir := t.TempDir()
 	t.Setenv("HOME", dir)
 
@@ -70,6 +75,7 @@ func TestDeleteMissing(t *testing.T) {
 }
 
 func TestKeys(t *testing.T) {
+	store.Reset()
 	dir := t.TempDir()
 	t.Setenv("HOME", dir)
 
@@ -87,6 +93,7 @@ func TestKeys(t *testing.T) {
 }
 
 func TestPersistenceAcrossLoads(t *testing.T) {
+	store.Reset()
 	dir := t.TempDir()
 	t.Setenv("HOME", dir)
 
@@ -105,6 +112,7 @@ func TestPersistenceAcrossLoads(t *testing.T) {
 }
 
 func TestOverwrite(t *testing.T) {
+	store.Reset()
 	dir := t.TempDir()
 	t.Setenv("HOME", dir)
 
@@ -118,6 +126,7 @@ func TestOverwrite(t *testing.T) {
 }
 
 func TestSetMany(t *testing.T) {
+	store.Reset()
 	dir := t.TempDir()
 	t.Setenv("HOME", dir)
 
@@ -137,6 +146,7 @@ func TestSetMany(t *testing.T) {
 }
 
 func TestMissingFileReturnsDefault(t *testing.T) {
+	store.Reset()
 	dir := t.TempDir()
 	t.Setenv("HOME", dir)
 

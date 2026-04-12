@@ -14,12 +14,14 @@ import (
 	"github.com/sonroyaalmerol/snry-shell/internal/ddc"
 	"github.com/sonroyaalmerol/snry-shell/internal/services/runner"
 	"github.com/sonroyaalmerol/snry-shell/internal/state"
+	"sync"
 )
 
 const backlightRoot = "/sys/class/backlight"
 
 type Service struct {
 	bus            *bus.Bus
+	mu             sync.Mutex
 	last           state.BrightnessState
 	lastErr        string
 	brightnessStep float64
@@ -30,10 +32,14 @@ func New(b *bus.Bus) *Service {
 }
 
 func (s *Service) UpdateStep(step float64) {
+	s.mu.Lock()
 	s.brightnessStep = step
+	s.mu.Unlock()
 }
 
 func (s *Service) BrightnessStep() float64 {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	return s.brightnessStep
 }
 
@@ -46,6 +52,9 @@ func (s *Service) Run(ctx context.Context) error {
 }
 
 func (s *Service) poll() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	// Prefer DDC for external monitors.
 	if v, err := ddc.GetVCP(0x10); err == nil {
 		s.lastErr = ""
@@ -112,7 +121,7 @@ func (s *Service) SetBrightness(value float64) error {
 	}
 
 	if err == nil {
-		go s.poll()
+		s.poll()
 	}
 	return err
 }
@@ -158,7 +167,7 @@ func (s *Service) AdjustBrightness(delta float64) error {
 	}
 
 	if err == nil {
-		go s.poll()
+		s.poll()
 	}
 	return err
 }

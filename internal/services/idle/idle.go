@@ -7,9 +7,11 @@ import (
 	"log"
 	"os/exec"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/godbus/dbus/v5"
+	"github.com/puzpuzpuz/xsync/v4"
 	"github.com/rajveermalviya/go-wayland/wayland/client"
 	"github.com/sonroyaalmerol/snry-shell/internal/bus"
 	"github.com/sonroyaalmerol/snry-shell/internal/dbusutil"
@@ -399,34 +401,27 @@ const (
 
 type ScreenSaver struct {
 	bus        *bus.Bus
-	inhibitors map[uint32]string
-	mu         sync.Mutex
-	id         uint32
+	inhibitors *xsync.Map[uint32, string]
+	id         atomic.Uint32
 }
 
 func NewScreenSaver(b *bus.Bus) *ScreenSaver {
 	return &ScreenSaver{
 		bus:        b,
-		inhibitors: make(map[uint32]string),
+		inhibitors: xsync.NewMap[uint32, string](),
 	}
 }
 
 func (ss *ScreenSaver) Inhibit(appName string, reason string) (uint32, *dbus.Error) {
-	ss.mu.Lock()
-	ss.id++
-	id := ss.id
-	ss.inhibitors[id] = appName
-	ss.mu.Unlock()
+	id := ss.id.Add(1)
+	ss.inhibitors.Store(id, appName)
 	ss.bus.Publish(bus.TopicIdleInhibit, true)
 	return id, nil
 }
 
 func (ss *ScreenSaver) UnInhibit(id uint32) *dbus.Error {
-	ss.mu.Lock()
-	delete(ss.inhibitors, id)
-	count := len(ss.inhibitors)
-	ss.mu.Unlock()
-	if count == 0 {
+	ss.inhibitors.Delete(id)
+	if ss.inhibitors.Size() == 0 {
 		ss.bus.Publish(bus.TopicIdleInhibit, false)
 	}
 	return nil

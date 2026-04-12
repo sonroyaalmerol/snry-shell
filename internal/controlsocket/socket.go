@@ -61,7 +61,8 @@ func handleConn(conn net.Conn, b *bus.Bus) {
 
 // Close shuts down the listener and removes the socket file.
 func Close(ln *net.UnixListener) {
+	if addr := ln.Addr(); addr != nil {
+		os.Remove(addr.String())
+	}
 	ln.Close()
-	// Best-effort cleanup of the default socket.
-	os.Remove(DefaultPath)
 }

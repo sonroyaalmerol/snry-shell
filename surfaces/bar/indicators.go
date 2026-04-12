@@ -2,11 +2,11 @@ package bar
 
 import (
 	"fmt"
-	"sync/atomic"
 
 	"github.com/diamondburned/gotk4/pkg/gdk/v4"
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
+	"github.com/puzpuzpuz/xsync/v4"
 	"github.com/sonroyaalmerol/snry-shell/internal/bus"
 	"github.com/sonroyaalmerol/snry-shell/internal/gtkutil"
 	"github.com/sonroyaalmerol/snry-shell/internal/servicerefs"
@@ -73,17 +73,17 @@ func newAppDrawerIcon() gtk.Widgetter {
 
 // newNotificationIcon returns a single notification icon with unread badge.
 func newNotificationIcon(b *bus.Bus) gtk.Widgetter {
-	var count atomic.Int32
+	var count xsync.Counter
 	icon := gtkutil.MaterialIcon("notifications")
 	icon.AddCSSClass("indicator-icon")
 
 	b.Subscribe(bus.TopicNotification, func(e bus.Event) {
 		if e.Data == nil {
-			count.Add(-1)
+			count.Dec()
 		} else if _, ok := e.Data.(state.Notification); ok {
-			count.Add(1)
+			count.Inc()
 		}
-		c := int(count.Load())
+		c := int(count.Value())
 		glib.IdleAdd(func() {
 			if c > 0 {
 				icon.SetText("notifications_active")

@@ -37,6 +37,11 @@ func NewWithDefaults(b *bus.Bus) *Service {
 }
 
 func (s *Service) Run(ctx context.Context) error {
+	if s.conn == nil {
+		<-ctx.Done()
+		return ctx.Err()
+	}
+
 	ch := make(chan *dbus.Signal, 16)
 	s.conn.Signal(ch)
 	defer s.conn.RemoveSignal(ch)
@@ -73,13 +78,9 @@ func (s *Service) query() {
 func (s *Service) fetchState() (state.BatteryState, error) {
 	upObj := s.conn.Object(upowerDest, upowerPath)
 
-	devicesV, err := upObj.GetProperty(upowerIface + ".EnumerateDevices")
-	if err != nil {
+	var paths []dbus.ObjectPath
+	if err := upObj.Call(upowerIface+".EnumerateDevices", 0).Store(&paths); err != nil {
 		// Fallback: use the display device.
-		return s.fetchDisplayDevice()
-	}
-	paths, ok := devicesV.Value().([]dbus.ObjectPath)
-	if !ok {
 		return s.fetchDisplayDevice()
 	}
 

@@ -54,6 +54,8 @@ func (s *Service) Run(ctx context.Context) error {
 		// Drain rapid successive triggers.
 		time.Sleep(50 * time.Millisecond)
 		for sc.Scan() {
+			// non-blocking: break out if nothing available after the sleep
+			break
 		}
 		s.poll()
 	}

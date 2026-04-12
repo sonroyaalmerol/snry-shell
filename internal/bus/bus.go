@@ -1,6 +1,10 @@
 package bus
 
-import "sync"
+import (
+	"sync/atomic"
+
+	"github.com/puzpuzpuz/xsync/v4"
+)
 
 type Topic string
 
@@ -60,51 +64,70 @@ type entry struct {
 }
 
 type Bus struct {
-	mu     sync.RWMutex
-	subs   map[Topic][]entry
-	last   map[Topic]Event
-	nextID uint64
+	subs   *xsync.Map[Topic, *topicBucket]
+	last   *xsync.Map[Topic, Event]
+	nextID atomic.Uint64
+}
+
+// topicBucket groups a topic's subscriber list. xsync.Map values must be
+// pointer-sized, so we box the slice in a struct updated via Compute.
+type topicBucket struct {
+	entries []entry
 }
 
 func New() *Bus {
 	return &Bus{
-		subs: make(map[Topic][]entry),
-		last: make(map[Topic]Event),
+		subs: xsync.NewMap[Topic, *topicBucket](),
+		last: xsync.NewMap[Topic, Event](),
 	}
 }
 
 func (b *Bus) Subscribe(topic Topic, h Handler) UnsubscribeFunc {
-	b.mu.Lock()
-	id := b.nextID
-	b.nextID++
-	b.subs[topic] = append(b.subs[topic], entry{id: id, h: h})
-	ev, ok := b.last[topic]
-	b.mu.Unlock()
+	id := b.nextID.Add(1)
 
-	if ok {
+	b.subs.Compute(topic, func(old *topicBucket, loaded bool) (*topicBucket, xsync.ComputeOp) {
+		if !loaded || old == nil {
+			return &topicBucket{entries: []entry{{id: id, h: h}}}, xsync.UpdateOp
+		}
+		old.entries = append(old.entries, entry{id: id, h: h})
+		return old, xsync.UpdateOp
+	})
+
+	if ev, ok := b.last.Load(topic); ok {
 		h(ev)
 	}
 
 	return func() {
-		b.mu.Lock()
-		defer b.mu.Unlock()
-		entries := b.subs[topic]
-		for i, e := range entries {
-			if e.id == id {
-				b.subs[topic] = append(entries[:i], entries[i+1:]...)
-				return
+		b.subs.Compute(topic, func(old *topicBucket, loaded bool) (*topicBucket, xsync.ComputeOp) {
+			if !loaded || old == nil {
+				return nil, xsync.DeleteOp
 			}
-		}
+			for i, e := range old.entries {
+				if e.id == id {
+					old.entries = append(old.entries[:i], old.entries[i+1:]...)
+					if len(old.entries) == 0 {
+						return nil, xsync.DeleteOp
+					}
+					return old, xsync.UpdateOp
+				}
+			}
+			return old, xsync.CancelOp
+		})
 	}
 }
 
 func (b *Bus) Publish(topic Topic, data any) {
-	b.mu.Lock()
 	ev := Event{Topic: topic, Data: data}
-	b.last[topic] = ev
-	entries := make([]entry, len(b.subs[topic]))
-	copy(entries, b.subs[topic])
-	b.mu.Unlock()
+	b.last.Store(topic, ev)
+
+	bucket, ok := b.subs.Load(topic)
+	if !ok || bucket == nil {
+		return
+	}
+	// Snapshot the entries slice. The Compute callback mutates entries
+	// in-place (append), so we copy for a consistent iteration view.
+	entries := make([]entry, len(bucket.entries))
+	copy(entries, bucket.entries)
 
 	for _, e := range entries {
 		e.h(ev)

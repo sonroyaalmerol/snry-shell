@@ -2,7 +2,7 @@
 package notifpopup
 
 import (
-	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
@@ -18,8 +18,7 @@ type NotifPopup struct {
 	win      *gtk.ApplicationWindow
 	bus      *bus.Bus
 	box      *gtk.Box
-	dnd      bool
-	dndMu    sync.RWMutex
+	dnd      atomic.Bool
 	timeout  time.Duration
 	position string
 }
@@ -50,10 +49,7 @@ func New(app *gtk.Application, b *bus.Bus) *NotifPopup {
 		if e.Data == nil {
 			return // dismiss event, ignore in popup
 		}
-		p.dndMu.RLock()
-		active := p.dnd
-		p.dndMu.RUnlock()
-		if active {
+		if p.dnd.Load() {
 			return
 		}
 		n := e.Data.(state.Notification)
@@ -63,9 +59,7 @@ func New(app *gtk.Application, b *bus.Bus) *NotifPopup {
 	// Track DND state — suppress toasts when active.
 	b.Subscribe(bus.TopicDND, func(e bus.Event) {
 		if active, ok := e.Data.(bool); ok {
-			p.dndMu.Lock()
-			p.dnd = active
-			p.dndMu.Unlock()
+			p.dnd.Store(active)
 		}
 	})
 
@@ -131,7 +125,7 @@ func (p *NotifPopup) updateLayout() {
 func (p *NotifPopup) AddToast(n state.Notification) {
 	card := p.buildCard(n)
 	revealer := gtk.NewRevealer()
-	
+
 	transition := gtk.RevealerTransitionTypeSlideDown
 	if p.position == "bottom-right" || p.position == "bottom-left" {
 		transition = gtk.RevealerTransitionTypeSlideUp
@@ -143,7 +137,7 @@ func (p *NotifPopup) AddToast(n state.Notification) {
 	revealer.SetTransitionType(transition)
 	revealer.SetTransitionDuration(250)
 	revealer.SetChild(card)
-	
+
 	p.win.SetVisible(true)
 	glib.IdleAdd(func() { revealer.SetRevealChild(true) })
 

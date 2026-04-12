@@ -4,7 +4,8 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"sync"
+	"math"
+	"sync/atomic"
 	"time"
 
 	"github.com/jfreymuth/pulse/proto"
@@ -19,25 +20,26 @@ const (
 
 type Service struct {
 	bus        *bus.Bus
-	mu         sync.Mutex
-	last       state.AudioSink
-	volumeStep float64
+	last       atomic.Pointer[state.AudioSink]
+	volumeStep atomic.Uint64
 }
 
 func New(b *bus.Bus) *Service {
-	return &Service{bus: b, volumeStep: 0.05}
+	s := &Service{bus: b}
+	s.setVolumeStep(0.05)
+	return s
+}
+
+func (s *Service) setVolumeStep(v float64) {
+	s.volumeStep.Store(math.Float64bits(v))
 }
 
 func (s *Service) UpdateStep(step float64) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.volumeStep = step
+	s.setVolumeStep(step)
 }
 
 func (s *Service) VolumeStep() float64 {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	return s.volumeStep
+	return math.Float64frombits(s.volumeStep.Load())
 }
 
 func NewWithDefaults(b *bus.Bus) *Service {
@@ -130,10 +132,9 @@ func (s *Service) poll(client *proto.Client) {
 		log.Printf("[audio] query: %v", err)
 		return
 	}
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if sink.Volume != s.last.Volume || sink.Muted != s.last.Muted || sink.MicMuted != s.last.MicMuted {
-		s.last = sink
+	prev := s.last.Load()
+	if prev == nil || sink.Volume != prev.Volume || sink.Muted != prev.Muted || sink.MicMuted != prev.MicMuted {
+		s.last.Store(&sink)
 		s.bus.Publish(bus.TopicAudio, sink)
 	}
 }

@@ -27,13 +27,14 @@ func FuzzyScore(query, target string) int {
 		return 2
 	}
 	// Subsequence check.
+	qRunes := []rune(q)
 	qi := 0
 	for _, c := range t {
-		if qi < len(q) && rune(q[qi]) == c {
+		if qi < len(qRunes) && qRunes[qi] == c {
 			qi++
 		}
 	}
-	if qi == len(q) {
+	if qi == len(qRunes) {
 		return 1
 	}
 	return 0

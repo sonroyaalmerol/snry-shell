@@ -217,9 +217,9 @@ func (m *Manager) refreshAll() {
 	m.refreshState()
 	m.refreshPrimaryConnection()
 	m.refreshWirelessEnabled()
-	// Connections first so devices can look up connection names.
-	m.refreshConnections()
+	// Devices first so connections can check active status.
 	m.refreshDevices()
+	m.refreshConnections()
 
 	// Publish legacy state for backward compatibility
 	if m.bus != nil {

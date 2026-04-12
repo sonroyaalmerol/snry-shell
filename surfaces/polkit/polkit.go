@@ -14,11 +14,11 @@ import (
 	"os/user"
 	"strconv"
 	"strings"
-	"sync"
 
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/godbus/dbus/v5"
+	"github.com/puzpuzpuz/xsync/v4"
 )
 
 const (
@@ -39,9 +39,8 @@ type Identity struct {
 
 // Agent implements the polkit authentication agent interface.
 type Agent struct {
-	conn      *dbus.Conn
-	pending   map[string]*helperSession
-	pendingMu sync.Mutex
+	conn    *dbus.Conn
+	pending *xsync.Map[string, *helperSession]
 }
 
 // helperSession manages a single authentication conversation with
@@ -69,7 +68,7 @@ type authRequest struct {
 func New(conn *dbus.Conn) *Agent {
 	return &Agent{
 		conn:    conn,
-		pending: make(map[string]*helperSession),
+		pending: xsync.NewMap[string, *helperSession](),
 	}
 }
 
@@ -137,13 +136,11 @@ func (a *Agent) BeginAuthentication(
 		iconName: iconName,
 	}
 
-	a.pendingMu.Lock()
-	a.pending[cookie] = &helperSession{
+	a.pending.Store(cookie, &helperSession{
 		agent:  a,
 		cookie: cookie,
 		req:    req,
-	}
-	a.pendingMu.Unlock()
+	})
 
 	// Show dialog on the GTK main thread.
 	glib.IdleAdd(func() {
@@ -155,17 +152,14 @@ func (a *Agent) BeginAuthentication(
 
 // CancelAuthentication is called by polkitd when the auth request is cancelled.
 func (a *Agent) CancelAuthentication(cookie string) *dbus.Error {
-	a.pendingMu.Lock()
-	if sess, ok := a.pending[cookie]; ok {
+	if sess, ok := a.pending.LoadAndDelete(cookie); ok {
 		if sess.cmd != nil && sess.cmd.Process != nil {
 			sess.cmd.Process.Kill()
 		}
 		if sess.win != nil {
 			glib.IdleAdd(func() { sess.win.Close() })
 		}
-		delete(a.pending, cookie)
 	}
-	a.pendingMu.Unlock()
 	return nil
 }
 
@@ -209,17 +203,14 @@ func (a *Agent) startSession(cookie string, req *authRequest) {
 		return
 	}
 
-	a.pendingMu.Lock()
-	sess, ok := a.pending[cookie]
+	sess, ok := a.pending.Load(cookie)
 	if !ok {
 		cmd.Process.Kill()
-		a.pendingMu.Unlock()
 		return
 	}
 	sess.cmd = cmd
 	sess.stdin = stdinPipe
 	sess.scanner = bufio.NewScanner(stdoutPipe)
-	a.pendingMu.Unlock()
 
 	// Send cookie to helper.
 	fmt.Fprintf(stdinPipe, "%s\n", cookie)
@@ -391,10 +382,7 @@ func (s *helperSession) readLoop() {
 
 // sendResponse writes the user's password to the helper's stdin.
 func (a *Agent) sendResponse(cookie string, response string) {
-	a.pendingMu.Lock()
-	sess, ok := a.pending[cookie]
-	a.pendingMu.Unlock()
-
+	sess, ok := a.pending.Load(cookie)
 	if !ok || sess.stdin == nil {
 		return
 	}
@@ -404,11 +392,7 @@ func (a *Agent) sendResponse(cookie string, response string) {
 
 // cancelSession kills the helper, closes the dialog, and removes from pending.
 func (a *Agent) cancelSession(cookie string) {
-	a.pendingMu.Lock()
-	sess, ok := a.pending[cookie]
-	delete(a.pending, cookie)
-	a.pendingMu.Unlock()
-
+	sess, ok := a.pending.LoadAndDelete(cookie)
 	if !ok {
 		return
 	}
@@ -419,9 +403,7 @@ func (a *Agent) cancelSession(cookie string) {
 
 // cleanup removes the session from pending.
 func (s *helperSession) cleanup() {
-	s.agent.pendingMu.Lock()
-	delete(s.agent.pending, s.cookie)
-	s.agent.pendingMu.Unlock()
+	s.agent.pending.Delete(s.cookie)
 
 	if s.stdin != nil {
 		s.stdin.Close()
