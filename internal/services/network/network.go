@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/godbus/dbus/v5"
 	"github.com/sonroyaalmerol/snry-shell/internal/bus"
@@ -74,15 +75,25 @@ func (s *Service) monitorSignals(ctx context.Context) {
 	busObj.Call("org.freedesktop.DBus.AddMatch", 0,
 		"type='signal',sender='"+nmDest+"',interface='org.freedesktop.DBus.Properties',member='PropertiesChanged'")
 
+	// Debounce: wait 150ms after first signal in a burst before fetching state.
+	// NM fires many PropertiesChanged signals during connection transitions;
+	// coalescing them prevents rapid widget rebuilds (flickering).
+	debounce := time.NewTimer(0)
+	if !debounce.Stop() {
+		<-debounce.C
+	}
+
 	for {
 		select {
 		case <-ctx.Done():
+			debounce.Stop()
 			return
 		case _, ok := <-ch:
 			if !ok {
+				debounce.Stop()
 				return
 			}
-			// Drain queued signals before handling.
+			// Drain all queued signals, then reset debounce timer.
 			drain:
 			for {
 				select {
@@ -91,6 +102,8 @@ func (s *Service) monitorSignals(ctx context.Context) {
 					break drain
 				}
 			}
+			debounce.Reset(150 * time.Millisecond)
+		case <-debounce.C:
 			ns := s.fetchFullState()
 			s.bus.Publish(bus.TopicNetwork, ns)
 		}
