@@ -92,8 +92,16 @@ func (kl *KeyedList[T]) Update(items []T) {
 		}
 	}
 
-	// Reorder to match items order and apply updates.
-	var prev gtk.Widgetter
+	// Remove all managed widgets, then re-append in items order.
+	// Widgets are reused (not destroyed), so this avoids flickering while
+	// guaranteeing correct ordering without relying on ReorderChildAfter.
+	for key, w := range kl.widgets {
+		kl.container.Remove(w)
+		if d, ok := kl.dividerMap[key]; ok {
+			kl.container.Remove(d)
+		}
+	}
+
 	for _, item := range items {
 		key := item.Key()
 		w := kl.widgets[key]
@@ -102,13 +110,9 @@ func (kl *KeyedList[T]) Update(items []T) {
 			kl.updateFn(item, w)
 		}
 
-		kl.container.ReorderChildAfter(w, prev)
-		prev = w
-
+		kl.container.Append(w)
 		if kl.dividers {
-			d := kl.dividerMap[key]
-			kl.container.ReorderChildAfter(d, prev)
-			prev = d
+			kl.container.Append(kl.dividerMap[key])
 		}
 	}
 }
