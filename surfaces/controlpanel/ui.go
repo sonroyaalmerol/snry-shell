@@ -189,9 +189,7 @@ func (cp *controlPanel) buildNavRow(provider ConfigProvider, active bool) *gtk.L
 	box.SetMarginTop(12)
 	box.SetMarginBottom(12)
 
-	icon := gtk.NewLabel(provider.Icon())
-	icon.AddCSSClass("material-icon")
-	icon.AddCSSClass("quick-slider-icon")
+	icon := gtkutil.MaterialIcon(provider.Icon(), "quick-slider-icon")
 
 	label := gtk.NewLabel(provider.Name())
 	label.AddCSSClass("settings-nav-label")

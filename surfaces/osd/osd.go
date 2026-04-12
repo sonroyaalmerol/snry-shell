@@ -74,8 +74,7 @@ func (o *OSD) build() {
 	box.SetVAlign(gtk.AlignCenter)
 	box.SetHAlign(gtk.AlignCenter)
 
-	o.icon = gtk.NewLabel("volume_up")
-	o.icon.AddCSSClass("osd-icon")
+	o.icon = gtkutil.MaterialIcon("volume_up", "osd-icon")
 	o.icon.SetVAlign(gtk.AlignCenter)
 
 	o.scale = gtkutil.M3Slider(0, 1, 0.01)

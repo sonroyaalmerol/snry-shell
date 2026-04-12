@@ -92,8 +92,7 @@ func (s *Session) buildBtn(a struct {
 	inner.SetHAlign(gtk.AlignCenter)
 	inner.SetVAlign(gtk.AlignCenter)
 
-	icon := gtk.NewLabel(a.icon)
-	icon.AddCSSClass("material-icon")
+	icon := gtkutil.MaterialIcon(a.icon)
 	icon.SetHAlign(gtk.AlignCenter)
 
 	label := gtk.NewLabel(a.label)

@@ -12,6 +12,7 @@ import (
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/sonroyaalmerol/snry-shell/internal/bus"
+	"github.com/sonroyaalmerol/snry-shell/internal/gtkutil"
 	"github.com/sonroyaalmerol/snry-shell/internal/layershell"
 	"github.com/sonroyaalmerol/snry-shell/internal/surfaceutil"
 )
@@ -51,9 +52,7 @@ func New(app *gtk.Application, b *bus.Bus) *Overlay {
 	// Record/stop button.
 	o.recordBtn = gtk.NewButton()
 	o.recordBtn.AddCSSClass("recorder-btn")
-	recIcon := gtk.NewLabel("fiber_manual_record")
-	recIcon.AddCSSClass("material-icon")
-	recIcon.AddCSSClass("recorder-btn-icon")
+	recIcon := gtkutil.MaterialIcon("fiber_manual_record", "recorder-btn-icon")
 	o.recordBtn.SetChild(recIcon)
 	o.recordBtn.ConnectClicked(func() {
 		o.toggle()

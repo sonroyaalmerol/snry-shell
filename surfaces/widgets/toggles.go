@@ -42,9 +42,7 @@ func newInputModeControl(b *bus.Bus) *gtk.Box {
 		seg.btn = btn
 
 		inner := gtk.NewBox(gtk.OrientationHorizontal, 0)
-		icon := gtk.NewLabel(seg.icon)
-		icon.AddCSSClass("material-icon")
-		icon.AddCSSClass("segment-icon")
+		icon := gtkutil.MaterialIcon(seg.icon, "segment-icon")
 		lbl := gtk.NewLabel(seg.label)
 		lbl.AddCSSClass("segment-label")
 		inner.Append(icon)
@@ -317,9 +315,7 @@ func NewQuickToggles(b *bus.Bus, refs *servicerefs.ServiceRefs) gtk.Widgetter {
 		inner := gtk.NewBox(gtk.OrientationHorizontal, 8)
 		inner.SetHAlign(gtk.AlignFill)
 
-		icon := gtk.NewLabel(toggle.icon)
-		icon.AddCSSClass("material-icon")
-		icon.AddCSSClass("quick-toggle-icon")
+		icon := gtkutil.MaterialIcon(toggle.icon, "quick-toggle-icon")
 
 		lbl := gtk.NewLabel(toggle.label)
 		lbl.AddCSSClass("quick-toggle-label")

@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
+	"github.com/sonroyaalmerol/snry-shell/internal/gtkutil"
 	"github.com/sonroyaalmerol/snry-shell/internal/surfaceutil"
 )
 
@@ -67,9 +68,7 @@ func makeTestToggleBtn(icon, label string) *gtk.Button {
 	btn.AddCSSClass("quick-toggle")
 	inner := gtk.NewBox(gtk.OrientationHorizontal, 8)
 	inner.SetHAlign(gtk.AlignFill)
-	iconLbl := gtk.NewLabel(icon)
-	iconLbl.AddCSSClass("material-icon")
-	iconLbl.AddCSSClass("quick-toggle-icon")
+	iconLbl := gtkutil.MaterialIcon(icon, "quick-toggle-icon")
 	textLbl := gtk.NewLabel(label)
 	textLbl.AddCSSClass("quick-toggle-label")
 	textLbl.SetHAlign(gtk.AlignStart)
