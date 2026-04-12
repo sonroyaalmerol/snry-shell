@@ -33,6 +33,7 @@ type NetworkState struct {
 	IPv4                 string
 	IPv6                 string
 	ActiveConnectionName string
+	WiFiNetworks         []WiFiNetwork
 }
 type Notification struct {
 	ID      uint32

@@ -28,7 +28,6 @@ const (
 	TopicScreenLock       Topic = "screenlock"
 	TopicResources        Topic = "resources"
 	TopicKeyboard         Topic = "keyboard"
-	TopicWiFiNetworks     Topic = "wifinetworks"
 	TopicBluetoothDevices Topic = "btdevices"
 	TopicDND              Topic = "dnd"
 	TopicTrayItems        Topic = "trayitems"

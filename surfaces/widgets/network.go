@@ -67,33 +67,6 @@ func NewNetworkWidget(b *bus.Bus, refs *servicerefs.ServiceRefs, parent *gtk.App
 		return true
 	})
 
-	b.Subscribe(bus.TopicNetwork, func(e bus.Event) {
-		ns, ok := e.Data.(state.NetworkState)
-		if !ok {
-			return
-		}
-		glib.IdleAdd(func() {
-			settingWifi = true
-			wifiSwitch.SetActive(ns.WirelessEnabled)
-			settingWifi = false
-
-			if ns.Type == "ethernet" && ns.Connected {
-				ethName.SetText(ns.ActiveConnectionName)
-				ipText := ns.IPv4
-				if ns.IPv6 != "" {
-					if ipText != "" {
-						ipText += " | "
-					}
-					ipText += ns.IPv6
-				}
-				ethIP.SetText(ipText)
-				ethBox.SetVisible(true)
-			} else {
-				ethBox.SetVisible(false)
-			}
-		})
-	})
-
 	box.Append(gtkutil.SwitchRow("WiFi", wifiSwitch))
 
 	rescan := func() {
@@ -152,67 +125,41 @@ func NewNetworkWidget(b *bus.Bus, refs *servicerefs.ServiceRefs, parent *gtk.App
 		nil,
 	)
 
-	// Track the connected SSID from TopicNetwork (the authoritative source)
-	// and reconcile scan results against it before updating the list.
-	var connectedSSID string
-	var haveNetState bool
-	var latestNetworks []state.WiFiNetwork
-
+	// Unified network state handler: WiFi switch, ethernet info, and WiFi list.
 	b.Subscribe(bus.TopicNetwork, func(e bus.Event) {
 		ns, ok := e.Data.(state.NetworkState)
 		if !ok {
 			return
 		}
-		newSSID := ""
-		if ns.Connected && ns.Type == "wifi" {
-			newSSID = ns.SSID
-		}
-		haveNetState = true
-		if newSSID == connectedSSID {
-			return
-		}
-		connectedSSID = newSSID
-		// Re-apply connected flags to existing scan data and refresh the list.
-		if len(latestNetworks) == 0 {
-			return
-		}
-		changed := false
-		for i := range latestNetworks {
-			was := latestNetworks[i].Connected
-			latestNetworks[i].Connected = (latestNetworks[i].SSID == connectedSSID)
-			if latestNetworks[i].Connected != was {
-				changed = true
-			}
-		}
-		if changed {
-			sorted := make([]state.WiFiNetwork, len(latestNetworks))
-			copy(sorted, latestNetworks)
-			sortWiFiNetworks(sorted)
-			glib.IdleAdd(func() {
-				wifiKL.Update(sorted)
-			})
-		}
-	})
-
-	b.Subscribe(bus.TopicWiFiNetworks, func(e bus.Event) {
-		networks, ok := e.Data.([]state.WiFiNetwork)
-		if !ok {
-			return
-		}
-		// Override Connected flags only once we have authoritative state.
-		if haveNetState {
-			for i := range networks {
-				networks[i].Connected = (networks[i].SSID == connectedSSID)
-			}
-		}
-		latestNetworks = make([]state.WiFiNetwork, len(networks))
-		copy(latestNetworks, networks)
-		sortWiFiNetworks(networks)
 		glib.IdleAdd(func() {
-			wifiKL.Update(networks)
+			settingWifi = true
+			wifiSwitch.SetActive(ns.WirelessEnabled)
+			settingWifi = false
 
-			gtkutil.UpdateSectionHeader(sectionHeader, len(networks))
-			restoreScanBtn()
+			if ns.Type == "ethernet" && ns.Connected {
+				ethName.SetText(ns.ActiveConnectionName)
+				ipText := ns.IPv4
+				if ns.IPv6 != "" {
+					if ipText != "" {
+						ipText += " | "
+					}
+					ipText += ns.IPv6
+				}
+				ethIP.SetText(ipText)
+				ethBox.SetVisible(true)
+			} else {
+				ethBox.SetVisible(false)
+			}
+
+			// Update WiFi list from unified state.
+			if len(ns.WiFiNetworks) > 0 {
+				sorted := make([]state.WiFiNetwork, len(ns.WiFiNetworks))
+				copy(sorted, ns.WiFiNetworks)
+				sortWiFiNetworks(sorted)
+				wifiKL.Update(sorted)
+				gtkutil.UpdateSectionHeader(sectionHeader, len(sorted))
+				restoreScanBtn()
+			}
 		})
 	})
 
