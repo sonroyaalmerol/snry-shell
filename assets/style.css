@@ -107,7 +107,7 @@
 
     all: unset;
     font-family: "Google Sans Flex", "Google Sans", sans-serif;
-    font-size: 13px;
+    font-size: var(--typescale-body-md);
 }
 
 /* ── Material Symbols ────────────────────────────────────────────────────────── */
@@ -242,7 +242,7 @@ scale.m3-scale slider {
     background-color: @col_error;
     color: @col_on_error;
     border-radius: var(--radius-pill);
-    font-size: 10px;
+    font-size: var(--typescale-label-sm);
     font-weight: 600;
     min-width: 16px;
     min-height: 16px;
@@ -409,7 +409,7 @@ scale.m3-scale slider {
 }
 
 .workspace-pill-label {
-    font-size: 13px;
+    font-size: var(--typescale-body-md);
     font-weight: 500;
 }
 
@@ -435,13 +435,13 @@ scale.m3-scale slider {
 }
 
 .window-class {
-    font-size: 11px;
+    font-size: var(--typescale-label-md);
     color: @col_on_surface_variant;
     font-weight: 400;
 }
 
 .window-title {
-    font-size: 13px;
+    font-size: var(--typescale-body-md);
     color: @col_on_surface;
     font-weight: 500;
 }
@@ -453,43 +453,43 @@ scale.m3-scale slider {
 }
 
 .bar-clock {
-    font-size: 17px;
+    font-size: var(--typescale-title-md);
     font-weight: 500;
     color: @col_on_surface;
 }
 
 .bar-clock-sep {
-    font-size: 15px;
+    font-size: var(--typescale-title-sm);
     color: @col_on_surface_variant;
 }
 
 .bar-date {
-    font-size: 15px;
+    font-size: var(--typescale-title-sm);
     color: @col_on_surface;
 }
 
 .bar-battery-value {
-    font-size: 13px;
+    font-size: var(--typescale-body-md);
     color: @col_on_surface_variant;
     font-variant-numeric: tabular-nums;
 }
 
 .bar-kbd-layout {
-    font-size: 13px;
+    font-size: var(--typescale-body-md);
     color: @col_on_surface_variant;
 }
 
 /* ── Individual indicator icons (right zone) ──────────────────────────────────── */
 
 .indicator-icon {
-    font-size: 19px;
+    font-size: var(--icon-sm);
     color: @col_on_surface;
     padding: 0 2px;
 }
 
 /* Status values inside bar groups */
 .indicator-value {
-    font-size: 13px;
+    font-size: var(--typescale-body-md);
     color: @col_on_surface;
     font-variant-numeric: tabular-nums;
 }
@@ -527,7 +527,7 @@ scale.m3-scale slider {
 .search-entry {
     background-color: transparent;
     color: @col_on_surface;
-    font-size: 14px;
+    font-size: var(--typescale-body-lg);
     caret-color: @col_primary;
     border: none;
     box-shadow: none;
@@ -555,12 +555,12 @@ scale.m3-scale slider {
 }
 
 .search-result-row .app-name {
-    font-size: 13px;
+    font-size: var(--typescale-body-md);
     color: @col_on_surface;
 }
 
 .search-result-row .app-description {
-    font-size: 11px;
+    font-size: var(--typescale-label-md);
     color: @col_subtext;
 }
 
@@ -582,13 +582,13 @@ scale.m3-scale slider {
 }
 
 .window-preview-title {
-    font-size: 11px;
+    font-size: var(--typescale-label-md);
     color: @col_on_surface_variant;
     margin-top: 4px;
 }
 
 .window-grid-ws-label {
-    font-size: 11px;
+    font-size: var(--typescale-label-md);
     font-weight: 600;
     color: @col_primary;
     padding: 8px 4px 0 4px;
@@ -601,7 +601,7 @@ scale.m3-scale slider {
 }
 
 .window-preview-class {
-    font-size: 10px;
+    font-size: var(--typescale-label-sm);
     color: @col_on_surface_variant;
 }
 
@@ -646,7 +646,7 @@ scale.m3-scale slider {
 
 .windowmgmt-action-icon {
     font-family: "Material Symbols Rounded";
-    font-size: 24px;
+    font-size: var(--icon-lg);
     color: @col_on_surface;
 }
 
@@ -799,7 +799,7 @@ scale.m3-scale slider {
 .appdrawer-search-entry {
     background-color: @col_surface_container_high;
     color: @col_on_surface;
-    font-size: 16px;
+    font-size: var(--typescale-title-sm);
     border-radius: var(--radius-full);
     padding: 16px 24px;
     margin-bottom: 20px;
@@ -863,7 +863,7 @@ scale.m3-scale slider {
 }
 
 .appdrawer-tile-label {
-    font-size: 12px;
+    font-size: var(--typescale-body-sm);
     font-weight: 500;
     color: @col_on_surface;
 }
@@ -881,7 +881,7 @@ scale.m3-scale slider {
 
 /* Empty state */
 .appdrawer-empty {
-    font-size: 14px;
+    font-size: var(--typescale-body-lg);
     color: @col_on_surface_variant;
     padding: 48px 24px;
 }
@@ -1003,7 +1003,7 @@ scale.m3-scale slider {
 
 .osd-icon {
     font-family: "Material Symbols Rounded";
-    font-size: 24px;
+    font-size: var(--icon-lg);
     color: @col_on_surface;
     margin-right: 16px;
 }
@@ -1029,7 +1029,7 @@ scale.osd-slider {
 }
 
 .cheatsheet-title {
-    font-size: 15px;
+    font-size: var(--typescale-title-sm);
     font-weight: 600;
     color: @col_on_surface;
     margin-bottom: 8px;
@@ -1040,12 +1040,12 @@ scale.osd-slider {
     border-radius: var(--radius-sm);
     padding: 2px 6px;
     font-family: "JetBrains Mono NF", "JetBrainsMono Nerd Font", monospace;
-    font-size: 11px;
+    font-size: var(--typescale-label-md);
     color: @col_on_surface;
 }
 
 .cheatsheet-description {
-    font-size: 12px;
+    font-size: var(--typescale-body-sm);
     color: @col_on_surface_variant;
 }
 
@@ -1121,13 +1121,13 @@ scale.osd-slider {
 }
 
 .media-track-title {
-    font-size: 13px;
+    font-size: var(--typescale-body-md);
     font-weight: 500;
     color: @col_on_surface;
 }
 
 .media-artist {
-    font-size: 11px;
+    font-size: var(--typescale-label-md);
     color: @col_subtext;
 }
 
@@ -1141,7 +1141,7 @@ scale.osd-slider {
     min-width: 36px;
     min-height: 36px;
     font-family: "Material Symbols Rounded";
-    font-size: 20px;
+    font-size: var(--icon-md);
     transition: background-color var(--duration-short3) var(--ease-standard-decel);
 }
 
@@ -1178,18 +1178,18 @@ scale.osd-slider {
 }
 
 .media-overlay-title {
-    font-size: 15px;
+    font-size: var(--typescale-title-sm);
     font-weight: 600;
     color: @col_on_surface;
 }
 
 .media-overlay-artist {
-    font-size: 13px;
+    font-size: var(--typescale-body-md);
     color: @col_subtext;
 }
 
 .media-overlay-position {
-    font-size: 11px;
+    font-size: var(--typescale-label-md);
     color: @col_on_surface_variant;
     font-variant-numeric: tabular-nums;
 }
@@ -1217,7 +1217,7 @@ scale.osd-slider {
     min-width: 32px;
     min-height: 32px;
     font-family: "Material Symbols Rounded";
-    font-size: 20px;
+    font-size: var(--icon-md);
     transition: background-color var(--duration-short3) var(--ease-standard-decel);
 }
 
@@ -1332,7 +1332,7 @@ scale.osd-slider {
 }
 
 .quick-toggle-icon {
-    font-size: 20px;
+    font-size: var(--icon-md);
     color: @col_on_surface;
 }
 
@@ -1341,7 +1341,7 @@ scale.osd-slider {
 }
 
 .quick-toggle-label {
-    font-size: 13px;
+    font-size: var(--typescale-body-md);
     font-weight: 500;
     color: @col_on_surface_variant;
 }
@@ -1365,12 +1365,12 @@ scale.osd-slider {
 }
 
 .quick-slider-icon {
-    font-size: 20px;
+    font-size: var(--icon-md);
     color: @col_on_surface_variant;
 }
 
 .quick-slider-label {
-    font-size: 13px;
+    font-size: var(--typescale-body-md);
     font-weight: 500;
     color: @col_on_surface_variant;
     min-width: 70px;
@@ -1414,7 +1414,7 @@ scale.quick-slider {
 }
 
 .conn-section-arrow {
-    font-size: 18px;
+    font-size: var(--icon-sm);
     color: @col_on_surface_variant;
     transition: transform var(--duration-short4) var(--ease-standard-decel);
 }
@@ -1443,7 +1443,7 @@ scale.quick-slider {
 }
 
 .conn-row-icon {
-    font-size: 20px;
+    font-size: var(--icon-md);
     color: @col_on_surface;
 }
 
@@ -1452,22 +1452,22 @@ scale.quick-slider {
 }
 
 .conn-row-label {
-    font-size: 13px;
+    font-size: var(--typescale-body-md);
     color: @col_on_surface;
 }
 
 .conn-row-meta-icon {
-    font-size: 14px;
+    font-size: var(--typescale-body-lg);
     color: @col_on_surface_variant;
 }
 
 .conn-row-connected-icon {
-    font-size: 18px;
+    font-size: var(--icon-sm);
     color: @col_primary;
 }
 
 .conn-row-status {
-    font-size: 11px;
+    font-size: var(--typescale-label-md);
     color: @col_on_surface_variant;
 }
 
@@ -1664,7 +1664,7 @@ scale.quick-slider {
 }
 
 .osk-key-label {
-    font-size: 14px;
+    font-size: var(--typescale-body-lg);
     color: @col_on_surface;
 }
 
@@ -1793,7 +1793,7 @@ scale.quick-slider {
 
 .session-btn .material-icon {
     font-family: "Material Symbols Rounded";
-    font-size: 32px;
+    font-size: var(--icon-xl);
     color: @col_on_surface;
 }
 
@@ -1802,7 +1802,7 @@ scale.quick-slider {
 }
 
 .session-btn-label {
-    font-size: 12px;
+    font-size: var(--typescale-body-sm);
     color: @col_on_surface_variant;
     margin-top: 8px;
 }
@@ -1946,7 +1946,7 @@ scale.quick-slider {
 .settings-nav-item {
     border-radius: var(--radius-pill);
     margin: 2px 8px;
-    font-size: 13px;
+    font-size: var(--typescale-body-md);
     color: @col_on_surface_variant;
     transition: background-color var(--duration-short3) var(--ease-standard-decel);
 }
@@ -1968,7 +1968,7 @@ scale.quick-slider {
 }
 
 .settings-nav-label {
-    font-size: 13px;
+    font-size: var(--typescale-body-md);
     color: @col_on_surface_variant;
 }
 
@@ -1981,7 +1981,7 @@ scale.quick-slider {
 }
 
 .settings-label {
-    font-size: 13px;
+    font-size: var(--typescale-body-md);
     color: @col_on_surface;
 }
 
@@ -2057,7 +2057,7 @@ popover.menu list row:selected {
     background-color: @col_surface_container;
     border-radius: var(--radius-m);
     color: @col_on_surface;
-    font-size: 14px;
+    font-size: var(--typescale-body-lg);
     padding: 6px 12px;
     border: 1px solid @col_outline_variant;
     min-width: 56px;
@@ -2120,7 +2120,7 @@ popover.menu list row:selected {
     min-width: 36px;
     min-height: 36px;
     font-family: "Material Symbols Rounded";
-    font-size: 20px;
+    font-size: var(--icon-md);
     transition: background-color var(--duration-short3) var(--ease-standard-decel);
 }
 
@@ -2136,7 +2136,7 @@ popover.menu list row:selected {
     min-width: 32px;
     min-height: 32px;
     font-family: "Material Symbols Rounded";
-    font-size: 18px;
+    font-size: var(--icon-sm);
     transition: background-color var(--duration-short3) var(--ease-standard-decel);
 }
 
@@ -2373,7 +2373,7 @@ popover.menu list row:selected {
 
 /* The label */
 .m3-outlined-field .m3-field-label {
-    font-size: 16px;
+    font-size: var(--typescale-title-sm);
     color: alpha(@col_on_surface, 0.6);
     transition: all 200ms ease;
     padding: 0 4px;
@@ -2382,7 +2382,7 @@ popover.menu list row:selected {
 
 /* Floating label */
 .m3-outlined-field .m3-field-label.floating {
-    font-size: 12px;
+    font-size: var(--typescale-body-sm);
     color: @col_primary;
     background-color: @col_surface;
 }
@@ -2439,7 +2439,7 @@ popover.menu list row:selected {
     min-width: 40px;
     min-height: 40px;
     color: @col_primary;
-    font-size: 20px;
+    font-size: var(--icon-md);
     font-weight: 600;
 }
 
@@ -2596,7 +2596,7 @@ popover.menu list row:selected {
 }
 
 .clipboard-preview {
-    font-size: 13px;
+    font-size: var(--typescale-body-md);
     color: @col_on_surface;
 }
 
@@ -2607,7 +2607,7 @@ popover.menu list row:selected {
 }
 
 .emoji-category-header {
-    font-size: 11px;
+    font-size: var(--typescale-label-md);
     font-weight: 600;
     color: @col_primary;
     padding: 8px 4px 4px 4px;
@@ -2627,7 +2627,7 @@ popover.menu list row:selected {
 }
 
 .emoji-char {
-    font-size: 22px;
+    font-size: var(--typescale-headline-md);
 }
 
 /* ── Notes overlay ───────────────────────────────────────────────────────────── */
@@ -2644,7 +2644,7 @@ popover.menu list row:selected {
 }
 
 .notes-title {
-    font-size: 15px;
+    font-size: var(--typescale-title-sm);
     font-weight: 600;
     color: @col_on_surface;
 }
@@ -2666,7 +2666,7 @@ popover.menu list row:selected {
 .notes-text {
     background-color: transparent;
     color: @col_on_surface;
-    font-size: 13px;
+    font-size: var(--typescale-body-md);
     caret-color: @col_primary;
     border: none;
     padding: 8px;
@@ -2682,7 +2682,7 @@ popover.menu list row:selected {
 }
 
 .recorder-dot {
-    font-size: 12px;
+    font-size: var(--typescale-body-sm);
     color: @col_error;
 }
 
@@ -2696,7 +2696,7 @@ popover.menu list row:selected {
 
 .recorder-btn-icon {
     color: @col_on_primary;
-    font-size: 18px;
+    font-size: var(--icon-sm);
 }
 
 .recorder-btn-active .recorder-btn-icon {
@@ -2704,7 +2704,7 @@ popover.menu list row:selected {
 }
 
 .recorder-timer {
-    font-size: 13px;
+    font-size: var(--typescale-body-md);
     color: @col_on_surface;
     font-variant-numeric: tabular-nums;
     min-width: 40px;
@@ -2730,18 +2730,18 @@ popover.menu list row:selected {
 }
 
 .polkit-message {
-    font-size: 15px;
+    font-size: var(--typescale-title-sm);
     font-weight: 500;
     color: @col_on_surface;
 }
 
 .polkit-action {
-    font-size: 12px;
+    font-size: var(--typescale-body-sm);
     color: @col_on_surface_variant;
 }
 
 .polkit-info {
-    font-size: 12px;
+    font-size: var(--typescale-body-sm);
     color: @col_error;
 }
 
@@ -2750,7 +2750,7 @@ popover.menu list row:selected {
     border-radius: var(--radius-md);
     padding: 10px 14px;
     color: @col_on_surface;
-    font-size: 14px;
+    font-size: var(--typescale-body-lg);
     caret-color: @col_primary;
     border: none;
 }
@@ -2763,7 +2763,7 @@ popover.menu list row:selected {
     background-color: transparent;
     border-radius: var(--radius-pill);
     padding: 8px 20px;
-    font-size: 13px;
+    font-size: var(--typescale-body-md);
     color: @col_on_surface_variant;
     border: none;
     transition: background-color var(--duration-short3) var(--ease-standard-decel);
@@ -2778,7 +2778,7 @@ popover.menu list row:selected {
     color: @col_on_primary;
     border-radius: var(--radius-pill);
     padding: 8px 20px;
-    font-size: 13px;
+    font-size: var(--typescale-body-md);
     border: none;
     transition: background-color var(--duration-short3) var(--ease-standard-decel);
 }
@@ -2804,14 +2804,14 @@ popover.menu list row:selected {
 }
 
 .m3-dialog-title {
-    font-size: 24px;
+    font-size: var(--typescale-headline-lg);
     font-weight: 500;
     color: @col_on_surface;
     margin-bottom: 16px;
 }
 
 .m3-dialog-content {
-    font-size: 14px;
+    font-size: var(--typescale-body-lg);
     font-weight: 400;
     color: @col_on_surface_variant;
     margin-bottom: 24px;
@@ -2828,7 +2828,7 @@ popover.menu list row:selected {
     background-color: transparent;
     border-radius: var(--radius-pill);
     padding: 8px 20px;
-    font-size: 14px;
+    font-size: var(--typescale-body-lg);
     font-weight: 500;
     color: @col_primary;
     border: none;
@@ -2865,7 +2865,7 @@ popover.menu list row:selected {
     border-radius: var(--radius-md);
     padding: 10px 14px;
     color: @col_on_surface;
-    font-size: 14px;
+    font-size: var(--typescale-body-lg);
     caret-color: @col_primary;
     border: none;
     margin-bottom: 16px;
@@ -2898,7 +2898,7 @@ popover.menu list row:selected {
     min-width: 36px;
     min-height: 36px;
     padding: 0 8px;
-    font-size: 18px;
+    font-size: var(--icon-sm);
 }
 
 .m3-password-eye:hover {
@@ -2936,7 +2936,7 @@ popover.menu list row:selected {
     background: transparent;
     transition: background var(--duration-short1);
     box-shadow: none;
-    font-size: 13px;
+    font-size: var(--typescale-body-md);
     font-weight: 500;
     color: @col_on_surface;
     min-width: 0;
@@ -2956,7 +2956,7 @@ popover.menu list row:selected {
 }
 
 .quick-toggle-segment .material-icon {
-    font-size: 18px;
+    font-size: var(--icon-sm);
 }
 
 .quick-toggle-segment .segment-label {
@@ -3043,7 +3043,7 @@ popover.menu list row:selected {
 }
 
 .lockscreen-date {
-    font-size: 32px;
+    font-size: var(--typescale-display-md);
     font-weight: 500;
     color: @col_on_surface;
     margin-top: -10px;
@@ -3066,7 +3066,7 @@ popover.menu list row:selected {
 }
 
 .lockscreen-username {
-    font-size: 28px;
+    font-size: var(--typescale-display-sm);
     font-weight: 600;
     color: @col_on_surface;
 }
@@ -3103,11 +3103,11 @@ popover.menu list row:selected {
 
 .lockscreen-eye-btn {
     color: @col_on_surface_variant;
-    font-size: 20px;
+    font-size: var(--icon-md);
 }
 
 .lockscreen-status {
-    font-size: 14px;
+    font-size: var(--typescale-body-lg);
     color: @col_error;
     margin-top: 8px;
     min-height: 20px;
