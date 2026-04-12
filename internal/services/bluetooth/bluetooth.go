@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"strings"
 	"sync"
 
 	"github.com/godbus/dbus/v5"
@@ -49,6 +48,7 @@ func (s *Service) Run(ctx context.Context) error {
 	signals := make(chan *dbus.Signal, 8)
 	s.conn.Signal(signals)
 	if err := s.conn.AddMatchSignal(
+		dbus.WithMatchSender(bluezService),
 		dbus.WithMatchInterface("org.freedesktop.DBus.Properties"),
 		dbus.WithMatchMember("PropertiesChanged"),
 	); err != nil {
@@ -61,9 +61,6 @@ func (s *Service) Run(ctx context.Context) error {
 		case sig, ok := <-signals:
 			if !ok {
 				return nil
-			}
-			if sig.Path != bluezAdapter && !isBlueZDevicePath(sig.Path) {
-				continue
 			}
 			log.Printf("[bluetooth] Run: received D-Bus signal: %v", sig)
 			_ = s.poll()
@@ -238,6 +235,3 @@ func (s *Service) SetTrusted(devicePath string, trusted bool) error {
 	return obj.SetProperty("org.bluez.Device1.Trusted", dbus.MakeVariant(trusted))
 }
 
-func isBlueZDevicePath(path dbus.ObjectPath) bool {
-	return strings.HasPrefix(string(path), "/org/bluez/hci0/dev_")
-}

@@ -117,20 +117,19 @@ func (kl *KeyedList[T]) Update(items []T) {
 	}
 
 	// Only reorder if key order actually changed.
+	// Use ReorderChildAfter to move widgets in-place without remove/append.
 	if needsReorder {
-		for key, w := range kl.widgets {
-			kl.container.Remove(w)
-			if d, ok := kl.dividerMap[key]; ok {
-				kl.container.Remove(d)
-			}
-		}
-
+		var prev gtk.Widgetter
 		for _, item := range items {
 			key := item.Key()
 			w := kl.widgets[key]
-			kl.container.Append(w)
+			kl.container.ReorderChildAfter(w, prev)
+			prev = w
 			if kl.dividers {
-				kl.container.Append(kl.dividerMap[key])
+				if d, ok := kl.dividerMap[key]; ok {
+					kl.container.ReorderChildAfter(d, prev)
+					prev = d
+				}
 			}
 		}
 	}
