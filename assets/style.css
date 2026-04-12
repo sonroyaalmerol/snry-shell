@@ -3006,3 +3006,41 @@ popover.menu list row:selected {
 .wallpaper-preview {
     border-radius: var(--radius-lg);
 }
+
+/* ── M3 Row Helpers ──────────────────────────────────────────────────────────── */
+
+.m3-status-row {
+    padding: var(--space-sm) var(--space-lg);
+    spacing: var(--space-sm);
+}
+.m3-status-row-title {
+    font-size: var(--typescale-body-lg);
+}
+.m3-status-row-status {
+    font-size: var(--typescale-body-md);
+    color: @col_on_surface_variant;
+}
+
+.m3-action-row {
+    padding: var(--space-sm) var(--space-lg);
+    border-radius: var(--radius-md);
+}
+.m3-action-row-icon {
+    font-size: var(--icon-md);
+}
+.m3-action-row-title {
+    font-size: var(--typescale-body-lg);
+}
+.m3-action-row-subtitle {
+    font-size: var(--typescale-body-md);
+    color: @col_on_surface_variant;
+}
+
+.popup-header-title {
+    font-size: var(--typescale-title-md);
+    font-weight: 500;
+}
+.popup-header-subtitle {
+    font-size: var(--typescale-body-md);
+    color: @col_on_surface_variant;
+}

@@ -412,3 +412,94 @@ func PasswordEntry(onSubmit func(string)) (*gtk.Box, *gtk.Entry) {
 
 	return box, field.Entry()
 }
+
+// ── Row helpers ──────────────────────────────────────────────────────────────
+
+// StatusRow creates a horizontal row with a leading icon, a title, and a
+// trailing status label. Used for showing connection/device states.
+func StatusRow(icon, title, status string, iconClasses ...string) *gtk.Box {
+	row := gtk.NewBox(gtk.OrientationHorizontal, 8)
+	row.AddCSSClass("m3-status-row")
+
+	ic := MaterialIcon(icon, iconClasses...)
+	ic.SetVAlign(gtk.AlignCenter)
+
+	titleLbl := gtk.NewLabel(title)
+	titleLbl.AddCSSClass("m3-status-row-title")
+	titleLbl.SetHAlign(gtk.AlignStart)
+	titleLbl.SetHExpand(true)
+
+	statusLbl := gtk.NewLabel(status)
+	statusLbl.AddCSSClass("m3-status-row-status")
+	statusLbl.SetHAlign(gtk.AlignEnd)
+	statusLbl.SetVAlign(gtk.AlignCenter)
+
+	row.Append(ic)
+	row.Append(titleLbl)
+	row.Append(statusLbl)
+	return row
+}
+
+// ActionRow creates a horizontal row with icon, title+subtitle text block,
+// and an optional trailing action widget (button, spinner, etc.).
+// Used for list items like network connections, bluetooth devices.
+func ActionRow(icon, title, subtitle string, action gtk.Widgetter, iconClasses ...string) *gtk.Box {
+	row := gtk.NewBox(gtk.OrientationHorizontal, 8)
+	row.AddCSSClass("m3-action-row")
+
+	ic := MaterialIcon(icon, iconClasses...)
+	ic.AddCSSClass("m3-action-row-icon")
+	ic.SetVAlign(gtk.AlignCenter)
+
+	textBox := gtk.NewBox(gtk.OrientationVertical, 2)
+	textBox.SetHExpand(true)
+
+	titleLbl := gtk.NewLabel(title)
+	titleLbl.AddCSSClass("m3-action-row-title")
+	titleLbl.SetHAlign(gtk.AlignStart)
+	textBox.Append(titleLbl)
+
+	if subtitle != "" {
+		subLbl := gtk.NewLabel(subtitle)
+		subLbl.AddCSSClass("m3-action-row-subtitle")
+		subLbl.SetHAlign(gtk.AlignStart)
+		textBox.Append(subLbl)
+	}
+
+	row.Append(ic)
+	row.Append(textBox)
+	if action != nil {
+		row.Append(action)
+	}
+	return row
+}
+
+// HeaderBar creates a popup header with a title, optional subtitle, and
+// optional trailing action buttons. Used as the top bar in every popup.
+func HeaderBar(title, subtitle string, trailing ...*gtk.Button) *gtk.Box {
+	bar := gtk.NewBox(gtk.OrientationHorizontal, 8)
+	bar.AddCSSClass("popup-header")
+
+	textBox := gtk.NewBox(gtk.OrientationVertical, 2)
+	textBox.SetHExpand(true)
+
+	titleLbl := gtk.NewLabel(title)
+	titleLbl.AddCSSClass("popup-header-title")
+	titleLbl.SetHAlign(gtk.AlignStart)
+	textBox.Append(titleLbl)
+
+	if subtitle != "" {
+		subLbl := gtk.NewLabel(subtitle)
+		subLbl.AddCSSClass("popup-header-subtitle")
+		subLbl.SetHAlign(gtk.AlignStart)
+		textBox.Append(subLbl)
+	}
+
+	bar.Append(textBox)
+	for _, btn := range trailing {
+		if btn != nil {
+			bar.Append(btn)
+		}
+	}
+	return bar
+}
