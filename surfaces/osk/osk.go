@@ -286,20 +286,28 @@ func (o *OSK) scheduleFocusUpdate(want bool) {
 }
 
 // showLocked sets the OSK visible. Must be called with mu held.
-func (o *OSK) showLocked() {
+// Returns true if visibility changed (caller should publish after releasing mu).
+func (o *OSK) showLocked() bool {
+	if o.visible {
+		return false
+	}
 	o.win.SetVisible(true)
 	o.visible = true
-	o.bus.Publish(bus.TopicOSKState, true)
 	glib.IdleAdd(func() {
 		o.win.PresentWithTime(uint32(glib.GetMonotonicTime() / 1000))
 	})
+	return true
 }
 
 // hideLocked hides the OSK. Must be called with mu held.
-func (o *OSK) hideLocked() {
+// Returns true if visibility changed (caller should publish after releasing mu).
+func (o *OSK) hideLocked() bool {
+	if !o.visible {
+		return false
+	}
 	o.win.SetVisible(false)
 	o.visible = false
-	o.bus.Publish(bus.TopicOSKState, false)
+	return true
 }
 
 func (o *OSK) updateExclusiveZone() {
@@ -504,10 +512,13 @@ func (o *OSK) build() {
 	closeBtn.SetVAlign(gtk.AlignStart)
 	closeBtn.ConnectClicked(func() {
 		o.mu.Lock()
-		defer o.mu.Unlock()
 		o.manualOff = true
 		o.manualMode = false
-		o.hideLocked()
+		publish := o.hideLocked()
+		o.mu.Unlock()
+		if publish {
+			o.bus.Publish(bus.TopicOSKState, false)
+		}
 	})
 
 	// Floating back button — top-left corner, shown only in panel views.
