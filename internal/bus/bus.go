@@ -64,20 +64,14 @@ type entry struct {
 }
 
 type Bus struct {
-	subs   *xsync.Map[Topic, *topicBucket]
+	subs   *xsync.Map[Topic, []entry]
 	last   *xsync.Map[Topic, Event]
 	nextID atomic.Uint64
 }
 
-// topicBucket groups a topic's subscriber list. xsync.Map values must be
-// pointer-sized, so we box the slice in a struct updated via Compute.
-type topicBucket struct {
-	entries []entry
-}
-
 func New() *Bus {
 	return &Bus{
-		subs: xsync.NewMap[Topic, *topicBucket](),
+		subs: xsync.NewMap[Topic, []entry](),
 		last: xsync.NewMap[Topic, Event](),
 	}
 }
@@ -85,12 +79,8 @@ func New() *Bus {
 func (b *Bus) Subscribe(topic Topic, h Handler) UnsubscribeFunc {
 	id := b.nextID.Add(1)
 
-	b.subs.Compute(topic, func(old *topicBucket, loaded bool) (*topicBucket, xsync.ComputeOp) {
-		if !loaded || old == nil {
-			return &topicBucket{entries: []entry{{id: id, h: h}}}, xsync.UpdateOp
-		}
-		old.entries = append(old.entries, entry{id: id, h: h})
-		return old, xsync.UpdateOp
+	b.subs.Compute(topic, func(old []entry, loaded bool) ([]entry, xsync.ComputeOp) {
+		return append(old, entry{id: id, h: h}), xsync.UpdateOp
 	})
 
 	if ev, ok := b.last.Load(topic); ok {
@@ -98,17 +88,13 @@ func (b *Bus) Subscribe(topic Topic, h Handler) UnsubscribeFunc {
 	}
 
 	return func() {
-		b.subs.Compute(topic, func(old *topicBucket, loaded bool) (*topicBucket, xsync.ComputeOp) {
-			if !loaded || old == nil {
+		b.subs.Compute(topic, func(old []entry, loaded bool) ([]entry, xsync.ComputeOp) {
+			if !loaded {
 				return nil, xsync.DeleteOp
 			}
-			for i, e := range old.entries {
+			for i, e := range old {
 				if e.id == id {
-					old.entries = append(old.entries[:i], old.entries[i+1:]...)
-					if len(old.entries) == 0 {
-						return nil, xsync.DeleteOp
-					}
-					return old, xsync.UpdateOp
+					return append(old[:i:i], old[i+1:]...), xsync.UpdateOp
 				}
 			}
 			return old, xsync.CancelOp
@@ -120,14 +106,10 @@ func (b *Bus) Publish(topic Topic, data any) {
 	ev := Event{Topic: topic, Data: data}
 	b.last.Store(topic, ev)
 
-	bucket, ok := b.subs.Load(topic)
-	if !ok || bucket == nil {
+	entries, ok := b.subs.Load(topic)
+	if !ok {
 		return
 	}
-	// Snapshot the entries slice. The Compute callback mutates entries
-	// in-place (append), so we copy for a consistent iteration view.
-	entries := make([]entry, len(bucket.entries))
-	copy(entries, bucket.entries)
 
 	for _, e := range entries {
 		e.h(ev)
