@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"sync"
+	"time"
 
 	"github.com/godbus/dbus/v5"
 	"github.com/sonroyaalmerol/snry-shell/internal/bus"
@@ -54,15 +55,34 @@ func (s *Service) Run(ctx context.Context) error {
 	); err != nil {
 		log.Printf("[bluetooth] AddMatchSignal: %v", err)
 	}
+
+	// Debounce: coalesce rapid BlueZ signals into single polls.
+	debounce := time.NewTimer(0)
+	if !debounce.Stop() {
+		<-debounce.C
+	}
+
 	for {
 		select {
 		case <-ctx.Done():
+			debounce.Stop()
 			return ctx.Err()
-		case sig, ok := <-signals:
+		case _, ok := <-signals:
 			if !ok {
+				debounce.Stop()
 				return nil
 			}
-			log.Printf("[bluetooth] Run: received D-Bus signal: %v", sig)
+			// Drain queued signals.
+			drain:
+			for {
+				select {
+				case <-signals:
+				default:
+					break drain
+				}
+			}
+			debounce.Reset(200 * time.Millisecond)
+		case <-debounce.C:
 			_ = s.poll()
 		}
 	}
@@ -85,14 +105,12 @@ func (s *Service) poll() error {
 	// the adapter is disabling.
 	if psV, err := obj.GetProperty(bluezIface + ".PowerState"); err == nil {
 		if ps, ok := psV.Value().(string); ok {
-			log.Printf("[bluetooth] poll: Powered=%v PowerState=%s", powered, ps)
 			switch ps {
 			case "off", "on-disabling":
 				powered = false
 			}
 		}
 	} else {
-		log.Printf("[bluetooth] poll: Powered=%v", powered)
 	}
 
 	bs := state.BluetoothState{Powered: powered}
@@ -162,7 +180,6 @@ func (s *Service) GetDevices() ([]state.BluetoothDevice, error) {
 		log.Printf("[bluetooth] GetDevices GetManagedObjects error: %v", err)
 		return nil, err
 	}
-	log.Printf("[bluetooth] GetDevices: %d managed objects", len(result))
 
 	var devices []state.BluetoothDevice
 	for path, ifaces := range result {
@@ -203,7 +220,6 @@ func (s *Service) GetDevices() ([]state.BluetoothDevice, error) {
 	}
 
 	s.bus.Publish(bus.TopicBluetoothDevices, devices)
-		log.Printf("[bluetooth] GetDevices: published %d devices", len(devices))
 	return devices, nil
 }
 

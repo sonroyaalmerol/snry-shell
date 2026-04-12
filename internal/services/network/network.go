@@ -29,8 +29,10 @@ const (
 )
 
 type Service struct {
-	conn dbusutil.DBusConn
-	bus  *bus.Bus
+	conn             dbusutil.DBusConn
+	bus              *bus.Bus
+	cachedWiFi       []state.WiFiNetwork
+	cachedWiFiLoaded bool
 }
 
 func New(conn dbusutil.DBusConn, b *bus.Bus) *Service {
@@ -228,19 +230,23 @@ func (s *Service) fetchState() (state.NetworkState, error) {
 	}, nil
 }
 
-// fetchFullState returns NetworkState enriched with WiFi scan results.
+// fetchFullState returns NetworkState enriched with cached WiFi networks.
 // It stamps Connected=true on the WiFiNetwork matching the current SSID.
+// Does NOT re-scan APs — use ScanWiFi() for that.
 func (s *Service) fetchFullState() state.NetworkState {
 	ns, err := s.fetchState()
 	if err != nil {
 		return ns
 	}
 
-	networks := s.scanAccessPoints()
-	for i := range networks {
-		networks[i].Connected = (networks[i].SSID == ns.SSID)
+	if s.cachedWiFiLoaded {
+		networks := make([]state.WiFiNetwork, len(s.cachedWiFi))
+		copy(networks, s.cachedWiFi)
+		for i := range networks {
+			networks[i].Connected = (networks[i].SSID == ns.SSID)
+		}
+		ns.WiFiNetworks = networks
 	}
-	ns.WiFiNetworks = networks
 	return ns
 }
 
@@ -384,8 +390,7 @@ func (s *Service) wifiDevicePaths() ([]dbus.ObjectPath, error) {
 	return wifiPaths, nil
 }
 
-// ScanWiFi triggers a WiFi scan via NetworkManager.
-// Results arrive asynchronously via D-Bus signals which trigger fetchFullState.
+// ScanWiFi triggers a WiFi scan, caches results, and publishes updated state.
 func (s *Service) ScanWiFi() error {
 	if s.conn == nil {
 		return fmt.Errorf("no D-Bus connection")
@@ -403,6 +408,11 @@ func (s *Service) ScanWiFi() error {
 		}
 	}
 
+	// Cache scan results and publish.
+	s.cachedWiFi = s.scanAccessPoints()
+	s.cachedWiFiLoaded = true
+	ns := s.fetchFullState()
+	s.bus.Publish(bus.TopicNetwork, ns)
 	return nil
 }
 
