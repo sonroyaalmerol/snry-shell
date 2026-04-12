@@ -155,6 +155,7 @@ func NewNetworkWidget(b *bus.Bus, refs *servicerefs.ServiceRefs, parent *gtk.App
 	// Track the connected SSID from TopicNetwork (the authoritative source)
 	// and reconcile scan results against it before updating the list.
 	var connectedSSID string
+	var haveNetState bool
 	var latestNetworks []state.WiFiNetwork
 
 	b.Subscribe(bus.TopicNetwork, func(e bus.Event) {
@@ -166,6 +167,7 @@ func NewNetworkWidget(b *bus.Bus, refs *servicerefs.ServiceRefs, parent *gtk.App
 		if ns.Connected && ns.Type == "wifi" {
 			newSSID = ns.SSID
 		}
+		haveNetState = true
 		if newSSID == connectedSSID {
 			return
 		}
@@ -197,9 +199,11 @@ func NewNetworkWidget(b *bus.Bus, refs *servicerefs.ServiceRefs, parent *gtk.App
 		if !ok {
 			return
 		}
-		// Override Connected flags with the authoritative state from TopicNetwork.
-		for i := range networks {
-			networks[i].Connected = (networks[i].SSID == connectedSSID)
+		// Override Connected flags only once we have authoritative state.
+		if haveNetState {
+			for i := range networks {
+				networks[i].Connected = (networks[i].SSID == connectedSSID)
+			}
 		}
 		latestNetworks = make([]state.WiFiNetwork, len(networks))
 		copy(latestNetworks, networks)
