@@ -388,6 +388,29 @@ func Run() int {
 		})
 	})
 
+	// Suppress hover effects on touch devices by zeroing state layer opacities.
+	var touchModeProvider *gtk.CSSProvider
+	b.Subscribe(bus.TopicTabletMode, func(ev bus.Event) {
+		tablet, ok := ev.Data.(bool)
+		if !ok {
+			return
+		}
+		glib.IdleAdd(func() {
+			display := gdk.DisplayGetDefault()
+			if display == nil {
+				return
+			}
+			if tablet && touchModeProvider == nil {
+				touchModeProvider = gtk.NewCSSProvider()
+				touchModeProvider.LoadFromString("* { --state-hover: 0; --state-focus: 0; --state-press: 0; }")
+				gtk.StyleContextAddProviderForDisplay(display, touchModeProvider, gtk.STYLE_PROVIDER_PRIORITY_USER+50)
+			} else if !tablet && touchModeProvider != nil {
+				gtk.StyleContextRemoveProviderForDisplay(display, touchModeProvider)
+				touchModeProvider = nil
+			}
+		})
+	})
+
 	app.ConnectActivate(func() {
 		// Load embedded stylesheet.
 		display := gdk.DisplayGetDefault()
