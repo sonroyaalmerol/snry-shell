@@ -30,8 +30,28 @@ func ProcessedWallpaperPath() string {
 
 // ProcessWallpaper loads the image at src, applies the requested
 // adjustments (grayscale → brightness → blur), writes the result to the
-// fixed processed path, and returns that path.
+// fixed processed path, and returns that path. If all processing params
+// are identity (blur=0, brightness=100, grayscale=false), the source is
+// copied directly without decoding/encoding.
 func ProcessWallpaper(src string, cfg ProcessConfig) (string, error) {
+	dst := ProcessedWallpaperPath()
+	if err := os.MkdirAll(filepath.Dir(dst), 0755); err != nil {
+		return "", fmt.Errorf("create cache dir: %w", err)
+	}
+
+	// Fast path: no processing needed, just copy the bytes.
+	if cfg.Blur == 0 && cfg.Brightness == 100 && !cfg.Grayscale {
+		data, err := os.ReadFile(src)
+		if err != nil {
+			return "", fmt.Errorf("read wallpaper source: %w", err)
+		}
+		if err := os.WriteFile(dst, data, 0644); err != nil {
+			return "", fmt.Errorf("write processed wallpaper: %w", err)
+		}
+		return dst, nil
+	}
+
+	// Slow path: decode, process, re-encode.
 	f, err := os.Open(src)
 	if err != nil {
 		return "", fmt.Errorf("open wallpaper source: %w", err)
@@ -65,10 +85,6 @@ func ProcessWallpaper(src string, cfg ProcessConfig) (string, error) {
 		}
 	}
 
-	dst := ProcessedWallpaperPath()
-	if err := os.MkdirAll(filepath.Dir(dst), 0755); err != nil {
-		return "", fmt.Errorf("create cache dir: %w", err)
-	}
 	out, err := os.Create(dst)
 	if err != nil {
 		return "", fmt.Errorf("create processed wallpaper: %w", err)

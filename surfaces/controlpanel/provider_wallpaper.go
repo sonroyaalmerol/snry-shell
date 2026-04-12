@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"os"
 
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/sonroyaalmerol/snry-shell/internal/controlsocket"
@@ -39,9 +40,15 @@ func (w *wallpaperConfigProvider) BuildWidget() gtk.Widgetter {
 	w.preview.SetCanShrink(true)
 	w.preview.AddCSSClass("wallpaper-preview")
 
-	// Show the last processed wallpaper as the preview.
+	// Show the last processed wallpaper as the preview. Try multiple
+	// sources since the control panel is a separate process and the
+	// persistent store may not be populated yet.
 	if processed := theme.GetLastWallpaper(); processed != "" {
 		w.preview.SetFilename(processed)
+	} else if _, err := os.Stat(theme.ProcessedWallpaperPath()); err == nil {
+		w.preview.SetFilename(theme.ProcessedWallpaperPath())
+	} else if src := theme.GetWallpaperSource(); src != "" {
+		w.preview.SetFilename(src)
 	}
 
 	previewCard := gtk.NewBox(gtk.OrientationVertical, 0)

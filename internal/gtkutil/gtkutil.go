@@ -145,6 +145,17 @@ func newDialogBase(parent *gtk.ApplicationWindow, title string) (*gtk.Applicatio
 	win.SetChild(scrim)
 
 	surfaceutil.AddEscapeToClose(win)
+
+	// Dismiss when the dialog loses focus (e.g. user taps the bar or
+	// another shell surface). Layer-shell surfaces at the same layer
+	// don't always route touch events through the overlay, so a
+	// focus-out handler is the most reliable cross-surface dismiss.
+	focusCtrl := gtk.NewEventControllerFocus()
+	focusCtrl.ConnectLeave(func() {
+		close()
+	})
+	win.AddController(focusCtrl)
+
 	win.SetVisible(true)
 
 	return win, card, close
