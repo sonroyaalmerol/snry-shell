@@ -314,11 +314,11 @@ func isDevicePath(path dbus.ObjectPath) bool {
 func actionIcon(dev state.BluetoothDevice) string {
 	switch {
 	case dev.Connected:
-		return "bluetooth_disabled"
+		return "link_off"
 	case dev.Paired:
-		return "bluetooth_connecting"
+		return "link"
 	default:
-		return "bluetooth"
+		return "pair"
 	}
 }
 
