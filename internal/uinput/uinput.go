@@ -107,14 +107,15 @@ type inputEvent struct {
 }
 
 // uinputSetup mirrors struct uinput_setup from <linux/uinput.h>.
+// C layout: { struct input_id id; char name[80]; __u32 ff_effects_max; }
 type uinputSetup struct {
-	name     [80]byte
-	id       struct {
+	id struct {
 		bustype uint16
 		vendor  uint16
 		product uint16
 		version uint16
 	}
+	name           [80]byte
 	ff_effects_max uint32
 }
 
@@ -126,7 +127,7 @@ type Bridge struct {
 }
 
 // New creates a virtual keyboard via /dev/uinput. If that fails (no access),
-// falls back to the ydotool daemon socket. Returns nil, nil only if both fail.
+// falls back to the ydotool daemon socket. Returns a non-nil error if both fail.
 func New() (*Bridge, error) {
 	if b, err := newUinput(); err == nil {
 		return b, nil
@@ -247,7 +248,11 @@ func (b *Bridge) sendSyn() {
 // Shift is applied automatically based on the character (e.g. "A" sends Shift+KEY_A).
 // Additional modifiers (ctrl, alt) are applied if non-zero.
 func (b *Bridge) TypeChar(ch string, ctrl, alt bool) {
-	entry, ok := charMap[[]rune(ch)[0]]
+	runes := []rune(ch)
+	if len(runes) == 0 {
+		return
+	}
+	entry, ok := charMap[runes[0]]
 	if !ok {
 		return
 	}
