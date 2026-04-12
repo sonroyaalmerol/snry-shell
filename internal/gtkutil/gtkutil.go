@@ -34,6 +34,7 @@ type KeyedList[T KeyedItem] struct {
 	dividerMap map[string]gtk.Widgetter // key -> divider (only when dividers=true)
 	buildFn    func(T) gtk.Widgetter
 	updateFn   func(T, gtk.Widgetter) // optional; called on existing widgets
+	prevOrder  []string                // keys from previous Update, for cheap diff
 }
 
 // NewKeyedList creates a keyed list manager. Call Update when new data arrives.
@@ -92,29 +93,49 @@ func (kl *KeyedList[T]) Update(items []T) {
 		}
 	}
 
-	// Remove all managed widgets, then re-append in items order.
-	// Widgets are reused (not destroyed), so this avoids flickering while
-	// guaranteeing correct ordering without relying on ReorderChildAfter.
-	for key, w := range kl.widgets {
-		kl.container.Remove(w)
-		if d, ok := kl.dividerMap[key]; ok {
-			kl.container.Remove(d)
+	// Check if key order actually changed vs previous update.
+	newOrder := make([]string, len(items))
+	for i, item := range items {
+		newOrder[i] = item.Key()
+	}
+	needsReorder := len(newOrder) != len(kl.prevOrder)
+	if !needsReorder {
+		for i, k := range newOrder {
+			if k != kl.prevOrder[i] {
+				needsReorder = true
+				break
+			}
 		}
 	}
 
+	// Call updateFn on existing widgets regardless.
 	for _, item := range items {
 		key := item.Key()
-		w := kl.widgets[key]
-
-		if kl.updateFn != nil {
+		if w, ok := kl.widgets[key]; ok && kl.updateFn != nil {
 			kl.updateFn(item, w)
 		}
+	}
 
-		kl.container.Append(w)
-		if kl.dividers {
-			kl.container.Append(kl.dividerMap[key])
+	// Only reorder if key order actually changed.
+	if needsReorder {
+		for key, w := range kl.widgets {
+			kl.container.Remove(w)
+			if d, ok := kl.dividerMap[key]; ok {
+				kl.container.Remove(d)
+			}
+		}
+
+		for _, item := range items {
+			key := item.Key()
+			w := kl.widgets[key]
+			kl.container.Append(w)
+			if kl.dividers {
+				kl.container.Append(kl.dividerMap[key])
+			}
 		}
 	}
+
+	kl.prevOrder = newOrder
 }
 
 func MaterialButton(icon string) *gtk.Button {
