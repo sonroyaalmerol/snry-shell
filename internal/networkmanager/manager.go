@@ -155,10 +155,12 @@ func (m *Manager) monitorDBusSignals() {
 			if !ok {
 				return
 			}
-			// Check if this is an NM signal
-			if sig.Sender == nmDest || sig.Path == nmPath {
-				m.handleSignal(sig)
-			}
+			// The D-Bus match rule already filtered by sender and
+			// interface, so every signal in this channel is a valid
+			// NM PropertiesChanged. No need to re-check sender/path
+			// (sig.Sender is the unique bus name, not the well-known
+			// name, so a direct comparison would incorrectly skip).
+			m.handleSignal(sig)
 		}
 	}
 }

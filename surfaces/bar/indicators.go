@@ -86,10 +86,7 @@ func newNotificationIcon(b *bus.Bus) gtk.Widgetter {
 		c := int(count.Load())
 		glib.IdleAdd(func() {
 			if c > 0 {
-				if c > 99 {
-					c = 99
-				}
-				icon.SetText(fmt.Sprintf("notifications_active (%d)", c))
+				icon.SetText("notifications_active")
 			} else {
 				icon.SetText("notifications")
 			}

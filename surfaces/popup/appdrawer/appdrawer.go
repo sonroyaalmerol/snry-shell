@@ -30,11 +30,12 @@ type AppDrawer struct {
 // New creates and hides the app drawer overlay.
 func New(app *gtk.Application, b *bus.Bus, trigger gtk.Widgetter) *AppDrawer {
 	win := layershell.NewWindow(app, layershell.WindowConfig{
-		Name:         "snry-appdrawer",
-		Layer:        layershell.LayerOverlay,
-		Anchors:      layershell.FullscreenAnchors(),
-		KeyboardMode: layershell.KeyboardModeOnDemand,
-		Namespace:    "snry-appdrawer",
+		Name:          "snry-appdrawer",
+		Layer:         layershell.LayerOverlay,
+		Anchors:       layershell.FullscreenAnchors(),
+		KeyboardMode:  layershell.KeyboardModeOnDemand,
+		ExclusiveZone: -1,
+		Namespace:     "snry-appdrawer",
 	})
 
 	apps, _ := launcher.LoadAll()
