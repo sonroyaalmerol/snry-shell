@@ -327,7 +327,6 @@ func ClaimedClick(w *gtk.Widget, onRelease func()) *gtk.GestureClick {
 	var startX, startY float64
 
 	click.ConnectPressed(func(_ int, x, y float64) {
-		click.SetState(gtk.EventSequenceClaimed)
 		startX = x
 		startY = y
 	})

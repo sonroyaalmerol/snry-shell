@@ -145,6 +145,21 @@ func (sw *M3CustomSwitch) startAnimation() {
 	})
 }
 
+// lookupThemeColor reads a named CSS color from the widget's style context.
+// Returns RGBA as 0-1 float64 values. Falls back to the provided defaults if
+// the color is not found.
+func (sw *M3CustomSwitch) lookupThemeColor(name string, fallbackR, fallbackG, fallbackB, fallbackA float64) (float64, float64, float64, float64) {
+	ctx := sw.trackWidget.StyleContext()
+	if ctx == nil {
+		return fallbackR, fallbackG, fallbackB, fallbackA
+	}
+	rgba, ok := ctx.LookupColor(name)
+	if !ok || rgba == nil {
+		return fallbackR, fallbackG, fallbackB, fallbackA
+	}
+	return float64(rgba.Red()), float64(rgba.Green()), float64(rgba.Blue()), float64(rgba.Alpha())
+}
+
 // drawSwitch draws the switch track and thumb.
 func (sw *M3CustomSwitch) drawSwitch(cr *cairo.Context, width, height int) {
 	// Track dimensions
@@ -165,35 +180,32 @@ func (sw *M3CustomSwitch) drawSwitch(cr *cairo.Context, width, height int) {
 	thumbX := startX + (endX-startX)*sw.animation
 	thumbY := trackHeight / 2
 
-	// Default colors - Material 3 specs
+	// Read theme colors from CSS @col_* definitions
 	var trackR, trackG, trackB, trackA float64
 	var thumbR, thumbG, thumbB, thumbA float64
 	var outlineR, outlineG, outlineB, outlineA float64
 
 	if sw.disabled {
-		// Disabled state per Material 3:
-		// Track: surfaceVariant at 38% opacity
-		// Outline: onSurface at 12% opacity
-		// Thumb: surface at 38% opacity
-		trackR, trackG, trackB = 0.88, 0.88, 0.88 // Surface variant (light)
-		trackA = 0.38
-		outlineR, outlineG, outlineB = 0.1, 0.1, 0.1 // On surface
-		outlineA = 0.12
-		thumbR, thumbG, thumbB = 0.95, 0.95, 0.95 // Surface (light)
-		thumbA = 0.38
+		// Disabled: onSurface at low opacity
+		onR, onG, onB, _ := sw.lookupThemeColor("col_on_surface", 0.1, 0.1, 0.1, 1)
+		trackR, trackG, trackB, trackA = onR, onG, onB, 0.12
+		outlineR, outlineG, outlineB, outlineA = onR, onG, onB, 0.12
+		surfR, surfG, surfB, _ := sw.lookupThemeColor("col_surface", 0.95, 0.95, 0.95, 1)
+		thumbR, thumbG, thumbB, thumbA = surfR, surfG, surfB, 0.38
 	} else if sw.active {
-		// Checked state: primary color track, on-primary thumb
-		trackR, trackG, trackB = 0.4, 0.31, 0.64 // Material 3 primary purple-ish (#6750A4)
+		// Checked: primary track, on-primary thumb
+		trackR, trackG, trackB, _ = sw.lookupThemeColor("col_primary", 0.4, 0.31, 0.64, 1)
 		trackA = 1.0
-		thumbR, thumbG, thumbB, thumbA = 1.0, 1.0, 1.0, 1.0 // On-primary (white)
-		outlineA = 0                                        // No outline in checked state
+		thumbR, thumbG, thumbB, _ = sw.lookupThemeColor("col_on_primary", 1, 1, 1, 1)
+		thumbA = 1.0
+		outlineA = 0 // No outline in checked state
 	} else {
-		// Unchecked state: surface container track with outline, outline thumb
-		trackR, trackG, trackB = 0.9, 0.9, 0.9 // Surface container
+		// Unchecked: surface container with outline
+		trackR, trackG, trackB, _ = sw.lookupThemeColor("col_surface_container", 0.9, 0.9, 0.9, 1)
 		trackA = 0.8
-		outlineR, outlineG, outlineB = 0.5, 0.5, 0.5 // Outline
+		outlineR, outlineG, outlineB, _ = sw.lookupThemeColor("col_outline", 0.5, 0.5, 0.5, 1)
 		outlineA = 0.5
-		thumbR, thumbG, thumbB = 0.5, 0.5, 0.5 // Outline thumb
+		thumbR, thumbG, thumbB, _ = sw.lookupThemeColor("col_outline", 0.5, 0.5, 0.5, 1)
 		thumbA = 1.0
 	}
 
