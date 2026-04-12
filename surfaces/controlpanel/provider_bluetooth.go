@@ -22,8 +22,9 @@ const (
 
 // btConfigProvider implements ConfigProvider for Bluetooth settings.
 type btConfigProvider struct {
-	conn       *dbus.Conn
-	deviceList *gtk.Box
+	conn        *dbus.Conn
+	deviceList  *gtk.Box
+	deviceKL    *gtkutil.KeyedList[state.BluetoothDevice]
 	powerSwitch *gtkutil.M3CustomSwitch
 	settingPower bool
 }
@@ -102,6 +103,12 @@ func (b *btConfigProvider) BuildWidget() gtk.Widgetter {
 	// Device list
 	b.deviceList = gtk.NewBox(gtk.OrientationVertical, 0)
 	b.deviceList.AddCSSClass("conn-list")
+	b.deviceKL = gtkutil.NewKeyedList(b.deviceList, false,
+		func(dev state.BluetoothDevice) gtk.Widgetter {
+			return b.buildDeviceRow(dev)
+		},
+		nil,
+	)
 	box.Append(b.deviceList)
 
 	// Initial load
@@ -215,23 +222,7 @@ func (b *btConfigProvider) refreshDevices() {
 		return
 	}
 	glib.IdleAdd(func() {
-		// Clear existing
-		for child := b.deviceList.FirstChild(); child != nil; child = b.deviceList.FirstChild() {
-			b.deviceList.Remove(child)
-		}
-
-		if len(devices) == 0 {
-			empty := gtk.NewLabel("No devices found")
-			empty.AddCSSClass("conn-row-label")
-			empty.SetHAlign(gtk.AlignCenter)
-			empty.SetMarginTop(12)
-			b.deviceList.Append(empty)
-			return
-		}
-
-		for _, dev := range devices {
-			b.deviceList.Append(b.buildDeviceRow(dev))
-		}
+		b.deviceKL.Update(devices)
 	})
 }
 
@@ -307,7 +298,7 @@ func (b *btConfigProvider) monitorSignals() {
 
 	for sig := range ch {
 		// Filter to BlueZ signals
-		if sig.Path != bluezAdapter && !isDevicePath(sig.Path) {
+		if sig.Path != bluezAdapter && !isBlueZDevicePath(sig.Path) {
 			continue
 		}
 		// Drain queued signals before handling.
@@ -324,7 +315,7 @@ func (b *btConfigProvider) monitorSignals() {
 	}
 }
 
-func isDevicePath(path dbus.ObjectPath) bool {
+func isBlueZDevicePath(path dbus.ObjectPath) bool {
 	return strings.HasPrefix(string(path), "/org/bluez/hci0/dev_")
 }
 

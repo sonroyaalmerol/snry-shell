@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"strings"
 	"sync"
 
 	"github.com/godbus/dbus/v5"
@@ -50,10 +51,8 @@ func (s *Service) Run(ctx context.Context) error {
 	if err := s.conn.AddMatchSignal(
 		dbus.WithMatchInterface("org.freedesktop.DBus.Properties"),
 		dbus.WithMatchMember("PropertiesChanged"),
-		dbus.WithMatchObjectPath(bluezAdapter),
 	); err != nil {
 		log.Printf("[bluetooth] AddMatchSignal: %v", err)
-
 	}
 	for {
 		select {
@@ -63,11 +62,7 @@ func (s *Service) Run(ctx context.Context) error {
 			if !ok {
 				return nil
 			}
-			// godbus delivers ALL matching signals to every registered channel,
-			// so we must filter here to ignore non-BlueZ signals (e.g. NetworkManager).
-			// Note: sig.Sender is the unique bus name (e.g. ":1.3"), not the
-			// well-known name, so we filter by object path only.
-			if sig.Path != bluezAdapter {
+			if sig.Path != bluezAdapter && !isBlueZDevicePath(sig.Path) {
 				continue
 			}
 			log.Printf("[bluetooth] Run: received D-Bus signal: %v", sig)
@@ -241,4 +236,8 @@ func (s *Service) DisconnectDevice(addr string) error {
 func (s *Service) SetTrusted(devicePath string, trusted bool) error {
 	obj := s.conn.Object(bluezService, dbus.ObjectPath(devicePath))
 	return obj.SetProperty("org.bluez.Device1.Trusted", dbus.MakeVariant(trusted))
+}
+
+func isBlueZDevicePath(path dbus.ObjectPath) bool {
+	return strings.HasPrefix(string(path), "/org/bluez/hci0/dev_")
 }
