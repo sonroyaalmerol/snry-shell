@@ -40,40 +40,73 @@ const (
 	TopicDarkMode         Topic = "darkmode"
 	TopicNetworkManager   Topic = "networkmanager"
 	TopicIdleInhibit      Topic = "idleinhibit"
-	TopicOSKState        Topic = "oskstate"
+	TopicOSKState         Topic = "oskstate"
 )
 
 type Event struct {
 	Topic Topic
 	Data  any
 }
+
 type Handler func(Event)
+
 type Publisher interface{ Publish(topic Topic, data any) }
 
-type Bus struct {
-	mu       sync.RWMutex
-	handlers map[Topic][]Handler
-	last     map[Topic]Event // last published event per topic for replay
+type UnsubscribeFunc func()
+
+type entry struct {
+	id uint64
+	h  Handler
 }
 
-func New() *Bus { return &Bus{handlers: make(map[Topic][]Handler), last: make(map[Topic]Event)} }
-func (b *Bus) Subscribe(topic Topic, h Handler) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	b.handlers[topic] = append(b.handlers[topic], h)
-	// Replay last event so late subscribers get current state.
-	if ev, ok := b.last[topic]; ok {
-		h(ev)
+type Bus struct {
+	mu     sync.RWMutex
+	subs   map[Topic][]entry
+	last   map[Topic]Event
+	nextID uint64
+}
+
+func New() *Bus {
+	return &Bus{
+		subs: make(map[Topic][]entry),
+		last: make(map[Topic]Event),
 	}
 }
+
+func (b *Bus) Subscribe(topic Topic, h Handler) UnsubscribeFunc {
+	b.mu.Lock()
+	id := b.nextID
+	b.nextID++
+	b.subs[topic] = append(b.subs[topic], entry{id: id, h: h})
+	ev, ok := b.last[topic]
+	b.mu.Unlock()
+
+	if ok {
+		h(ev)
+	}
+
+	return func() {
+		b.mu.Lock()
+		defer b.mu.Unlock()
+		entries := b.subs[topic]
+		for i, e := range entries {
+			if e.id == id {
+				b.subs[topic] = append(entries[:i], entries[i+1:]...)
+				return
+			}
+		}
+	}
+}
+
 func (b *Bus) Publish(topic Topic, data any) {
 	b.mu.Lock()
 	ev := Event{Topic: topic, Data: data}
 	b.last[topic] = ev
-	handlers := make([]Handler, len(b.handlers[topic]))
-	copy(handlers, b.handlers[topic])
+	entries := make([]entry, len(b.subs[topic]))
+	copy(entries, b.subs[topic])
 	b.mu.Unlock()
-	for _, h := range handlers {
-		h(ev)
+
+	for _, e := range entries {
+		e.h(ev)
 	}
 }

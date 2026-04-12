@@ -58,14 +58,12 @@ type Service struct {
 	evdevAvailable bool
 }
 
-// New creates the service.  hasTouch should reflect whether a touchscreen
-// is available (used as a fallback in auto mode).
-func New(b *bus.Bus, conn dbusutil.DBusConn, cfg settings.Config, hasTouch bool) *Service {
+// New creates the service. Touch device detection runs in Run().
+func New(b *bus.Bus, conn dbusutil.DBusConn, cfg settings.Config, _ bool) *Service {
 	s := &Service{
-		bus:      b,
-		conn:     conn,
-		mode:     cfg.InputMode,
-		hasTouch: hasTouch,
+		bus:  b,
+		conn: conn,
+		mode: cfg.InputMode,
 	}
 	if s.mode == "" {
 		s.mode = "auto"
@@ -76,6 +74,9 @@ func New(b *bus.Bus, conn dbusutil.DBusConn, cfg settings.Config, hasTouch bool)
 // Run starts evdev monitoring, logind monitoring, keyboard activity monitoring
 // and the system-controls listener.  Blocks until ctx is cancelled.
 func (s *Service) Run(ctx context.Context) error {
+	// Detect touch device availability up front.
+	s.hasTouch = detectTouchDevice()
+
 	go s.monitorLogind(ctx)
 	go s.monitorEvdevSwitches(ctx)
 	go s.monitorKeyboard(ctx)
@@ -89,22 +90,21 @@ func (s *Service) Run(ctx context.Context) error {
 
 	s.bus.Subscribe(bus.TopicSettingsChanged, func(e bus.Event) {
 		if cfg, ok := e.Data.(settings.Config); ok {
+			changed := false
 			s.mu.Lock()
 			if s.mode != cfg.InputMode {
 				s.mode = cfg.InputMode
 				if s.mode == "" {
 					s.mode = "auto"
 				}
-				s.mu.Unlock()
+				changed = true
+			}
+			s.mu.Unlock()
+			if changed {
 				s.publish()
-			} else {
-				s.mu.Unlock()
 			}
 		}
 	})
-
-	// Detect initial touch state.
-	s.hasTouch = detectTouchDevice()
 
 	// Publish initial state immediately so late subscribers get the saved mode.
 	s.publish()
@@ -119,14 +119,14 @@ func (s *Service) Run(ctx context.Context) error {
 // SetMode changes the input mode, persists it, and republishes.
 func (s *Service) SetMode(mode string) {
 	s.mu.Lock()
-	defer s.mu.Unlock()
-
 	switch mode {
 	case "auto", "tablet", "desktop":
 		s.mode = mode
 	default:
+		s.mu.Unlock()
 		return
 	}
+	s.mu.Unlock()
 
 	if err := s.persist(); err != nil {
 		log.Printf("[inputmode] persist: %v", err)
@@ -140,43 +140,51 @@ func (s *Service) persist() error {
 	if err != nil {
 		return err
 	}
+	s.mu.Lock()
 	cfg.InputMode = s.mode
+	s.mu.Unlock()
 	return settings.Save(cfg)
 }
 
-// publish calculates the effective tablet-mode boolean and publishes to the bus.
+// publish snapshots all guarded fields under the lock, then publishes.
 func (s *Service) publish() {
+	s.mu.Lock()
+	mode := s.mode
+	evdevAvail := s.evdevAvailable
+	evdevTab := s.evdevTablet
+	logind := s.logindMode
+	kb := s.kbActive
+	touch := s.hasTouch
+	s.mu.Unlock()
+
 	tablet := false
-	switch s.mode {
+	switch mode {
 	case "tablet":
 		tablet = true
 	case "desktop":
 		tablet = false
 	case "auto":
-		// Priority: evdev SW_TABLET_MODE > logind > keyboard heuristic
-		if s.evdevAvailable {
-			tablet = s.evdevTablet
+		if evdevAvail {
+			tablet = evdevTab
 		} else {
-			switch s.logindMode {
+			switch logind {
 			case "enabled":
 				tablet = true
 			case "disabled":
 				tablet = false
-			default: // "indeterminate"
-				tablet = !s.kbActive && s.hasTouch
+			default:
+				tablet = !kb && touch
 			}
 		}
 	}
 	log.Printf("[inputmode] mode=%s evdev=%v(logind=%s) kb=%v touch=%v → tablet=%v",
-		s.mode, s.evdevTablet, s.logindMode, s.kbActive, s.hasTouch, tablet)
+		mode, evdevTab, logind, kb, touch, tablet)
 	s.bus.Publish(bus.TopicTabletMode, tablet)
-	s.bus.Publish(bus.TopicInputMode, s.mode)
+	s.bus.Publish(bus.TopicInputMode, mode)
 }
 
 // ── evdev switch monitor ─────────────────────────────────────────────────────
 
-// monitorEvdevSwitches finds all devices that support EV_SW + SW_TABLET_MODE,
-// reads their initial state, then watches for changes.
 func (s *Service) monitorEvdevSwitches(ctx context.Context) {
 	paths, err := evdev.ListDevicePaths()
 	if err != nil {
@@ -196,7 +204,6 @@ func (s *Service) monitorEvdevSwitches(ctx context.Context) {
 			continue
 		}
 
-		// Check if this device specifically supports SW_TABLET_MODE
 		hasTabletMode := slices.Contains(dev.CapableEvents(evdev.EV_SW), evdev.SW_TABLET_MODE)
 		if !hasTabletMode {
 			dev.Close()
@@ -205,7 +212,6 @@ func (s *Service) monitorEvdevSwitches(ctx context.Context) {
 
 		log.Printf("[inputmode] found SW_TABLET_MODE device: %s (%s)", p.Name, p.Path)
 
-		// Read initial state
 		state, err := dev.State(evdev.EV_SW)
 		if err != nil {
 			log.Printf("[inputmode] evdev state read: %v", err)
@@ -217,30 +223,29 @@ func (s *Service) monitorEvdevSwitches(ctx context.Context) {
 			s.publish()
 		}
 
-		// Monitor for changes in a goroutine
+		dev.NonBlock()
 		go s.readSwitchEvents(ctx, dev)
-		// Only monitor the first device with SW_TABLET_MODE
 		return
 	}
 
 	log.Printf("[inputmode] no SW_TABLET_MODE device found, using logind/heuristic fallback")
 }
 
-// readSwitchEvents reads events from an evdev switch device, looking for
-// SW_TABLET_MODE changes.
 func (s *Service) readSwitchEvents(ctx context.Context, dev *evdev.InputDevice) {
 	defer dev.Close()
 
 	for {
-		select {
-		case <-ctx.Done():
-			return
-		default:
-		}
-
+		// NonBlock so ctx cancellation can interrupt the read loop.
 		event, err := dev.ReadOne()
 		if err != nil {
-			return
+			select {
+			case <-ctx.Done():
+				return
+			default:
+				// No event available right now; brief sleep to avoid busy-spin.
+				time.Sleep(50 * time.Millisecond)
+				continue
+			}
 		}
 		if event.Type == evdev.EV_SW && event.Code == evdev.SW_TABLET_MODE {
 			s.mu.Lock()
@@ -341,6 +346,7 @@ func (s *Service) monitorKeyboard(ctx context.Context) {
 	log.Printf("[inputmode] monitoring %d keyboard device(s)", len(devices))
 
 	for _, dev := range devices {
+		dev.NonBlock()
 		go s.readKeyboard(ctx, dev)
 	}
 }
@@ -349,15 +355,16 @@ func (s *Service) readKeyboard(ctx context.Context, dev *evdev.InputDevice) {
 	defer dev.Close()
 
 	for {
-		select {
-		case <-ctx.Done():
-			return
-		default:
-		}
-
+		// NonBlock so ctx cancellation can interrupt the read loop.
 		event, err := dev.ReadOne()
 		if err != nil {
-			return
+			select {
+			case <-ctx.Done():
+				return
+			default:
+				time.Sleep(50 * time.Millisecond)
+				continue
+			}
 		}
 		if event.Type == evdev.EV_KEY && event.Value == 1 {
 			s.onKeyboardActivity()
@@ -368,8 +375,6 @@ func (s *Service) readKeyboard(ctx context.Context, dev *evdev.InputDevice) {
 func (s *Service) onKeyboardActivity() {
 	s.mu.Lock()
 	s.kbActive = true
-	s.mu.Unlock()
-
 	if s.kbTimer != nil {
 		s.kbTimer.Stop()
 	}
@@ -379,14 +384,12 @@ func (s *Service) onKeyboardActivity() {
 		s.mu.Unlock()
 		s.publish()
 	})
+	s.mu.Unlock()
 	s.publish()
 }
 
 // ── evdev device helpers ────────────────────────────────────────────────────
 
-// findPhysicalKeyboardDevices uses go-evdev to enumerate input devices and
-// returns opened devices that are physical keyboards (EV_KEY with typical
-// keyboard codes, excluding virtual devices).
 func findPhysicalKeyboardDevices() []*evdev.InputDevice {
 	paths, err := evdev.ListDevicePaths()
 	if err != nil {
@@ -405,14 +408,12 @@ func findPhysicalKeyboardDevices() []*evdev.InputDevice {
 			continue
 		}
 
-		// Check if device supports EV_KEY
 		hasKey := slices.Contains(dev.CapableTypes(), evdev.EV_KEY)
 		if !hasKey {
 			dev.Close()
 			continue
 		}
 
-		// Check for KEY_A (0x1e) as indicator of a real keyboard
 		hasKeyA := slices.Contains(dev.CapableEvents(evdev.EV_KEY), 0x1e)
 		if !hasKeyA {
 			dev.Close()
@@ -424,7 +425,6 @@ func findPhysicalKeyboardDevices() []*evdev.InputDevice {
 	return devices
 }
 
-// detectTouchDevice uses go-evdev to check for touch device availability.
 func detectTouchDevice() bool {
 	paths, err := evdev.ListDevicePaths()
 	if err != nil {
