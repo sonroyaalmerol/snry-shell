@@ -78,11 +78,11 @@ func (s *Service) Run(ctx context.Context) error {
 
 func (s *Service) poll() error {
 	s.mu.Lock()
+	defer s.mu.Unlock()
 
 	obj := s.conn.Object(bluezService, bluezAdapter)
 	poweredV, err := obj.GetProperty(bluezIface + ".Powered")
 	if err != nil {
-		s.mu.Unlock()
 		log.Printf("[bluetooth] poll GetProperty error: %v", err)
 		return fmt.Errorf("bluetooth poll: %w", err)
 	}
@@ -105,7 +105,7 @@ func (s *Service) poll() error {
 
 	bs := state.BluetoothState{Powered: powered}
 	if powered {
-		devices, err := s.getDevicesLocked()
+		devices, err := s.GetDevices()
 		if err == nil {
 			for _, d := range devices {
 				if d.Connected {
@@ -116,8 +116,6 @@ func (s *Service) poll() error {
 			}
 		}
 	}
-	s.mu.Unlock()
-
 	s.bus.Publish(bus.TopicBluetooth, bs)
 	return nil
 }
@@ -165,18 +163,6 @@ func (s *Service) StartScan() error {
 
 // GetDevices returns all known Bluetooth devices.
 func (s *Service) GetDevices() ([]state.BluetoothDevice, error) {
-	s.mu.Lock()
-	devices, err := s.getDevicesLocked()
-	s.mu.Unlock()
-	if err == nil {
-		s.bus.Publish(bus.TopicBluetoothDevices, devices)
-		log.Printf("[bluetooth] GetDevices: published %d devices", len(devices))
-	}
-	return devices, err
-}
-
-// getDevicesLocked returns all known Bluetooth devices. Caller must hold s.mu.
-func (s *Service) getDevicesLocked() ([]state.BluetoothDevice, error) {
 	managed := s.conn.Object(bluezService, "/")
 	var result map[dbus.ObjectPath]map[string]map[string]dbus.Variant
 	err := managed.Call("org.freedesktop.DBus.ObjectManager.GetManagedObjects", 0).Store(&result)
@@ -224,7 +210,8 @@ func (s *Service) getDevicesLocked() ([]state.BluetoothDevice, error) {
 		})
 	}
 
-	log.Printf("[bluetooth] getDevicesLocked: found %d devices", len(devices))
+	s.bus.Publish(bus.TopicBluetoothDevices, devices)
+		log.Printf("[bluetooth] GetDevices: published %d devices", len(devices))
 	return devices, nil
 }
 
