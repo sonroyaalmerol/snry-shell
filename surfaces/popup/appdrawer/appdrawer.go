@@ -242,9 +242,7 @@ func (d *AppDrawer) populateGrid(apps []launcher.App) {
 		emptyBox.SetHAlign(gtk.AlignCenter)
 		emptyBox.SetVAlign(gtk.AlignCenter)
 
-		emptyIcon := gtkutil.MaterialIcon("search_off")
-		emptyIcon.AddCSSClass("appdrawer-empty-icon")
-		emptyIcon.AddCSSClass("material-icon")
+		emptyIcon := gtkutil.MaterialIcon("search_off", "appdrawer-empty-icon")
 
 		emptyLabel := gtk.NewLabel("No apps found")
 		emptyLabel.AddCSSClass("appdrawer-empty-text")

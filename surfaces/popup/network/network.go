@@ -46,10 +46,7 @@ func New(app *gtk.Application, b *bus.Bus, refs *servicerefs.ServiceRefs, trigge
 	panel.SetSizeRequest(panelWidth, -1)
 
 	// Header
-	header := gtk.NewLabel("Network")
-	header.AddCSSClass("popup-header")
-	header.SetHAlign(gtk.AlignStart)
-	panel.Append(header)
+	panel.Append(gtkutil.HeaderBar("Network", ""))
 
 	n.scroll = gtk.NewScrolledWindow()
 	n.scroll.SetPolicy(gtk.PolicyNever, gtk.PolicyAutomatic)

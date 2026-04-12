@@ -45,10 +45,7 @@ func New(app *gtk.Application, b *bus.Bus, refs *servicerefs.ServiceRefs, trigge
 	panel.SetSizeRequest(panelWidth, -1)
 
 	// Header
-	header := gtk.NewLabel("Calendar")
-	header.AddCSSClass("popup-header")
-	header.SetHAlign(gtk.AlignStart)
-	panel.Append(header)
+	panel.Append(gtkutil.HeaderBar("Calendar", ""))
 
 	cal.scroll = gtk.NewScrolledWindow()
 	cal.scroll.SetPolicy(gtk.PolicyNever, gtk.PolicyAutomatic)
