@@ -1,6 +1,8 @@
 package widgets
 
 import (
+	"context"
+
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 	"github.com/sonroyaalmerol/snry-shell/internal/bus"
@@ -96,7 +98,7 @@ func NewNetworkWidget(b *bus.Bus, refs *servicerefs.ServiceRefs, parent *gtk.App
 
 	rescan := func() {
 		if refs.Network != nil {
-			go refs.Network.ScanWiFi()
+			go refs.Network.ScanWiFi(context.Background())
 		}
 	}
 
@@ -130,7 +132,7 @@ func NewNetworkWidget(b *bus.Bus, refs *servicerefs.ServiceRefs, parent *gtk.App
 		}
 		scanBtn.SetSensitive(false)
 		scanBtn.SetChild(gtkutil.M3Spinner())
-		go refs.Network.ScanWiFi()
+		go refs.Network.ScanWiFi(context.Background())
 	})
 	scanBtnWrapper := gtk.NewBox(gtk.OrientationHorizontal, 0)
 	scanBtnWrapper.SetHAlign(gtk.AlignEnd)
@@ -139,7 +141,7 @@ func NewNetworkWidget(b *bus.Bus, refs *servicerefs.ServiceRefs, parent *gtk.App
 
 	// Scan on creation.
 	if refs.Network != nil {
-		go refs.Network.ScanWiFi()
+		go refs.Network.ScanWiFi(context.Background())
 	}
 
 	b.Subscribe(bus.TopicWiFiNetworks, func(e bus.Event) {

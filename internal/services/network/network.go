@@ -13,12 +13,11 @@ import (
 )
 
 const (
-	nmDest            = "org.freedesktop.NetworkManager"
-	nmPath            = "/org/freedesktop/NetworkManager"
-	nmIface           = "org.freedesktop.NetworkManager"
-	nmDeviceWireless  = "org.freedesktop.NetworkManager.Device.Wireless"
-	nmAccessPoint     = "org.freedesktop.NetworkManager.AccessPoint"
-	nmPropertiesIface = "org.freedesktop.DBus.Properties"
+	nmDest           = "org.freedesktop.NetworkManager"
+	nmPath           = "/org/freedesktop/NetworkManager"
+	nmIface          = "org.freedesktop.NetworkManager"
+	nmDeviceWireless = "org.freedesktop.NetworkManager.Device.Wireless"
+	nmAccessPoint    = "org.freedesktop.NetworkManager.AccessPoint"
 )
 
 const (
@@ -50,8 +49,46 @@ func (s *Service) Run(ctx context.Context) error {
 	// Emit initial state for subscribers.
 	s.query()
 
+	// Monitor D-Bus signals for live updates.
+	go s.monitorSignals(ctx)
+
 	<-ctx.Done()
 	return ctx.Err()
+}
+
+func (s *Service) monitorSignals(ctx context.Context) {
+	if s.conn == nil {
+		return
+	}
+
+	ch := make(chan *dbus.Signal, 32)
+	s.conn.Signal(ch)
+	defer s.conn.RemoveSignal(ch)
+
+	busObj := s.conn.BusObject()
+	busObj.Call("org.freedesktop.DBus.AddMatch", 0,
+		"type='signal',sender='"+nmDest+"',interface='org.freedesktop.DBus.Properties',member='PropertiesChanged'")
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case _, ok := <-ch:
+			if !ok {
+				return
+			}
+			// Drain queued signals before handling.
+			drain:
+			for {
+				select {
+				case <-ch:
+				default:
+					break drain
+				}
+			}
+			s.query()
+		}
+	}
 }
 
 func (s *Service) query() {
@@ -94,18 +131,23 @@ func (s *Service) fetchState() (state.NetworkState, error) {
 	}
 
 	if primaryPath != "/" {
-		primaryConnObj := s.conn.Object(nmDest, primaryPath)
-		var connSettings map[string]map[string]dbus.Variant
-		if err := primaryConnObj.Call("org.freedesktop.NetworkManager.Settings.Connection.GetSettings", 0).Store(&connSettings); err == nil {
-			if c, ok := connSettings["connection"]; ok {
-				activeName, _ = c["id"].Value().(string)
-				rawType, _ := c["type"].Value().(string)
-				if rawType == "802-11-wireless" {
-					connType = "wifi"
-				} else if rawType == "802-3-ethernet" {
-					connType = "ethernet"
-				} else {
-					connType = rawType
+		// Resolve the settings path from the active connection.
+		acObj := s.conn.Object(nmDest, primaryPath)
+		settingsPathV, _ := acObj.GetProperty("org.freedesktop.NetworkManager.Connection.Active.Connection")
+		if settingsPath, ok := settingsPathV.Value().(dbus.ObjectPath); ok && settingsPath != "/" {
+			settingsObj := s.conn.Object(nmDest, settingsPath)
+			var connSettings map[string]map[string]dbus.Variant
+			if err := settingsObj.Call("org.freedesktop.NetworkManager.Settings.Connection.GetSettings", 0).Store(&connSettings); err == nil {
+				if c, ok := connSettings["connection"]; ok {
+					activeName, _ = c["id"].Value().(string)
+					rawType, _ := c["type"].Value().(string)
+					if rawType == "802-11-wireless" {
+						connType = "wifi"
+					} else if rawType == "802-3-ethernet" {
+						connType = "ethernet"
+					} else {
+						connType = rawType
+					}
 				}
 			}
 		}
@@ -122,8 +164,8 @@ func (s *Service) fetchState() (state.NetworkState, error) {
 							if apPath, ok := apV.Value().(dbus.ObjectPath); ok && apPath != "/" {
 								apObj := s.conn.Object(nmDest, apPath)
 								if strV, err := apObj.GetProperty(nmAccessPoint + ".Strength"); err == nil {
-									if s, ok := strV.Value().(uint8); ok {
-										strength = int(s)
+									if v, ok := strV.Value().(uint8); ok {
+										strength = int(v)
 									}
 								}
 							}
@@ -158,8 +200,10 @@ func (s *Service) fetchState() (state.NetworkState, error) {
 	}
 
 	// Get wireless enabled state.
-	wirelessV, err := nmObj.GetProperty(nmIface + ".WirelessEnabled")
-	wirelessEnabled, _ := wirelessV.Value().(bool)
+	var wirelessEnabled bool
+	if wirelessV, err := nmObj.GetProperty(nmIface + ".WirelessEnabled"); err == nil {
+		wirelessEnabled, _ = wirelessV.Value().(bool)
+	}
 
 	return state.NetworkState{
 		Type:                 connType,
@@ -235,15 +279,19 @@ func (s *Service) wifiDevicePaths() ([]dbus.ObjectPath, error) {
 
 // ScanWiFi requests a WiFi scan and returns available networks.
 // It always publishes to TopicWiFiNetworks so the widget can update.
-func (s *Service) ScanWiFi() ([]state.WiFiNetwork, error) {
+func (s *Service) ScanWiFi(ctx context.Context) ([]state.WiFiNetwork, error) {
 	networks := []state.WiFiNetwork{}
 	defer func() { s.bus.Publish(bus.TopicWiFiNetworks, networks) }()
+
+	if s.conn == nil {
+		return networks, fmt.Errorf("no D-Bus connection")
+	}
 
 	// Build saved SSID set.
 	savedSet := make(map[string]bool)
 	if saved, err := s.GetSavedSSIDs(); err == nil {
-		for _, s := range saved {
-			savedSet[s] = true
+		for _, ssid := range saved {
+			savedSet[ssid] = true
 		}
 	}
 
@@ -254,16 +302,21 @@ func (s *Service) ScanWiFi() ([]state.WiFiNetwork, error) {
 
 	seen := make(map[string]bool)
 
-	// Request scan on all WiFi devices, then wait for NM to discover APs.
+	// Request scan on all WiFi devices.
 	for _, p := range paths {
 		devObj := s.conn.Object(nmDest, p)
 		err := devObj.Call(nmDeviceWireless+".RequestScan", 0, map[string]dbus.Variant{}).Err
 		log.Printf("[network] RequestScan on %s: %v", p, err)
 	}
-	time.Sleep(3 * time.Second)
 
-	// Get currently connected SSID after scan wait so connection
-	// changes (e.g. switching networks) are reflected.
+	// Wait for scan to complete, respecting context cancellation.
+	select {
+	case <-time.After(3 * time.Second):
+	case <-ctx.Done():
+		return networks, ctx.Err()
+	}
+
+	// Get currently connected SSID after scan wait.
 	currentSSID := ""
 	if ns, err := s.fetchState(); err == nil {
 		currentSSID = ns.SSID
@@ -291,16 +344,16 @@ func (s *Service) ScanWiFi() ([]state.WiFiNetwork, error) {
 			if !ok {
 				continue
 			}
-			ssid := string(ssidBytes)
-			if ssid == "" || seen[ssid] {
+			apSSID := string(ssidBytes)
+			if apSSID == "" || seen[apSSID] {
 				continue
 			}
-			seen[ssid] = true
+			seen[apSSID] = true
 
-			strength := 0
+			sig := 0
 			if strV, err := apObj.GetProperty(nmAccessPoint + ".Strength"); err == nil {
 				if v, ok := strV.Value().(uint8); ok {
-					strength = int(v)
+					sig = int(v)
 				}
 			}
 
@@ -319,11 +372,11 @@ func (s *Service) ScanWiFi() ([]state.WiFiNetwork, error) {
 			}
 
 			networks = append(networks, state.WiFiNetwork{
-				SSID:      ssid,
-				Signal:    int(strength),
+				SSID:      apSSID,
+				Signal:    sig,
 				Security:  security,
-				Connected: ssid == currentSSID,
-				Saved:     savedSet[ssid],
+				Connected: apSSID == currentSSID,
+				Saved:     savedSet[apSSID],
 			})
 		}
 	}
@@ -331,7 +384,12 @@ func (s *Service) ScanWiFi() ([]state.WiFiNetwork, error) {
 	log.Printf("[network] ScanWiFi: returning %d networks, current SSID=%q", len(networks), currentSSID)
 	return networks, nil
 }
+
 func (s *Service) ConnectWiFi(ssid string) error {
+	if s.conn == nil {
+		return fmt.Errorf("no D-Bus connection")
+	}
+
 	settingsObj := s.conn.Object(nmDest, "/org/freedesktop/NetworkManager/Settings")
 	connsV, err := settingsObj.GetProperty("org.freedesktop.NetworkManager.Settings.Connections")
 	if err != nil {
@@ -364,39 +422,17 @@ func (s *Service) ConnectWiFi(ssid string) error {
 		return fmt.Errorf("no existing connection for SSID %q", ssid)
 	}
 
-	// Find the wireless device to use
-	nmObj := s.conn.Object(nmDest, nmPath)
-	devicesV, err := nmObj.GetProperty(nmIface + ".Devices")
+	// Find the wireless device to use (reuse wifiDevicePaths).
+	wifiPaths, err := s.wifiDevicePaths()
 	if err != nil {
-		return fmt.Errorf("failed to get devices: %w", err)
+		return err
 	}
-
-	devicePaths, ok := devicesV.Value().([]dbus.ObjectPath)
-	if !ok || len(devicePaths) == 0 {
-		return fmt.Errorf("no network devices found")
-	}
-
-	// Find the first wireless device
-	var wirelessDevice dbus.ObjectPath
-	for _, devPath := range devicePaths {
-		devObj := s.conn.Object(nmDest, devPath)
-		dtV, err := devObj.GetProperty("org.freedesktop.NetworkManager.Device.DeviceType")
-		if err != nil {
-			continue
-		}
-		if dt, ok := dtV.Value().(uint32); ok && dt == 2 { // 2 = NM_DEVICE_TYPE_WIFI
-			wirelessDevice = devPath
-			break
-		}
-	}
-
-	if wirelessDevice == "" {
+	if len(wifiPaths) == 0 {
 		return fmt.Errorf("no wireless device found")
 	}
 
-	// Activate the connection on the specific device
-	// This properly switches from one network to another
-	call := nmObj.Call(nmIface+".ActivateConnection", 0, targetConn, wirelessDevice, dbus.ObjectPath("/"))
+	nmObj := s.conn.Object(nmDest, nmPath)
+	call := nmObj.Call(nmIface+".ActivateConnection", 0, targetConn, wifiPaths[0], dbus.ObjectPath("/"))
 	if call.Err != nil {
 		return fmt.Errorf("failed to activate connection: %w", call.Err)
 	}
@@ -423,6 +459,9 @@ func (s *Service) DisconnectWiFi() error {
 
 // ForgetWiFi removes the saved connection profile for the given SSID.
 func (s *Service) ForgetWiFi(ssid string) error {
+	if s.conn == nil {
+		return fmt.Errorf("no D-Bus connection")
+	}
 	settingsObj := s.conn.Object(nmDest, "/org/freedesktop/NetworkManager/Settings")
 	connsV, err := settingsObj.GetProperty("org.freedesktop.NetworkManager.Settings.Connections")
 	if err != nil {
@@ -535,6 +574,9 @@ func (s *Service) findWifiDevicePath() (dbus.ObjectPath, error) {
 
 // GetSavedSSIDs returns the SSIDs of all saved WiFi connections.
 func (s *Service) GetSavedSSIDs() ([]string, error) {
+	if s.conn == nil {
+		return nil, fmt.Errorf("no D-Bus connection")
+	}
 	settingsObj := s.conn.Object(nmDest, "/org/freedesktop/NetworkManager/Settings")
 	connsV, err := settingsObj.GetProperty("org.freedesktop.NetworkManager.Settings.Connections")
 	if err != nil {
@@ -565,6 +607,9 @@ func (s *Service) GetSavedSSIDs() ([]string, error) {
 
 // GetAllConnections returns all connection profiles from NetworkManager.
 func (s *Service) GetAllConnections() ([]state.NMConnection, error) {
+	if s.conn == nil {
+		return nil, fmt.Errorf("no D-Bus connection")
+	}
 	settingsObj := s.conn.Object(nmDest, "/org/freedesktop/NetworkManager/Settings")
 	connsV, err := settingsObj.GetProperty("org.freedesktop.NetworkManager.Settings.Connections")
 	if err != nil {
@@ -756,18 +801,27 @@ func (s *Service) DeactivateConnection(connPath string) error {
 
 // DeleteConnection removes a saved connection profile.
 func (s *Service) DeleteConnection(connPath string) error {
+	if s.conn == nil {
+		return fmt.Errorf("no D-Bus connection")
+	}
 	connObj := s.conn.Object(nmDest, dbus.ObjectPath(connPath))
 	return connObj.Call("org.freedesktop.NetworkManager.Settings.Connection.Delete", 0).Err
 }
 
 // UpdateConnection updates a connection's settings.
 func (s *Service) UpdateConnection(connPath string, settings map[string]map[string]dbus.Variant) error {
+	if s.conn == nil {
+		return fmt.Errorf("no D-Bus connection")
+	}
 	connObj := s.conn.Object(nmDest, dbus.ObjectPath(connPath))
 	return connObj.Call("org.freedesktop.NetworkManager.Settings.Connection.Update", 0, settings).Err
 }
 
 // AddConnection adds a new connection profile.
 func (s *Service) AddConnection(settings map[string]map[string]dbus.Variant) (string, error) {
+	if s.conn == nil {
+		return "", fmt.Errorf("no D-Bus connection")
+	}
 	settingsObj := s.conn.Object(nmDest, "/org/freedesktop/NetworkManager/Settings")
 	var newPath dbus.ObjectPath
 	err := settingsObj.Call("org.freedesktop.NetworkManager.Settings.AddConnection", 0, settings).Store(&newPath)
@@ -793,15 +847,18 @@ func (s *Service) GetHostname() (string, error) {
 
 // SetHostname sets the system hostname.
 func (s *Service) SetHostname(hostname string) error {
-	nmObj := s.conn.Object(nmDest, nmPath)
-	if nmObj == nil {
+	if s.conn == nil {
 		return fmt.Errorf("no D-Bus connection")
 	}
-	return nmObj.SetProperty(nmIface+".Hostname", dbus.MakeVariant(hostname))
+	settingsObj := s.conn.Object(nmDest, "/org/freedesktop/NetworkManager/Settings")
+	return settingsObj.Call("org.freedesktop.NetworkManager.Settings.SaveHostname", 0, hostname).Err
 }
 
 // SetAutoconnect enables/disables autoconnect for a connection.
 func (s *Service) SetAutoconnect(connPath string, autoconnect bool) error {
+	if s.conn == nil {
+		return fmt.Errorf("no D-Bus connection")
+	}
 	connObj := s.conn.Object(nmDest, dbus.ObjectPath(connPath))
 	// Get current settings
 	var settings map[string]map[string]dbus.Variant
