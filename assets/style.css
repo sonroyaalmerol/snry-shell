@@ -99,14 +99,11 @@
     --elevation-3: 0 8px 24px alpha(#000000, 0.25);
     --elevation-4: 0 8px 32px alpha(#000000, 0.30);
 
-    /* Spacing */
-    --spacing-xxs: 2px;
-    --spacing-xs:  4px;
-    --spacing-sm:  8px;
-    --spacing-md:  12px;
-    --spacing-lg:  16px;
-    --spacing-xl:  24px;
-    --spacing-xxl: 48px;
+    /* Spacing tokens (4dp grid) */
+    --space-sm: 8px;
+    --space-md: 12px;
+    --space-lg: 16px;
+    --space-xl: 24px;
 
     all: unset;
     font-family: "Google Sans Flex", "Google Sans", sans-serif;
