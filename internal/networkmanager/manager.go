@@ -82,14 +82,18 @@ type Manager struct {
 	bus  *bus.Bus
 
 	// Cached data
-	mu              sync.RWMutex
-	hostname          string
-	state             uint32
+	mu               sync.RWMutex
+	hostname         string
+	state            uint32
 	primaryConnection string
-	devices           []state.NMDevice
-	connections     []state.NMConnection
-	wifiNetworks    []state.WiFiNetwork
-	wirelessEnabled bool
+	devices          []state.NMDevice
+	connections      []state.NMConnection
+	wifiNetworks     []state.WiFiNetwork
+	wirelessEnabled  bool
+
+	// refreshMu serializes refreshAll so concurrent callers
+	// (signal handler, periodic ticker, action methods) don't interleave.
+	refreshMu sync.Mutex
 
 	// Background refresh
 	refreshCtx    context.Context
@@ -203,14 +207,19 @@ func (m *Manager) periodicRefresh() {
 	}
 }
 
-// refreshAll refreshes all cached data
+// refreshAll refreshes all cached data. It is serialized by refreshMu
+// so concurrent callers (signal handler, periodic ticker) don't interleave.
 func (m *Manager) refreshAll() {
+	m.refreshMu.Lock()
+	defer m.refreshMu.Unlock()
+
 	m.refreshHostname()
 	m.refreshState()
 	m.refreshPrimaryConnection()
 	m.refreshWirelessEnabled()
-	m.refreshDevices()
+	// Connections first so devices can look up connection names.
 	m.refreshConnections()
+	m.refreshDevices()
 
 	// Publish legacy state for backward compatibility
 	if m.bus != nil {
@@ -616,9 +625,10 @@ func (m *Manager) fetchConnection(path dbus.ObjectPath) state.NMConnection {
 	// Check if connection is active
 	m.mu.RLock()
 	primary := m.primaryConnection
+	devices := m.devices
 	m.mu.RUnlock()
 
-	for _, dev := range m.devices {
+	for _, dev := range devices {
 		if dev.ActiveConnection == conn.Path {
 			conn.Active = true
 			if conn.Path == primary {
@@ -644,15 +654,14 @@ func (m *Manager) getConnectionByPath(path string) *state.NMConnection {
 	return nil
 }
 
-// SetHostname sets the system hostname
+// SetHostname sets the system hostname via NM's Settings.SaveHostname.
 func (m *Manager) SetHostname(hostname string) error {
-	nmObj := m.conn.Object(nmDest, nmPath)
-	if nmObj == nil {
+	settingsObj := m.conn.Object(nmDest, nmSettingsPath)
+	if settingsObj == nil {
 		return fmt.Errorf("no D-Bus connection")
 	}
 
-	err := nmObj.SetProperty(nmIface+".Hostname", dbus.MakeVariant(hostname))
-	if err != nil {
+	if err := settingsObj.Call(nmSettingsIface+".SaveHostname", 0, hostname).Err; err != nil {
 		return err
 	}
 
@@ -993,7 +1002,7 @@ func (m *Manager) fetchWiFiNetworks() []state.WiFiNetwork {
 			if rsnV, err := apObj.GetProperty(nmAccessPoint + ".RsnFlags"); err == nil {
 				if flags, ok := rsnV.Value().(uint32); ok && flags > 0 {
 					if security != "" {
-						security = "WPA2"
+						security = "WPA/WPA2"
 					} else {
 						security = "WPA2"
 					}
@@ -1013,7 +1022,9 @@ func (m *Manager) fetchWiFiNetworks() []state.WiFiNetwork {
 	return networks
 }
 
-// SetWirelessEnabled enables/disables WiFi
+// SetWirelessEnabled enables/disables WiFi and immediately publishes
+// both TopicNetworkManager and TopicNetwork so the bar icon updates
+// without waiting for a D-Bus PropertiesChanged round-trip.
 func (m *Manager) SetWirelessEnabled(enabled bool) error {
 	nmObj := m.conn.Object(nmDest, nmPath)
 	if nmObj == nil {
@@ -1030,6 +1041,7 @@ func (m *Manager) SetWirelessEnabled(enabled bool) error {
 	m.mu.Unlock()
 
 	if m.bus != nil {
+		m.publishLegacyState()
 		m.bus.Publish(bus.TopicNetworkManager, m.GetState())
 	}
 
@@ -1088,16 +1100,22 @@ func (m *Manager) ConnectWiFiWithPassword(ssid, password string) error {
 		return fmt.Errorf("no WiFi device found")
 	}
 
-	// Find the access point
+	// Find the access point path by scanning the device's AP list.
 	var apPath dbus.ObjectPath = "/"
-	m.mu.RLock()
-	for _, net := range m.wifiNetworks {
-		if net.SSID == ssid {
-			// Need to find the actual AP path - this is a simplification
-			break
+	devObj := m.conn.Object(nmDest, dbus.ObjectPath(devicePath))
+	if apsV, err := devObj.GetProperty(nmDeviceWireless + ".AccessPoints"); err == nil {
+		if apPaths, ok := apsV.Value().([]dbus.ObjectPath); ok {
+			for _, p := range apPaths {
+				apObj := m.conn.Object(nmDest, p)
+				if ssidV, err := apObj.GetProperty(nmAccessPoint + ".Ssid"); err == nil {
+					if b, ok := ssidV.Value().([]byte); ok && string(b) == ssid {
+						apPath = p
+						break
+					}
+				}
+			}
 		}
 	}
-	m.mu.RUnlock()
 
 	// Build connection settings
 	connection := map[string]map[string]dbus.Variant{
