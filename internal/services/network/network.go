@@ -92,14 +92,6 @@ func (s *Service) monitorSignals(ctx context.Context) {
 				}
 			}
 			s.query()
-			// NM transitions through intermediate states (connecting → connected).
-			// Re-query after a short delay to catch the final settled state.
-			select {
-			case <-ctx.Done():
-				return
-			case <-time.After(2 * time.Second):
-				s.query()
-			}
 		}
 	}
 }
@@ -230,19 +222,13 @@ func (s *Service) fetchState() (state.NetworkState, error) {
 	}, nil
 }
 
-// SetWiFi enables or disables the WiFi adapter and immediately publishes the
-// updated network state so the UI reflects the change without waiting for the
-// next D-Bus signal.
+// SetWiFi enables or disables the WiFi adapter.
 func (s *Service) SetWiFi(enabled bool) error {
 	nmObj := s.conn.Object(nmDest, nmPath)
 	if nmObj == nil {
 		return fmt.Errorf("no D-Bus connection")
 	}
-	if err := nmObj.SetProperty(nmIface+".WirelessEnabled", dbus.MakeVariant(enabled)); err != nil {
-		return err
-	}
-	s.query()
-	return nil
+	return nmObj.SetProperty(nmIface+".WirelessEnabled", dbus.MakeVariant(enabled))
 }
 
 func (s *Service) getWifiSSID(devicePath dbus.ObjectPath) (string, bool) {
@@ -456,7 +442,6 @@ func (s *Service) ConnectWiFi(ssid string) error {
 		return fmt.Errorf("failed to activate connection: %w", call.Err)
 	}
 
-	s.query()
 	return nil
 }
 
@@ -477,7 +462,6 @@ func (s *Service) DisconnectWiFi() error {
 	if err := nmObj.Call(nmIface+".DeactivateConnection", 0, primaryPath).Err; err != nil {
 		return err
 	}
-	s.query()
 	return nil
 }
 
@@ -505,9 +489,7 @@ func (s *Service) ForgetWiFi(ssid string) error {
 		if wireless, ok := settings["802-11-wireless"]; ok {
 			if sv, ok := wireless["ssid"]; ok {
 				if ssidBytes, ok := sv.Value().([]byte); ok && string(ssidBytes) == ssid {
-					err := connObj.Call("org.freedesktop.NetworkManager.Settings.Connection.Delete", 0).Err
-					s.query()
-					return err
+					return connObj.Call("org.freedesktop.NetworkManager.Settings.Connection.Delete", 0).Err
 				}
 			}
 		}
@@ -551,9 +533,7 @@ func (s *Service) ConnectWithPassword(ssid, password string) error {
 		}
 	}
 
-	callErr := s.conn.Object(nmDest, nmPath).Call(nmIface+".AddAndActivateConnection", 0, connection, devPath, apPath).Err
-	s.query()
-	return callErr
+	return s.conn.Object(nmDest, nmPath).Call(nmIface+".AddAndActivateConnection", 0, connection, devPath, apPath).Err
 }
 
 func (s *Service) findAccessPointPath(ssid string) (dbus.ObjectPath, error) {

@@ -166,6 +166,21 @@ func NewNetworkWidget(b *bus.Bus, refs *servicerefs.ServiceRefs, parent *gtk.App
 		})
 	})
 
+	// When the connected SSID changes, rescan to refresh the list with
+	// accurate connection status (the initial scan may capture stale state
+	// while the new connection is still being established).
+	var lastSSID string
+	b.Subscribe(bus.TopicNetwork, func(e bus.Event) {
+		ns, ok := e.Data.(state.NetworkState)
+		if !ok {
+			return
+		}
+		if ns.SSID != lastSSID {
+			lastSSID = ns.SSID
+			rescan()
+		}
+	})
+
 	return box
 }
 
