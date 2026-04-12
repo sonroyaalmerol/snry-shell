@@ -1,10 +1,6 @@
 package bus
 
-import (
-	"sync/atomic"
-
-	"github.com/puzpuzpuz/xsync/v4"
-)
+import "sync"
 
 type Topic string
 
@@ -64,52 +60,51 @@ type entry struct {
 }
 
 type Bus struct {
-	subs   *xsync.Map[Topic, []entry]
-	last   *xsync.Map[Topic, Event]
-	nextID atomic.Uint64
+	mu     sync.Mutex
+	subs   map[Topic][]entry
+	last   map[Topic]Event
+	nextID uint64
 }
 
 func New() *Bus {
 	return &Bus{
-		subs: xsync.NewMap[Topic, []entry](),
-		last: xsync.NewMap[Topic, Event](),
+		subs: make(map[Topic][]entry),
+		last: make(map[Topic]Event),
 	}
 }
 
 func (b *Bus) Subscribe(topic Topic, h Handler) UnsubscribeFunc {
-	id := b.nextID.Add(1)
+	b.mu.Lock()
+	id := b.nextID
+	b.nextID++
+	b.subs[topic] = append(b.subs[topic], entry{id: id, h: h})
+	ev, ok := b.last[topic]
+	b.mu.Unlock()
 
-	b.subs.Compute(topic, func(old []entry, loaded bool) ([]entry, xsync.ComputeOp) {
-		return append(old, entry{id: id, h: h}), xsync.UpdateOp
-	})
-
-	if ev, ok := b.last.Load(topic); ok {
+	if ok {
 		h(ev)
 	}
 
 	return func() {
-		b.subs.Compute(topic, func(old []entry, loaded bool) ([]entry, xsync.ComputeOp) {
-			if !loaded {
-				return nil, xsync.DeleteOp
+		b.mu.Lock()
+		defer b.mu.Unlock()
+		entries := b.subs[topic]
+		for i, e := range entries {
+			if e.id == id {
+				b.subs[topic] = append(entries[:i], entries[i+1:]...)
+				return
 			}
-			for i, e := range old {
-				if e.id == id {
-					return append(old[:i:i], old[i+1:]...), xsync.UpdateOp
-				}
-			}
-			return old, xsync.CancelOp
-		})
+		}
 	}
 }
 
 func (b *Bus) Publish(topic Topic, data any) {
+	b.mu.Lock()
 	ev := Event{Topic: topic, Data: data}
-	b.last.Store(topic, ev)
-
-	entries, ok := b.subs.Load(topic)
-	if !ok {
-		return
-	}
+	b.last[topic] = ev
+	entries := make([]entry, len(b.subs[topic]))
+	copy(entries, b.subs[topic])
+	b.mu.Unlock()
 
 	for _, e := range entries {
 		e.h(ev)
