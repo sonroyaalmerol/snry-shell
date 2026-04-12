@@ -107,15 +107,26 @@ func newNetworkIcon(b *bus.Bus) gtk.Widgetter {
 			case ns.Connected && ns.Type == "ethernet":
 				icon.SetText("settings_ethernet")
 			case ns.Connected && ns.Type == "wifi":
-				icon.SetText("wifi")
+				icon.SetText(wifiSignalIcon(ns.Strength))
 			case ns.WirelessEnabled:
-				icon.SetText("wifi_1_bar")
+				icon.SetText("network_wifi_3_bar")
 			default:
 				icon.SetText("wifi_off")
 			}
 		})
 	})
 	return icon
+}
+
+func wifiSignalIcon(signal int) string {
+	switch {
+	case signal >= 60:
+		return "network_wifi_3_bar"
+	case signal >= 30:
+		return "network_wifi_2_bar"
+	default:
+		return "wifi_1_bar"
+	}
 }
 
 // newBluetoothIcon returns a single bluetooth status icon.
