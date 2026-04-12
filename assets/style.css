@@ -181,7 +181,7 @@ scale.m3-scale slider {
     transition: background-color, box-shadow var(--duration-short3) var(--ease-emphasized-decel);
 }
 .m3-filled-btn:hover {
-    background-color: @col_primary_container;
+    box-shadow: inset 0 0 0 2000px @col_primary_container;
     color: @col_on_primary_container;
 }
 
@@ -213,7 +213,7 @@ scale.m3-scale slider {
                 border-color var(--duration-short3) var(--ease-standard-decel);
 }
 .m3-outlined-btn:hover {
-    background-color: alpha(@col_primary, 0.08);
+    box-shadow: inset 0 0 0 2000px alpha(@col_primary, 0.08);
     border-color: @col_primary;
 }
 .m3-outlined-btn:disabled {
@@ -233,7 +233,7 @@ scale.m3-scale slider {
     transition: background-color, box-shadow var(--duration-short3) var(--ease-emphasized-decel);
 }
 .m3-tonal-btn:hover {
-    background-color: alpha(@col_on_secondary_container, 0.08);
+    box-shadow: inset 0 0 0 2000px alpha(@col_on_secondary_container, 0.08);
 }
 .m3-tonal-btn:disabled {
     background-color: alpha(@col_on_surface, 0.12);
@@ -554,7 +554,7 @@ scale.m3-scale slider {
 
 .search-result-row:hover,
 .search-result-row:focus {
-    background-color: alpha(@col_secondary_container, 0.5);
+    box-shadow: inset 0 0 0 2000px alpha(@col_secondary_container, 0.5);
 }
 
 .search-result-row .app-name {
@@ -580,7 +580,7 @@ scale.m3-scale slider {
 }
 
 .window-preview-card:hover {
-    background-color: @col_surface_container_high;
+    box-shadow: inset 0 0 0 2000px @col_surface_container_high;
     box-shadow: var(--elevation-1);
 }
 
@@ -685,7 +685,7 @@ scale.m3-scale slider {
 }
 
 .windowmgmt-ws-btn.windowmgmt-ws-active:hover {
-    background-color: alpha(@col_primary, 0.9);
+    box-shadow: inset 0 0 0 2000px alpha(@col_primary, 0.9);
 }
 
 .windowmgmt-ws-btn.windowmgmt-ws-active:active {
@@ -911,7 +911,7 @@ scale.m3-scale slider {
 }
 
 .notification-card:hover {
-    background-color: @col_surface_container_high;
+    box-shadow: inset 0 0 0 2000px @col_surface_container_high;
     box-shadow: var(--elevation-2);
 }
 
@@ -921,7 +921,7 @@ scale.m3-scale slider {
 }
 
 .notification-card.urgent:hover {
-    background-color: alpha(@col_error_container, 0.9);
+    box-shadow: inset 0 0 0 2000px alpha(@col_error_container, 0.9);
 }
 
 .notification-card.urgency-low {
@@ -1160,7 +1160,7 @@ scale.osd-slider {
 }
 
 .media-btn.play-pause:hover {
-    background-color: @col_primary;
+    box-shadow: inset 0 0 0 2000px @col_primary;
     color: @col_on_primary;
 }
 
@@ -1267,7 +1267,7 @@ scale.osd-slider {
 }
 
 .cal-day.today:hover {
-    background-color: alpha(@col_primary, 0.9);
+    box-shadow: inset 0 0 0 2000px alpha(@col_primary, 0.9);
 }
 
 .cal-day.other-month {
@@ -1442,7 +1442,7 @@ scale.quick-slider {
 }
 
 .conn-row-connected:hover {
-    background-color: alpha(@col_primary_container, 0.35);
+    box-shadow: inset 0 0 0 2000px alpha(@col_primary_container, 0.35);
 }
 
 .conn-row-icon {
@@ -1540,7 +1540,7 @@ scale.quick-slider {
 }
 
 .m3-switch:checked:hover {
-    background-color: alpha(@col_primary, 0.9);
+    box-shadow: inset 0 0 0 2000px alpha(@col_primary, 0.9);
     box-shadow: none;
 }
 
@@ -1790,7 +1790,7 @@ scale.quick-slider {
 }
 
 .session-btn:hover {
-    background-color: @col_primary_container;
+    box-shadow: inset 0 0 0 2000px @col_primary_container;
     box-shadow: var(--elevation-2);
 }
 
@@ -1918,7 +1918,7 @@ popover.menu list row {
 
 popover.menu listview row:hover,
 popover.menu list row:hover {
-    background-color: alpha(@col_on_surface, 0.08);
+    box-shadow: inset 0 0 0 2000px alpha(@col_on_surface, 0.08);
 }
 
 popover.menu listview row:selected,
@@ -2094,7 +2094,7 @@ popover.menu list row:selected {
 }
 
 .popup-panel .m3-filled-btn:hover {
-    background-color: alpha(@col_primary, 0.9);
+    box-shadow: inset 0 0 0 2000px alpha(@col_primary, 0.9);
     box-shadow: var(--elevation-1);
 }
 
@@ -2411,7 +2411,7 @@ popover.menu list row:selected {
 }
 
 .m3-switch:checked:hover {
-    background-color: alpha(@col_primary, 0.9);
+    box-shadow: inset 0 0 0 2000px alpha(@col_primary, 0.9);
     box-shadow: none;
 }
 
@@ -2472,7 +2472,7 @@ popover.menu list row:selected {
 }
 
 .clipboard-row:hover {
-    background-color: alpha(@col_primary_container, 0.3);
+    box-shadow: inset 0 0 0 2000px alpha(@col_primary_container, 0.3);
 }
 
 .clipboard-preview {
@@ -2503,7 +2503,7 @@ popover.menu list row:selected {
 }
 
 .emoji-btn:hover {
-    background-color: alpha(@col_primary_container, 0.3);
+    box-shadow: inset 0 0 0 2000px alpha(@col_primary_container, 0.3);
 }
 
 .emoji-char {
@@ -2664,7 +2664,7 @@ popover.menu list row:selected {
 }
 
 .polkit-auth-btn:hover {
-    background-color: @col_primary_container;
+    box-shadow: inset 0 0 0 2000px @col_primary_container;
     color: @col_on_primary_container;
 }
 
@@ -2727,7 +2727,7 @@ popover.menu list row:selected {
 }
 
 .m3-dialog-btn-primary:hover {
-    background-color: alpha(@col_on_primary, 0.12);
+    box-shadow: inset 0 0 0 2000px alpha(@col_on_primary, 0.12);
 }
 
 .m3-dialog-btn-error {

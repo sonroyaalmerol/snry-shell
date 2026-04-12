@@ -402,7 +402,7 @@ func Run() int {
 			}
 			if tablet && touchModeProvider == nil {
 				touchModeProvider = gtk.NewCSSProvider()
-				touchModeProvider.LoadFromString("* { --state-hover: 0; --state-focus: 0; --state-press: 0; }")
+				touchModeProvider.LoadFromString("* { --state-hover: 0; --state-focus: 0; }")
 				gtk.StyleContextAddProviderForDisplay(display, touchModeProvider, gtk.STYLE_PROVIDER_PRIORITY_USER+50)
 			} else if !tablet && touchModeProvider != nil {
 				gtk.StyleContextRemoveProviderForDisplay(display, touchModeProvider)
