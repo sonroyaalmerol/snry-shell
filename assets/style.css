@@ -163,10 +163,10 @@ scale.m3-scale slider {
     color: @col_on_surface_variant;
     min-width: 32px;
     min-height: 32px;
-    transition: background-color var(--duration-short3) var(--ease-standard-decel);
+    transition: background-color, box-shadow var(--duration-short3) var(--ease-standard-decel);
 }
 .m3-icon-btn:hover {
-    background-color: alpha(@col_on_surface, var(--state-hover));
+    box-shadow: inset 0 0 0 2000px alpha(@col_on_surface, var(--state-hover));
     color: @col_on_surface;
 }
 /* Shared filled button base */
@@ -178,7 +178,7 @@ scale.m3-scale slider {
     padding: 8px 20px;
     font-size: var(--typescale-body-lg);
     font-weight: 500;
-    transition: background-color var(--duration-short3) var(--ease-emphasized-decel);
+    transition: background-color, box-shadow var(--duration-short3) var(--ease-emphasized-decel);
 }
 .m3-filled-btn:hover {
     background-color: @col_primary_container;
@@ -194,10 +194,10 @@ scale.m3-scale slider {
     font-size: var(--typescale-body-lg);
     font-weight: 500;
     color: @col_primary;
-    transition: background-color var(--duration-short3) var(--ease-standard-decel);
+    transition: background-color, box-shadow var(--duration-short3) var(--ease-standard-decel);
 }
 .m3-text-btn:hover {
-    background-color: alpha(@col_on_surface, var(--state-hover));
+    box-shadow: inset 0 0 0 2000px alpha(@col_on_surface, var(--state-hover));
 }
 
 /* Outlined button */
@@ -209,7 +209,7 @@ scale.m3-scale slider {
     font-size: var(--typescale-body-lg);
     font-weight: 500;
     color: @col_primary;
-    transition: background-color var(--duration-short3) var(--ease-standard-decel),
+    transition: background-color, box-shadow var(--duration-short3) var(--ease-standard-decel),
                 border-color var(--duration-short3) var(--ease-standard-decel);
 }
 .m3-outlined-btn:hover {
@@ -230,7 +230,7 @@ scale.m3-scale slider {
     padding: 8px 20px;
     font-size: var(--typescale-body-lg);
     font-weight: 500;
-    transition: background-color var(--duration-short3) var(--ease-emphasized-decel);
+    transition: background-color, box-shadow var(--duration-short3) var(--ease-emphasized-decel);
 }
 .m3-tonal-btn:hover {
     background-color: alpha(@col_on_secondary_container, 0.08);
@@ -378,11 +378,11 @@ scale.m3-scale slider {
 }
 
 .bar-group-clickable {
-    transition: background-color var(--duration-short2) var(--ease-standard-decel);
+    transition: background-color, box-shadow var(--duration-short2) var(--ease-standard-decel);
 }
 
 .bar-group-clickable:hover {
-    background-color: alpha(@col_on_surface, var(--state-hover));
+    box-shadow: inset 0 0 0 2000px alpha(@col_on_surface, var(--state-hover));
 }
 
 /* Thin vertical separator between bar groups */
@@ -417,7 +417,7 @@ scale.m3-scale slider {
 }
 
 .workspace-pill:hover {
-    background-color: alpha(@col_on_surface, var(--state-hover));
+    box-shadow: inset 0 0 0 2000px alpha(@col_on_surface, var(--state-hover));
 }
 
 .workspace-pill.occupied {
@@ -510,11 +510,11 @@ scale.m3-scale slider {
     padding: 2px;
     min-width: 24px;
     min-height: 24px;
-    transition: background-color var(--duration-short3) var(--ease-standard-decel);
+    transition: background-color, box-shadow var(--duration-short3) var(--ease-standard-decel);
 }
 
 .tray-item:hover {
-    background-color: alpha(@col_on_surface, var(--state-hover));
+    box-shadow: inset 0 0 0 2000px alpha(@col_on_surface, var(--state-hover));
 }
 
 .tray-icon {
@@ -549,7 +549,7 @@ scale.m3-scale slider {
     border-radius: var(--radius-md);
     padding: 8px 12px;
     margin: 2px 8px;
-    transition: background-color var(--duration-short3) var(--ease-emphasized-decel);
+    transition: background-color, box-shadow var(--duration-short3) var(--ease-emphasized-decel);
 }
 
 .search-result-row:hover,
@@ -576,7 +576,7 @@ scale.m3-scale slider {
     border-radius: var(--radius-xl);
     padding: 8px;
     margin: 6px;
-    transition: background-color var(--duration-short3) var(--ease-emphasized-decel);
+    transition: background-color, box-shadow var(--duration-short3) var(--ease-emphasized-decel);
 }
 
 .window-preview-card:hover {
@@ -636,15 +636,15 @@ scale.m3-scale slider {
     border-radius: var(--radius-md);
     padding: 12px 8px;
     min-height: 64px;
-    transition: background-color var(--duration-short3) var(--ease-standard-decel);
+    transition: background-color, box-shadow var(--duration-short3) var(--ease-standard-decel);
 }
 
 .windowmgmt-action-btn:hover {
-    background-color: alpha(@col_on_surface, var(--state-focus));
+    box-shadow: inset 0 0 0 2000px alpha(@col_on_surface, var(--state-focus));
 }
 
 .windowmgmt-action-btn:active {
-    background-color: alpha(@col_on_surface, var(--state-press));
+    box-shadow: inset 0 0 0 2000px alpha(@col_on_surface, var(--state-press));
 }
 
 .windowmgmt-action-icon {
@@ -669,15 +669,15 @@ scale.m3-scale slider {
     border-radius: var(--radius-md);
     padding: 10px;
     min-height: 36px;
-    transition: background-color var(--duration-short3) var(--ease-standard-decel);
+    transition: background-color, box-shadow var(--duration-short3) var(--ease-standard-decel);
 }
 
 .windowmgmt-ws-btn:hover {
-    background-color: alpha(@col_on_surface, var(--state-focus));
+    box-shadow: inset 0 0 0 2000px alpha(@col_on_surface, var(--state-focus));
 }
 
 .windowmgmt-ws-btn:active {
-    background-color: alpha(@col_on_surface, var(--state-press));
+    box-shadow: inset 0 0 0 2000px alpha(@col_on_surface, var(--state-press));
 }
 
 .windowmgmt-ws-btn.windowmgmt-ws-active {
@@ -852,11 +852,11 @@ scale.m3-scale slider {
     border-radius: var(--radius-lg);
     background-color: transparent;
     min-width: 88px;
-    transition: background-color var(--duration-short3) var(--ease-standard-decel);
+    transition: background-color, box-shadow var(--duration-short3) var(--ease-standard-decel);
 }
 
 .appdrawer-tile:hover {
-    background-color: alpha(@col_on_surface, var(--state-hover));
+    box-shadow: inset 0 0 0 2000px alpha(@col_on_surface, var(--state-hover));
 }
 
 .appdrawer-tile-icon {
@@ -873,7 +873,7 @@ scale.m3-scale slider {
 
 /* Active/pressed state - Material 3 state layer */
 .appdrawer-tile:active {
-    background-color: alpha(@col_on_surface, var(--state-press));
+    box-shadow: inset 0 0 0 2000px alpha(@col_on_surface, var(--state-press));
 }
 
 /* Suppress hover and active effects during scrolling to prevent stuck states */
@@ -906,7 +906,7 @@ scale.m3-scale slider {
     padding: var(--space-lg);
     margin: 6px 0;
     box-shadow: var(--elevation-1);
-    transition: background-color var(--duration-short3) var(--ease-standard-decel),
+    transition: background-color, box-shadow var(--duration-short3) var(--ease-standard-decel),
                 box-shadow var(--duration-short3) var(--ease-standard-decel);
 }
 
@@ -965,17 +965,17 @@ scale.m3-scale slider {
     color: @col_on_surface_variant;
     min-width: 28px;
     min-height: 28px;
-    transition: background-color var(--duration-short3) var(--ease-standard-decel),
+    transition: background-color, box-shadow var(--duration-short3) var(--ease-standard-decel),
                 color var(--duration-short3) var(--ease-standard-decel);
 }
 
 .notification-dismiss-btn:hover {
-    background-color: alpha(@col_on_surface, var(--state-hover));
+    box-shadow: inset 0 0 0 2000px alpha(@col_on_surface, var(--state-hover));
     color: @col_on_surface;
 }
 
 .notification-dismiss-btn:active {
-    background-color: alpha(@col_on_surface, var(--state-press));
+    box-shadow: inset 0 0 0 2000px alpha(@col_on_surface, var(--state-press));
 }
 
 /* Empty state with Material 3 styling */
@@ -1145,11 +1145,11 @@ scale.osd-slider {
     min-height: 36px;
     font-family: "Material Symbols Rounded";
     font-size: var(--icon-md);
-    transition: background-color var(--duration-short3) var(--ease-standard-decel);
+    transition: background-color, box-shadow var(--duration-short3) var(--ease-standard-decel);
 }
 
 .media-btn:hover {
-    background-color: alpha(@col_on_surface, var(--state-hover));
+    box-shadow: inset 0 0 0 2000px alpha(@col_on_surface, var(--state-hover));
 }
 
 .media-btn.play-pause {
@@ -1221,15 +1221,15 @@ scale.osd-slider {
     min-height: 32px;
     font-family: "Material Symbols Rounded";
     font-size: var(--icon-md);
-    transition: background-color var(--duration-short3) var(--ease-standard-decel);
+    transition: background-color, box-shadow var(--duration-short3) var(--ease-standard-decel);
 }
 
 .cal-nav-btn:hover {
-    background-color: alpha(@col_on_surface, var(--state-hover));
+    box-shadow: inset 0 0 0 2000px alpha(@col_on_surface, var(--state-hover));
 }
 
 .cal-nav-btn:active {
-    background-color: alpha(@col_on_surface, var(--state-press));
+    box-shadow: inset 0 0 0 2000px alpha(@col_on_surface, var(--state-press));
 }
 
 .cal-dow-row {
@@ -1254,11 +1254,11 @@ scale.osd-slider {
     border-radius: var(--radius-pill);
     padding: 8px 4px;
     margin: 2px;
-    transition: background-color var(--duration-short3) var(--ease-standard-decel);
+    transition: background-color, box-shadow var(--duration-short3) var(--ease-standard-decel);
 }
 
 .cal-day:hover {
-    background-color: alpha(@col_on_surface, var(--state-hover));
+    box-shadow: inset 0 0 0 2000px alpha(@col_on_surface, var(--state-hover));
 }
 
 .cal-day.today {
@@ -1299,15 +1299,15 @@ scale.osd-slider {
     min-width: 32px;
     min-height: 32px;
     color: @col_on_surface_variant;
-    transition: background-color var(--duration-short3) var(--ease-standard-decel);
+    transition: background-color, box-shadow var(--duration-short3) var(--ease-standard-decel);
 }
 
 .quick-power-btn:hover {
-    background-color: alpha(@col_on_surface, var(--state-hover));
+    box-shadow: inset 0 0 0 2000px alpha(@col_on_surface, var(--state-hover));
 }
 
 .quick-power-btn:active {
-    background-color: alpha(@col_on_surface, var(--state-press));
+    box-shadow: inset 0 0 0 2000px alpha(@col_on_surface, var(--state-press));
 }
 
 .quick-toggles-grid {
@@ -1323,11 +1323,11 @@ scale.osd-slider {
     border-radius: var(--radius-md);
     padding: 10px 16px;
     border: none;
-    transition: background-color var(--duration-short4) var(--ease-emphasized-decel);
+    transition: background-color, box-shadow var(--duration-short4) var(--ease-emphasized-decel);
 }
 
 .quick-toggle:hover {
-    background-color: alpha(@col_on_surface, var(--state-focus));
+    box-shadow: inset 0 0 0 2000px alpha(@col_on_surface, var(--state-focus));
 }
 
 .quick-toggle:checked {
@@ -1354,7 +1354,7 @@ scale.osd-slider {
 }
 
 .quick-toggle-button:active {
-    background-color: alpha(@col_primary, var(--state-press));
+    box-shadow: inset 0 0 0 2000px alpha(@col_primary, var(--state-press));
 }
 
 .quick-inputmode-container {
@@ -1396,11 +1396,11 @@ scale.quick-slider {
     padding: var(--space-md) var(--space-lg);
     margin: 8px 0 4px 0;
     border-radius: var(--radius-md);
-    transition: background-color var(--duration-short3) var(--ease-standard-decel);
+    transition: background-color, box-shadow var(--duration-short3) var(--ease-standard-decel);
 }
 
 .conn-section-header:hover {
-    background-color: alpha(@col_on_surface, var(--state-hover));
+    box-shadow: inset 0 0 0 2000px alpha(@col_on_surface, var(--state-hover));
 }
 
 .conn-section-title {
@@ -1430,11 +1430,11 @@ scale.quick-slider {
     padding: 14px 16px;
     margin: 2px 0;
     border-radius: var(--radius-md);
-    transition: background-color var(--duration-short3) var(--ease-standard-decel);
+    transition: background-color, box-shadow var(--duration-short3) var(--ease-standard-decel);
 }
 
 .conn-row:hover {
-    background-color: alpha(@col_on_surface, var(--state-hover));
+    box-shadow: inset 0 0 0 2000px alpha(@col_on_surface, var(--state-hover));
 }
 
 .conn-row-connected {
@@ -1483,11 +1483,11 @@ scale.quick-slider {
     min-height: 28px;
     padding: 4px 12px 4px 4px;
     margin: 0 8px 8px 0;
-    transition: background-color var(--duration-short3) var(--ease-standard-decel);
+    transition: background-color, box-shadow var(--duration-short3) var(--ease-standard-decel);
 }
 
 .conn-scan-btn:hover {
-    background-color: alpha(@col_primary, var(--state-hover));
+    box-shadow: inset 0 0 0 2000px alpha(@col_primary, var(--state-hover));
     color: @col_primary;
 }
 
@@ -1517,7 +1517,7 @@ scale.quick-slider {
     min-height: 16px;
     margin: 2px;
     box-shadow: 0 1px 2px alpha(@col_shadow, 0.3);
-    transition: background-color var(--duration-short4) var(--ease-standard-decel);
+    transition: background-color, box-shadow var(--duration-short4) var(--ease-standard-decel);
 }
 
 /* Checked state - M3 primary color */
@@ -1616,7 +1616,7 @@ scale.quick-slider {
 }
 
 .osk-key:hover {
-    background-color: alpha(@col_on_surface, var(--state-hover));
+    box-shadow: inset 0 0 0 2000px alpha(@col_on_surface, var(--state-hover));
 }
 
 /* Special/functional keys (Esc, Tab, Caps, Shift, Backspace, Enter, Ctrl, Alt). */
@@ -1630,7 +1630,7 @@ scale.quick-slider {
 }
 
 .osk-key-special:hover {
-    background-color: alpha(@col_on_surface, var(--state-hover));
+    box-shadow: inset 0 0 0 2000px alpha(@col_on_surface, var(--state-hover));
 }
 
 .osk-key-wide {
@@ -1701,11 +1701,11 @@ scale.quick-slider {
     min-height: 36px;
     padding: 4px;
     color: @col_on_surface_variant;
-    transition: background-color var(--duration-short3) var(--ease-standard-decel);
+    transition: background-color, box-shadow var(--duration-short3) var(--ease-standard-decel);
 }
 
 .osk-toolbar-btn:hover {
-    background-color: alpha(@col_on_surface, var(--state-hover));
+    box-shadow: inset 0 0 0 2000px alpha(@col_on_surface, var(--state-hover));
     color: @col_on_surface;
 }
 
@@ -1726,11 +1726,11 @@ scale.quick-slider {
     padding: 2px;
     margin: 4px 6px;
     color: @col_on_surface_variant;
-    transition: background-color var(--duration-short3) var(--ease-standard-decel);
+    transition: background-color, box-shadow var(--duration-short3) var(--ease-standard-decel);
 }
 
 .osk-close-float:hover {
-    background-color: alpha(@col_on_surface, var(--state-hover));
+    box-shadow: inset 0 0 0 2000px alpha(@col_on_surface, var(--state-hover));
     color: @col_on_surface;
 }
 
@@ -1828,11 +1828,11 @@ scale.quick-slider {
     margin: 2px 8px;
     font-size: var(--typescale-body-md);
     color: @col_on_surface_variant;
-    transition: background-color var(--duration-short3) var(--ease-standard-decel);
+    transition: background-color, box-shadow var(--duration-short3) var(--ease-standard-decel);
 }
 
 .settings-nav-item:hover {
-    background-color: alpha(@col_on_surface, var(--state-hover));
+    box-shadow: inset 0 0 0 2000px alpha(@col_on_surface, var(--state-hover));
 }
 
 .settings-nav-item:selected {
@@ -2001,11 +2001,11 @@ popover.menu list row:selected {
     min-height: 36px;
     font-family: "Material Symbols Rounded";
     font-size: var(--icon-md);
-    transition: background-color var(--duration-short3) var(--ease-standard-decel);
+    transition: background-color, box-shadow var(--duration-short3) var(--ease-standard-decel);
 }
 
 .settings-btn:hover {
-    background-color: alpha(@col_on_surface, var(--state-focus));
+    box-shadow: inset 0 0 0 2000px alpha(@col_on_surface, var(--state-focus));
 }
 
 .settings-btn-small {
@@ -2017,16 +2017,16 @@ popover.menu list row:selected {
     min-height: 32px;
     font-family: "Material Symbols Rounded";
     font-size: var(--icon-sm);
-    transition: background-color var(--duration-short3) var(--ease-standard-decel);
+    transition: background-color, box-shadow var(--duration-short3) var(--ease-standard-decel);
 }
 
 .settings-btn-small:hover {
-    background-color: alpha(@col_on_surface, var(--state-hover));
+    box-shadow: inset 0 0 0 2000px alpha(@col_on_surface, var(--state-hover));
     color: @col_on_surface;
 }
 
 .settings-btn-small:active {
-    background-color: alpha(@col_on_surface, var(--state-press));
+    box-shadow: inset 0 0 0 2000px alpha(@col_on_surface, var(--state-press));
 }
 
 /* Ensure buttons in network settings are clickable */
@@ -2080,7 +2080,7 @@ popover.menu list row:selected {
 }
 
 .popup-panel .m3-text-btn:hover {
-    background-color: alpha(@col_primary, var(--state-hover));
+    box-shadow: inset 0 0 0 2000px alpha(@col_primary, var(--state-hover));
 }
 
 .popup-panel .m3-filled-btn {
@@ -2154,11 +2154,11 @@ popover.menu list row:selected {
 
 .m3-dropdown-field:hover {
     border-color: alpha(@col_on_surface, 0.8);
-    background-color: alpha(@col_on_surface, var(--state-hover));
+    box-shadow: inset 0 0 0 2000px alpha(@col_on_surface, var(--state-hover));
 }
 
 .m3-dropdown-field:active {
-    background-color: alpha(@col_on_surface, var(--state-press));
+    box-shadow: inset 0 0 0 2000px alpha(@col_on_surface, var(--state-press));
 }
 
 /* Touch-friendly popover */
@@ -2183,15 +2183,15 @@ popover.menu list row:selected {
     padding: 12px 24px;
     margin: 2px 8px;
     border-radius: var(--radius-sm);
-    transition: background-color var(--duration-short3) var(--ease-standard-decel);
+    transition: background-color, box-shadow var(--duration-short3) var(--ease-standard-decel);
 }
 
 .m3-dropdown-item:hover {
-    background-color: alpha(@col_on_surface, var(--state-hover));
+    box-shadow: inset 0 0 0 2000px alpha(@col_on_surface, var(--state-hover));
 }
 
 .m3-dropdown-item:active {
-    background-color: alpha(@col_on_surface, var(--state-press));
+    box-shadow: inset 0 0 0 2000px alpha(@col_on_surface, var(--state-press));
 }
 
 .m3-dropdown-item:selected {
@@ -2324,11 +2324,11 @@ popover.menu list row:selected {
 }
 
 .m3-number-field-btn:hover {
-    background-color: alpha(@col_primary, var(--state-hover));
+    box-shadow: inset 0 0 0 2000px alpha(@col_primary, var(--state-hover));
 }
 
 .m3-number-field-btn:active {
-    background-color: alpha(@col_primary, var(--state-press));
+    box-shadow: inset 0 0 0 2000px alpha(@col_primary, var(--state-press));
 }
 
 .m3-number-field-btn:disabled {
@@ -2388,7 +2388,7 @@ popover.menu list row:selected {
     min-height: 16px;
     margin: 2px;
     box-shadow: 0 1px 2px alpha(@col_shadow, 0.3);
-    transition: background-color var(--duration-short4) var(--ease-standard-decel);
+    transition: background-color, box-shadow var(--duration-short4) var(--ease-standard-decel);
 }
 
 /* Checked state - M3 primary color */
@@ -2439,11 +2439,11 @@ popover.menu list row:selected {
     border-radius: var(--radius-md);
     padding: 10px 12px;
     margin: 2px 0;
-    transition: background-color var(--duration-short3) var(--ease-standard-decel);
+    transition: background-color, box-shadow var(--duration-short3) var(--ease-standard-decel);
 }
 
 .settings-row:hover {
-    background-color: alpha(@col_on_surface, var(--state-hover));
+    box-shadow: inset 0 0 0 2000px alpha(@col_on_surface, var(--state-hover));
 }
 
 /* ── Clipboard (within OSK) ──────────────────────────────────────────────────── */
@@ -2455,11 +2455,11 @@ popover.menu list row:selected {
     color: @col_on_surface_variant;
     min-width: 32px;
     min-height: 32px;
-    transition: background-color var(--duration-short3) var(--ease-standard-decel);
+    transition: background-color, box-shadow var(--duration-short3) var(--ease-standard-decel);
 }
 
 .clipboard-clear-btn:hover {
-    background-color: alpha(@col_error, var(--state-focus));
+    box-shadow: inset 0 0 0 2000px alpha(@col_error, var(--state-focus));
     color: @col_error;
 }
 
@@ -2468,7 +2468,7 @@ popover.menu list row:selected {
     border-radius: var(--radius-md);
     padding: 10px 12px;
     border: none;
-    transition: background-color var(--duration-short3) var(--ease-emphasized-decel);
+    transition: background-color, box-shadow var(--duration-short3) var(--ease-emphasized-decel);
 }
 
 .clipboard-row:hover {
@@ -2499,7 +2499,7 @@ popover.menu list row:selected {
     border-radius: var(--radius-sm);
     min-width: 40px;
     min-height: 40px;
-    transition: background-color var(--duration-short2) var(--ease-emphasized-decel);
+    transition: background-color, box-shadow var(--duration-short2) var(--ease-emphasized-decel);
 }
 
 .emoji-btn:hover {
@@ -2536,11 +2536,11 @@ popover.menu list row:selected {
     color: @col_on_surface_variant;
     min-width: 32px;
     min-height: 32px;
-    transition: background-color var(--duration-short3) var(--ease-standard-decel);
+    transition: background-color, box-shadow var(--duration-short3) var(--ease-standard-decel);
 }
 
 .notes-action-btn:hover {
-    background-color: alpha(@col_on_surface, var(--state-hover));
+    box-shadow: inset 0 0 0 2000px alpha(@col_on_surface, var(--state-hover));
 }
 
 .notes-text {
@@ -2646,11 +2646,11 @@ popover.menu list row:selected {
     font-size: var(--typescale-body-md);
     color: @col_on_surface_variant;
     border: none;
-    transition: background-color var(--duration-short3) var(--ease-standard-decel);
+    transition: background-color, box-shadow var(--duration-short3) var(--ease-standard-decel);
 }
 
 .polkit-cancel-btn:hover {
-    background-color: alpha(@col_on_surface, var(--state-hover));
+    box-shadow: inset 0 0 0 2000px alpha(@col_on_surface, var(--state-hover));
 }
 
 .polkit-auth-btn {
@@ -2660,7 +2660,7 @@ popover.menu list row:selected {
     padding: 8px 20px;
     font-size: var(--typescale-body-md);
     border: none;
-    transition: background-color var(--duration-short3) var(--ease-standard-decel);
+    transition: background-color, box-shadow var(--duration-short3) var(--ease-standard-decel);
 }
 
 .polkit-auth-btn:hover {
@@ -2712,11 +2712,11 @@ popover.menu list row:selected {
     font-weight: 500;
     color: @col_primary;
     border: none;
-    transition: background-color var(--duration-short3) var(--ease-standard-decel);
+    transition: background-color, box-shadow var(--duration-short3) var(--ease-standard-decel);
 }
 
 .m3-dialog-btn:hover {
-    background-color: alpha(@col_on_surface, var(--state-hover));
+    box-shadow: inset 0 0 0 2000px alpha(@col_on_surface, var(--state-hover));
 }
 
 /* ── M3 Dialog button variants ──────────────────────────────────────────────── */
@@ -2735,7 +2735,7 @@ popover.menu list row:selected {
 }
 
 .m3-dialog-btn-error:hover {
-    background-color: alpha(@col_error, var(--state-focus));
+    box-shadow: inset 0 0 0 2000px alpha(@col_error, var(--state-focus));
 }
 
 /* ── M3 Dialog password entry ──────────────────────────────────────────────── */
@@ -2782,7 +2782,7 @@ popover.menu list row:selected {
 }
 
 .m3-password-eye:hover {
-    background-color: alpha(@col_on_surface, var(--state-hover));
+    box-shadow: inset 0 0 0 2000px alpha(@col_on_surface, var(--state-hover));
     color: @col_on_surface;
 }
 
@@ -2860,7 +2860,7 @@ popover.menu list row:selected {
 
 /* Simple press state using background-color (works in GTK4) */
 .appdrawer-tile:active {
-    background-color: alpha(@col_on_surface, var(--state-press));
+    box-shadow: inset 0 0 0 2000px alpha(@col_on_surface, var(--state-press));
 }
 
 .quick-toggle:active {
@@ -3002,7 +3002,7 @@ popover.menu list row:selected {
 }
 
 .lockscreen-action-btn:hover {
-    background-color: alpha(@col_on_surface, var(--state-hover));
+    box-shadow: inset 0 0 0 2000px alpha(@col_on_surface, var(--state-hover));
     color: @col_on_surface;
 }
 
