@@ -160,6 +160,18 @@ func (m *Manager) monitorDBusSignals() {
 			// NM PropertiesChanged. No need to re-check sender/path
 			// (sig.Sender is the unique bus name, not the well-known
 			// name, so a direct comparison would incorrectly skip).
+			//
+			// Drain any queued signals before handling — NM often
+			// sends many PropertiesChanged in rapid succession and
+			// we only need to refresh once per batch.
+			drain:
+			for {
+				select {
+				case <-ch:
+				default:
+					break drain
+				}
+			}
 			m.handleSignal(sig)
 		}
 	}
