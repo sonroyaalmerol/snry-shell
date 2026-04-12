@@ -67,12 +67,6 @@ func NewNetworkWidget(b *bus.Bus, refs *servicerefs.ServiceRefs, parent *gtk.App
 
 	box.Append(gtkutil.SwitchRow("WiFi", wifiSwitch))
 
-	rescan := func() {
-		if refs.Network != nil {
-			go refs.Network.ScanWiFi()
-		}
-	}
-
 	// Networks list (collapsible).
 	listBox := gtk.NewBox(gtk.OrientationVertical, 0)
 	listBox.AddCSSClass("conn-list")
@@ -84,7 +78,7 @@ func NewNetworkWidget(b *bus.Bus, refs *servicerefs.ServiceRefs, parent *gtk.App
 	revealer.SetChild(listBox)
 
 	// Section header.
-	sectionHeader := gtkutil.SectionHeader("Available networks", 0, revealer, rescan)
+	sectionHeader := gtkutil.SectionHeader("Available networks", 0, revealer, nil)
 	box.Append(sectionHeader)
 
 	box.Append(revealer)
@@ -115,12 +109,21 @@ func NewNetworkWidget(b *bus.Bus, refs *servicerefs.ServiceRefs, parent *gtk.App
 		go refs.Network.ScanWiFi()
 	}
 
+	// Row updaters keyed by SSID — allows updateFn to refresh visual state.
+	rowUpdaters := make(map[string]func(state.WiFiNetwork))
+
 	// Keyed WiFi list for diff-based updates (no flickering).
 	wifiKL := gtkutil.NewKeyedList(listBox, false,
 		func(net state.WiFiNetwork) gtk.Widgetter {
-			return newWiFiRow(parent, refs, net, rescan)
+			w, update := newWiFiRow(parent, refs, net)
+			rowUpdaters[net.SSID] = update
+			return w
 		},
-		nil,
+		func(net state.WiFiNetwork, _ gtk.Widgetter) {
+			if update, ok := rowUpdaters[net.SSID]; ok {
+				update(net)
+			}
+		},
 	)
 
 	// Unified network state handler: WiFi switch, ethernet info, and WiFi list.
@@ -182,13 +185,12 @@ func wifiRank(n state.WiFiNetwork) int {
 	return 2
 }
 
-func newWiFiRow(parent *gtk.ApplicationWindow, refs *servicerefs.ServiceRefs, net state.WiFiNetwork, rescan func()) gtk.Widgetter {
+// newWiFiRow creates a WiFi list row and returns the widget plus an update function.
+// The update function refreshes the Connected visual state in-place without rebuilding.
+func newWiFiRow(parent *gtk.ApplicationWindow, refs *servicerefs.ServiceRefs, net state.WiFiNetwork) (gtk.Widgetter, func(state.WiFiNetwork)) {
 	row := gtk.NewBox(gtk.OrientationHorizontal, 12)
 	row.AddCSSClass("conn-row")
 	row.SetCursorFromName("pointer")
-	if net.Connected {
-		row.AddCSSClass("conn-row-connected")
-	}
 
 	signalIcon := gtkutil.MaterialIcon(signalStrengthIcon(net.Signal))
 	signalIcon.AddCSSClass("conn-row-icon")
@@ -205,16 +207,43 @@ func newWiFiRow(parent *gtk.ApplicationWindow, refs *servicerefs.ServiceRefs, ne
 		meta.Append(secIcon)
 	}
 
-	if net.Connected {
-		check := gtkutil.MaterialIcon("check_circle")
-		check.AddCSSClass("conn-row-connected-icon")
-		meta.Append(check)
+	// Mutable connected state — shared between click handler and updateFn.
+	connected := net.Connected
 
-		badge := gtk.NewLabel("ACTIVE")
-		badge.AddCSSClass("m3-assist-chip") // Reuse chip style
-		badge.SetVAlign(gtk.AlignCenter)
-		meta.Append(badge)
+	// Connected indicator widgets (added/removed by updateFn).
+	var checkIcon *gtk.Label
+	var badge *gtk.Label
+
+	setConnected := func(isConnected bool) {
+		connected = isConnected
+		if isConnected {
+			row.AddCSSClass("conn-row-connected")
+			if checkIcon == nil {
+				checkIcon = gtkutil.MaterialIcon("check_circle")
+				checkIcon.AddCSSClass("conn-row-connected-icon")
+				meta.Append(checkIcon)
+			}
+			if badge == nil {
+				badge = gtk.NewLabel("ACTIVE")
+				badge.AddCSSClass("m3-assist-chip")
+				badge.SetVAlign(gtk.AlignCenter)
+				meta.Append(badge)
+			}
+		} else {
+			row.RemoveCSSClass("conn-row-connected")
+			if checkIcon != nil {
+				meta.Remove(checkIcon)
+				checkIcon = nil
+			}
+			if badge != nil {
+				meta.Remove(badge)
+				badge = nil
+			}
+		}
 	}
+
+	// Apply initial state.
+	setConnected(net.Connected)
 
 	row.Append(signalIcon)
 	row.Append(ssidLabel)
@@ -224,13 +253,14 @@ func newWiFiRow(parent *gtk.ApplicationWindow, refs *servicerefs.ServiceRefs, ne
 		ssid := net.SSID
 		saved := net.Saved
 		security := net.Security
-		connected := net.Connected
 
 		setLoading := func() {
 			row.AddCSSClass("conn-row-loading")
 			row.SetSensitive(false)
 			gtkutil.ClearChildren(&meta.Widget, meta.Remove)
 			meta.Append(gtkutil.M3Spinner())
+			checkIcon = nil
+			badge = nil
 		}
 
 		gtkutil.ClaimedClick(&row.Widget, func() {
@@ -247,7 +277,6 @@ func newWiFiRow(parent *gtk.ApplicationWindow, refs *servicerefs.ServiceRefs, ne
 								if err := refs.Network.DisconnectWiFi(); err != nil {
 									glib.IdleAdd(func() { gtkutil.ErrorDialog(parent, "Disconnect failed", err.Error()) })
 								}
-								rescan()
 							}()
 						}},
 						{Label: "Forget", CSSClass: "m3-dialog-btn-error", OnClick: func() {
@@ -256,7 +285,6 @@ func newWiFiRow(parent *gtk.ApplicationWindow, refs *servicerefs.ServiceRefs, ne
 								if err := refs.Network.ForgetWiFi(ssid); err != nil {
 									glib.IdleAdd(func() { gtkutil.ErrorDialog(parent, "Forget failed", err.Error()) })
 								}
-								rescan()
 							}()
 						}},
 					},
@@ -267,7 +295,6 @@ func newWiFiRow(parent *gtk.ApplicationWindow, refs *servicerefs.ServiceRefs, ne
 					if err := refs.Network.ConnectWiFi(ssid); err != nil {
 						glib.IdleAdd(func() { gtkutil.ErrorDialog(parent, "Connection failed", err.Error()) })
 					}
-					rescan()
 				}()
 			case security != "":
 				gtkutil.PasswordDialog(
@@ -280,7 +307,6 @@ func newWiFiRow(parent *gtk.ApplicationWindow, refs *servicerefs.ServiceRefs, ne
 							if err := refs.Network.ConnectWithPassword(ssid, password); err != nil {
 								glib.IdleAdd(func() { gtkutil.ErrorDialog(parent, "Connection failed", err.Error()) })
 							}
-							rescan()
 						}()
 					},
 				)
@@ -290,13 +316,17 @@ func newWiFiRow(parent *gtk.ApplicationWindow, refs *servicerefs.ServiceRefs, ne
 					if err := refs.Network.ConnectWithPassword(ssid, ""); err != nil {
 						glib.IdleAdd(func() { gtkutil.ErrorDialog(parent, "Connection failed", err.Error()) })
 					}
-					rescan()
 				}()
 			}
 		})
 	}
 
-	return row
+	// updateFn refreshes the row's visual state in-place.
+	update := func(net state.WiFiNetwork) {
+		setConnected(net.Connected)
+	}
+
+	return row, update
 }
 
 func signalStrengthIcon(signal int) string {

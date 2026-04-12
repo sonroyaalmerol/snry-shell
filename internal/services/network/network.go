@@ -33,6 +33,8 @@ type Service struct {
 	bus              *bus.Bus
 	cachedWiFi       []state.WiFiNetwork
 	cachedWiFiLoaded bool
+	lastSSID         string
+	lastConnected    bool
 }
 
 func New(conn dbusutil.DBusConn, b *bus.Bus) *Service {
@@ -77,9 +79,7 @@ func (s *Service) monitorSignals(ctx context.Context) {
 	busObj.Call("org.freedesktop.DBus.AddMatch", 0,
 		"type='signal',sender='"+nmDest+"',interface='org.freedesktop.DBus.Properties',member='PropertiesChanged'")
 
-	// Debounce: wait 150ms after first signal in a burst before fetching state.
-	// NM fires many PropertiesChanged signals during connection transitions;
-	// coalescing them prevents rapid widget rebuilds (flickering).
+	// Debounce: coalesce rapid NM signal bursts into single state fetches.
 	debounce := time.NewTimer(0)
 	if !debounce.Stop() {
 		<-debounce.C
@@ -95,7 +95,7 @@ func (s *Service) monitorSignals(ctx context.Context) {
 				debounce.Stop()
 				return
 			}
-			// Drain all queued signals, then reset debounce timer.
+			// Drain all queued signals.
 			drain:
 			for {
 				select {
@@ -104,9 +104,15 @@ func (s *Service) monitorSignals(ctx context.Context) {
 					break drain
 				}
 			}
-			debounce.Reset(150 * time.Millisecond)
+			debounce.Reset(300 * time.Millisecond)
 		case <-debounce.C:
 			ns := s.fetchFullState()
+			// Skip publish if connection state hasn't meaningfully changed.
+			if ns.SSID == s.lastSSID && ns.Connected == s.lastConnected {
+				continue
+			}
+			s.lastSSID = ns.SSID
+			s.lastConnected = ns.Connected
 			s.bus.Publish(bus.TopicNetwork, ns)
 		}
 	}
