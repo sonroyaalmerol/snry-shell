@@ -21,6 +21,94 @@ func ClearChildren(parent *gtk.Widget, remove func(gtk.Widgetter)) {
 	}
 }
 
+// KeyedItem is a constraint for types that have a stable string key used
+// for diffing widget lists.
+type KeyedItem interface{ Key() string }
+
+// KeyedList manages keyed children in a gtk.Box, preserving existing widgets
+// across updates to avoid flickering.
+type KeyedList[T KeyedItem] struct {
+	container  *gtk.Box
+	dividers   bool
+	widgets    map[string]gtk.Widgetter
+	dividerMap map[string]gtk.Widgetter // key -> divider (only when dividers=true)
+	buildFn    func(T) gtk.Widgetter
+	updateFn   func(T, gtk.Widgetter) // optional; called on existing widgets
+}
+
+// NewKeyedList creates a keyed list manager. Call Update when new data arrives.
+//   - container: the gtk.Box that holds the row widgets
+//   - dividers: insert an M3Divider between each row
+//   - buildFn: creates a new widget for a data item
+//   - updateFn: optional; refreshes an existing widget with new data (may be nil)
+func NewKeyedList[T KeyedItem](
+	container *gtk.Box,
+	dividers bool,
+	buildFn func(T) gtk.Widgetter,
+	updateFn func(T, gtk.Widgetter),
+) *KeyedList[T] {
+	return &KeyedList[T]{
+		container:  container,
+		dividers:   dividers,
+		widgets:    make(map[string]gtk.Widgetter),
+		dividerMap: make(map[string]gtk.Widgetter),
+		buildFn:    buildFn,
+		updateFn:   updateFn,
+	}
+}
+
+// Update reconciles the container's children with the new data slice.
+// Existing widgets are reused and updated in-place; only added/removed items
+// cause widget creation/destruction. Widgets are reordered to match items order.
+func (kl *KeyedList[T]) Update(items []T) {
+	newKeys := make(map[string]T, len(items))
+	for _, item := range items {
+		newKeys[item.Key()] = item
+	}
+
+	// Remove widgets for keys no longer present.
+	for key, w := range kl.widgets {
+		if _, ok := newKeys[key]; !ok {
+			kl.container.Remove(w)
+			delete(kl.widgets, key)
+			if d, ok := kl.dividerMap[key]; ok {
+				kl.container.Remove(d)
+				delete(kl.dividerMap, key)
+			}
+		}
+	}
+
+	// Build new widgets for new keys.
+	for key, item := range newKeys {
+		if _, ok := kl.widgets[key]; !ok {
+			kl.widgets[key] = kl.buildFn(item)
+			if kl.dividers {
+				kl.dividerMap[key] = M3Divider()
+			}
+		}
+	}
+
+	// Reorder to match items order and apply updates.
+	var prev gtk.Widgetter
+	for _, item := range items {
+		key := item.Key()
+		w := kl.widgets[key]
+
+		if kl.updateFn != nil {
+			kl.updateFn(item, w)
+		}
+
+		kl.container.ReorderChildAfter(w, prev)
+		prev = w
+
+		if kl.dividers {
+			d := kl.dividerMap[key]
+			kl.container.ReorderChildAfter(d, prev)
+			prev = d
+		}
+	}
+}
+
 func MaterialButton(icon string) *gtk.Button {
 	btn := gtk.NewButton()
 	label := gtk.NewLabel(icon)

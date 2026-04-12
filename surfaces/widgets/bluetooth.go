@@ -90,6 +90,14 @@ func NewBluetoothWidget(b *bus.Bus, refs *servicerefs.ServiceRefs, parent *gtk.A
 		go rescan()
 	}
 
+	// Keyed device list for diff-based updates (no flickering).
+	btKL := gtkutil.NewKeyedList(listBox, false,
+		func(dev state.BluetoothDevice) gtk.Widgetter {
+			return newBTDeviceRow(parent, refs, dev, rescan)
+		},
+		nil,
+	)
+
 	// Subscribe to device list updates.
 	b.Subscribe(bus.TopicBluetoothDevices, func(e bus.Event) {
 		devices, ok := e.Data.([]state.BluetoothDevice)
@@ -97,17 +105,12 @@ func NewBluetoothWidget(b *bus.Bus, refs *servicerefs.ServiceRefs, parent *gtk.A
 			return
 		}
 		glib.IdleAdd(func() {
-			gtkutil.ClearChildren(&listBox.Widget, listBox.Remove)
-
 			// Sort: connected first, then paired, then available.
 			sorted := make([]state.BluetoothDevice, len(devices))
 			copy(sorted, devices)
 			sortDevices(sorted)
 
-			for _, dev := range sorted {
-				row := newBTDeviceRow(parent, refs, dev, rescan)
-				listBox.Append(row)
-			}
+			btKL.Update(sorted)
 
 			gtkutil.UpdateSectionHeader(sectionHeader, len(devices))
 			restoreScanBtn()

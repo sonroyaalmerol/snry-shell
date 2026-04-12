@@ -13,18 +13,22 @@ func newTrayWidget(b *bus.Bus) gtk.Widgetter {
 	box := gtk.NewBox(gtk.OrientationHorizontal, 2)
 	box.AddCSSClass("tray")
 
+	kl := gtkutil.NewKeyedList(box, false,
+		func(item *sni.TrayItem) gtk.Widgetter {
+			return newTrayItemBtn(b, item)
+		},
+		func(item *sni.TrayItem, w gtk.Widgetter) {
+			updateTrayItemBtn(w, item)
+		},
+	)
+
 	b.Subscribe(bus.TopicTrayItems, func(e bus.Event) {
 		items, ok := e.Data.([]*sni.TrayItem)
 		if !ok {
 			return
 		}
 		glib.IdleAdd(func() {
-			gtkutil.ClearChildren(&box.Widget, box.Remove)
-
-			for _, item := range items {
-				btn := newTrayItemBtn(b, item)
-				box.Append(btn)
-			}
+			kl.Update(items)
 		})
 	})
 
@@ -56,4 +60,25 @@ func newTrayItemBtn(b *bus.Bus, item *sni.TrayItem) gtk.Widgetter {
 	})
 
 	return btn
+}
+
+func updateTrayItemBtn(w gtk.Widgetter, item *sni.TrayItem) {
+	btn, ok := w.(*gtk.Button)
+	if !ok {
+		return
+	}
+	tooltip := item.Title
+	if tooltip == "" {
+		tooltip = item.ID
+	}
+	btn.SetTooltipText(tooltip)
+
+	child := btn.Child()
+	if img, ok := child.(*gtk.Image); ok {
+		if item.IconName != "" {
+			img.SetFromIconName(item.IconName)
+		} else {
+			img.SetFromIconName("application-x-executable")
+		}
+	}
 }

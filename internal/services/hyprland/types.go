@@ -18,6 +18,8 @@ type HyprClient struct {
 	Monitor int `json:"monitor"`
 }
 
+func (c HyprClient) Key() string { return c.Address }
+
 type HyprMonitor struct {
 	ID              int     `json:"id"`
 	Name            string  `json:"name"`

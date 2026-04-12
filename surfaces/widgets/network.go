@@ -144,18 +144,21 @@ func NewNetworkWidget(b *bus.Bus, refs *servicerefs.ServiceRefs, parent *gtk.App
 		go refs.Network.ScanWiFi(context.Background())
 	}
 
+	// Keyed WiFi list for diff-based updates (no flickering).
+	wifiKL := gtkutil.NewKeyedList(listBox, false,
+		func(net state.WiFiNetwork) gtk.Widgetter {
+			return newWiFiRow(parent, refs, net, rescan)
+		},
+		nil,
+	)
+
 	b.Subscribe(bus.TopicWiFiNetworks, func(e bus.Event) {
 		networks, ok := e.Data.([]state.WiFiNetwork)
 		if !ok {
 			return
 		}
 		glib.IdleAdd(func() {
-			gtkutil.ClearChildren(&listBox.Widget, listBox.Remove)
-
-			for _, net := range networks {
-				row := newWiFiRow(parent, refs, net, rescan)
-				listBox.Append(row)
-			}
+			wifiKL.Update(networks)
 
 			gtkutil.UpdateSectionHeader(sectionHeader, len(networks))
 			restoreScanBtn()

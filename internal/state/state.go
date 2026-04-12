@@ -200,3 +200,9 @@ type ColorScheme struct {
 	Outline, OutlineVariant                                                              string
 	Subtext                                                                              string
 }
+
+// Key returns a stable unique identifier for keyed list diffing.
+func (d NMDevice) Key() string        { return d.Path }
+func (n WiFiNetwork) Key() string     { return n.SSID }
+func (c NMConnection) Key() string    { return c.Path }
+func (d BluetoothDevice) Key() string { return d.Address }

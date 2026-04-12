@@ -19,10 +19,14 @@ import (
 type nmConfigProvider struct {
 	conn    *dbus.Conn
 	manager *networkmanager.Manager
-	// Track widgets that need updates
-	connectionsList *gtk.Box
+	// Keyed lists for diff-based updates
+	devicesKL *gtkutil.KeyedList[state.NMDevice]
+	wifiKL    *gtkutil.KeyedList[state.WiFiNetwork]
+	connKL    *gtkutil.KeyedList[state.NMConnection]
+	// Widgets that need updates
 	devicesList     *gtk.Box
 	wifiList        *gtk.Box
+	connectionsList *gtk.Box
 	hostnameEntry   *gtk.Entry
 }
 
@@ -165,6 +169,12 @@ func (n *nmConfigProvider) buildDevicesSection() gtk.Widgetter {
 	card.AddCSSClass("system-controls")
 
 	n.devicesList = gtk.NewBox(gtk.OrientationVertical, 0)
+	n.devicesKL = gtkutil.NewKeyedList(n.devicesList, true,
+		func(dev state.NMDevice) gtk.Widgetter {
+			return n.buildDeviceRow(dev)
+		},
+		nil,
+	)
 	n.refreshDevicesList()
 
 	card.Append(n.devicesList)
@@ -174,11 +184,11 @@ func (n *nmConfigProvider) buildDevicesSection() gtk.Widgetter {
 }
 
 func (n *nmConfigProvider) refreshDevicesList() {
-	gtkutil.ClearChildren(&n.devicesList.Widget, n.devicesList.Remove)
-
 	devices := n.manager.GetDevices()
 
 	if len(devices) == 0 {
+		// Clear keyed list and show empty state.
+		n.devicesKL.Update(nil)
 		emptyLabel := gtk.NewLabel("No network devices found")
 		emptyLabel.AddCSSClass("settings-empty-label")
 		emptyLabel.SetMarginTop(16)
@@ -187,13 +197,7 @@ func (n *nmConfigProvider) refreshDevicesList() {
 		return
 	}
 
-	for i, dev := range devices {
-		if i > 0 {
-			n.devicesList.Append(gtkutil.M3Divider())
-		}
-		row := n.buildDeviceRow(dev)
-		n.devicesList.Append(row)
-	}
+	n.devicesKL.Update(devices)
 }
 
 func (n *nmConfigProvider) buildDeviceRow(dev state.NMDevice) gtk.Widgetter {
@@ -317,6 +321,12 @@ func (n *nmConfigProvider) buildWiFiSection() gtk.Widgetter {
 
 	// WiFi networks list
 	n.wifiList = gtk.NewBox(gtk.OrientationVertical, 0)
+	n.wifiKL = gtkutil.NewKeyedList(n.wifiList, true,
+		func(net state.WiFiNetwork) gtk.Widgetter {
+			return n.buildWiFiRow(net)
+		},
+		nil,
+	)
 	card.Append(gtkutil.M3Divider())
 	card.Append(n.wifiList)
 
@@ -325,26 +335,8 @@ func (n *nmConfigProvider) buildWiFiSection() gtk.Widgetter {
 }
 
 func (n *nmConfigProvider) refreshWiFiList() {
-	gtkutil.ClearChildren(&n.wifiList.Widget, n.wifiList.Remove)
-
 	networks := n.manager.GetWiFiNetworks()
-
-	if len(networks) == 0 {
-		emptyLabel := gtk.NewLabel("No Wi-Fi networks found. Click scan to search.")
-		emptyLabel.AddCSSClass("settings-empty-label")
-		emptyLabel.SetMarginTop(16)
-		emptyLabel.SetMarginBottom(16)
-		n.wifiList.Append(emptyLabel)
-		return
-	}
-
-	for i, net := range networks {
-		if i > 0 {
-			n.wifiList.Append(gtkutil.M3Divider())
-		}
-		row := n.buildWiFiRow(net)
-		n.wifiList.Append(row)
-	}
+	n.wifiKL.Update(networks)
 }
 
 func (n *nmConfigProvider) buildWiFiRow(net state.WiFiNetwork) gtk.Widgetter {
@@ -460,6 +452,12 @@ func (n *nmConfigProvider) buildConnectionsSection() gtk.Widgetter {
 	card.AddCSSClass("system-controls")
 
 	n.connectionsList = gtk.NewBox(gtk.OrientationVertical, 0)
+	n.connKL = gtkutil.NewKeyedList(n.connectionsList, true,
+		func(conn state.NMConnection) gtk.Widgetter {
+			return n.buildConnectionRow(conn)
+		},
+		nil,
+	)
 	n.refreshConnectionsList()
 
 	card.Append(n.connectionsList)
@@ -469,26 +467,8 @@ func (n *nmConfigProvider) buildConnectionsSection() gtk.Widgetter {
 }
 
 func (n *nmConfigProvider) refreshConnectionsList() {
-	gtkutil.ClearChildren(&n.connectionsList.Widget, n.connectionsList.Remove)
-
 	connections := n.manager.GetConnections()
-
-	if len(connections) == 0 {
-		emptyLabel := gtk.NewLabel("No saved connections")
-		emptyLabel.AddCSSClass("settings-empty-label")
-		emptyLabel.SetMarginTop(16)
-		emptyLabel.SetMarginBottom(16)
-		n.connectionsList.Append(emptyLabel)
-		return
-	}
-
-	for i, conn := range connections {
-		if i > 0 {
-			n.connectionsList.Append(gtkutil.M3Divider())
-		}
-		row := n.buildConnectionRow(conn)
-		n.connectionsList.Append(row)
-	}
+	n.connKL.Update(connections)
 }
 
 func (n *nmConfigProvider) buildConnectionRow(conn state.NMConnection) gtk.Widgetter {

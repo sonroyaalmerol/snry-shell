@@ -28,6 +28,8 @@ type TrayItem struct {
 	ID       string
 }
 
+func (t *TrayItem) Key() string { return t.BusName + string(t.Path) }
+
 type Service struct {
 	conn  dbusutil.DBusConn
 	bus   *bus.Bus
