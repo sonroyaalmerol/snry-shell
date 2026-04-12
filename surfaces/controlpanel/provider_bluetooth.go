@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"sort"
+	"strings"
 
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
@@ -40,6 +41,12 @@ func (b *btConfigProvider) Name() string  { return "Bluetooth" }
 func (b *btConfigProvider) Icon() string  { return "bluetooth" }
 func (b *btConfigProvider) Load() error   { return nil }
 func (b *btConfigProvider) Save() error   { return nil }
+
+func (b *btConfigProvider) Close() {
+	if b.conn != nil {
+		b.conn.Close()
+	}
+}
 
 func (b *btConfigProvider) BuildWidget() gtk.Widgetter {
 	scroll := gtk.NewScrolledWindow()
@@ -292,6 +299,7 @@ func (b *btConfigProvider) handleDeviceAction(dev state.BluetoothDevice) {
 func (b *btConfigProvider) monitorSignals() {
 	ch := make(chan *dbus.Signal, 8)
 	b.conn.Signal(ch)
+	defer b.conn.RemoveSignal(ch)
 	_ = b.conn.AddMatchSignal(
 		dbus.WithMatchInterface("org.freedesktop.DBus.Properties"),
 		dbus.WithMatchMember("PropertiesChanged"),
@@ -302,13 +310,22 @@ func (b *btConfigProvider) monitorSignals() {
 		if sig.Path != bluezAdapter && !isDevicePath(sig.Path) {
 			continue
 		}
+		// Drain queued signals before handling.
+		drain:
+		for {
+			select {
+			case <-ch:
+			default:
+				break drain
+			}
+		}
 		b.refreshPower()
 		b.refreshDevices()
 	}
 }
 
 func isDevicePath(path dbus.ObjectPath) bool {
-	return len(path) > len("/org/bluez/hci0/dev_") && string(path)[:len("/org/bluez/hci0/dev_")] == "/org/bluez/hci0/dev_"
+	return strings.HasPrefix(string(path), "/org/bluez/hci0/dev_")
 }
 
 func actionIcon(dev state.BluetoothDevice) string {

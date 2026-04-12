@@ -41,6 +41,8 @@ func (b *baseShellProvider) notifyShellReload() {
 	}
 }
 
+func (b *baseShellProvider) Close() {}
+
 // appearanceConfigProvider handles appearance settings
 type appearanceConfigProvider struct {
 	baseShellProvider

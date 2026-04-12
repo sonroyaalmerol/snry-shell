@@ -172,6 +172,7 @@ func (w *wallpaperConfigProvider) BuildWidget() gtk.Widgetter {
 // applyWallpaper tells the running shell to process and apply a new wallpaper.
 func (w *wallpaperConfigProvider) applyWallpaper(path string) {
 	w.cfg.WallpaperSource = path
+	w.Save()
 
 	conn, err := net.Dial("unix", controlsocket.DefaultPath)
 	if err != nil {

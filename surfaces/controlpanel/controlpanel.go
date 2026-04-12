@@ -24,6 +24,8 @@ type ConfigProvider interface {
 	Save() error
 	// BuildWidget returns the GTK widget for this provider's settings
 	BuildWidget() gtk.Widgetter
+	// Close releases resources held by the provider
+	Close()
 }
 
 // Run creates and runs the control panel application.

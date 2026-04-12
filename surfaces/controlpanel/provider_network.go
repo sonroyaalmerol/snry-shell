@@ -59,6 +59,12 @@ func (n *nmConfigProvider) Save() error {
 	return nil
 }
 
+func (n *nmConfigProvider) Close() {
+	if n.conn != nil {
+		n.conn.Close()
+	}
+}
+
 func (n *nmConfigProvider) notifyShellReload() {
 	conn, err := net.Dial("unix", controlsocket.DefaultPath)
 	if err != nil {
@@ -740,7 +746,6 @@ func (n *nmConfigProvider) showWiFiSelector(devicePath string) {
 	cancelBtn.ConnectClicked(func() {
 		dialog.Close()
 	})
-	cancelBtn.ConnectClicked(func() { dialog.Close() })
 	dialog.AddActionWidget(cancelBtn, int(gtk.ResponseCancel))
 
 	dialog.Show()
@@ -1012,7 +1017,7 @@ func (n *nmConfigProvider) showEditConnectionDialog(conn state.NMConnection) {
 				for _, d := range dnsList {
 					var a, b, c, d_byte byte
 					if n, _ := fmt.Sscanf(strings.TrimSpace(d), "%d.%d.%d.%d", &a, &b, &c, &d_byte); n == 4 {
-						dnsUints = append(dnsUints, uint32(a)|uint32(b)<<8|uint32(c)<<16|uint32(d_byte)<<24)
+						dnsUints = append(dnsUints, uint32(a)<<24|uint32(b)<<16|uint32(c)<<8|uint32(d_byte))
 					}
 				}
 				ipv4Settings["dns"] = dbus.MakeVariant(dnsUints)
@@ -1041,20 +1046,6 @@ func (n *nmConfigProvider) showEditConnectionDialog(conn state.NMConnection) {
 	dialog.Show()
 }
 
-func (n *nmConfigProvider) buildFormRow(label, value string) gtk.Widgetter {
-	row := gtk.NewBox(gtk.OrientationHorizontal, 8)
-	lbl := gtk.NewLabel(label)
-	lbl.SetSizeRequest(120, -1)
-	lbl.SetHAlign(gtk.AlignStart)
-
-	entry := gtk.NewEntry()
-	entry.SetText(value)
-	entry.SetHExpand(true)
-
-	row.Append(lbl)
-	row.Append(entry)
-	return row
-}
 
 func (n *nmConfigProvider) showAddConnectionDialog() {
 	dialog := gtk.NewDialog()
@@ -1097,7 +1088,6 @@ func (n *nmConfigProvider) showAddConnectionDialog() {
 	cancelBtn.ConnectClicked(func() {
 		dialog.Close()
 	})
-	cancelBtn.ConnectClicked(func() { dialog.Close() })
 	dialog.AddActionWidget(cancelBtn, int(gtk.ResponseCancel))
 
 	dialog.Show()
@@ -1413,6 +1403,15 @@ func (n *nmConfigProvider) monitorSignals() {
 		"type='signal',sender='org.freedesktop.NetworkManager',interface='org.freedesktop.DBus.Properties',member='PropertiesChanged'").Err
 
 	for range ch {
+		// Drain queued signals before handling.
+		drain:
+		for {
+			select {
+			case <-ch:
+			default:
+				break drain
+			}
+		}
 		glib.IdleAdd(func() {
 			n.refreshDevicesList()
 			n.refreshWiFiList()
