@@ -216,29 +216,35 @@ func newWiFiRow(parent *gtk.ApplicationWindow, refs *servicerefs.ServiceRefs, ne
 
 	setConnected := func(isConnected bool) {
 		connected = isConnected
+
+		// Undo loading state if present.
+		row.RemoveCSSClass("conn-row-loading")
+		row.SetSensitive(true)
+
+		// Clear meta to remove any spinner from setLoading,
+		// then rebuild indicators from scratch.
+		gtkutil.ClearChildren(&meta.Widget, meta.Remove)
+		checkIcon = nil
+		badge = nil
+
 		if isConnected {
 			row.AddCSSClass("conn-row-connected")
-			if checkIcon == nil {
-				checkIcon = gtkutil.MaterialIcon("check_circle")
-				checkIcon.AddCSSClass("conn-row-connected-icon")
-				meta.Append(checkIcon)
-			}
-			if badge == nil {
-				badge = gtk.NewLabel("ACTIVE")
-				badge.AddCSSClass("m3-assist-chip")
-				badge.SetVAlign(gtk.AlignCenter)
-				meta.Append(badge)
-			}
+			checkIcon = gtkutil.MaterialIcon("check_circle")
+			checkIcon.AddCSSClass("conn-row-connected-icon")
+			meta.Append(checkIcon)
+			badge = gtk.NewLabel("ACTIVE")
+			badge.AddCSSClass("m3-assist-chip")
+			badge.SetVAlign(gtk.AlignCenter)
+			meta.Append(badge)
 		} else {
 			row.RemoveCSSClass("conn-row-connected")
-			if checkIcon != nil {
-				meta.Remove(checkIcon)
-				checkIcon = nil
-			}
-			if badge != nil {
-				meta.Remove(badge)
-				badge = nil
-			}
+		}
+
+		// Re-add security icon if present.
+		if net.Security != "" {
+			secIcon := gtkutil.MaterialIcon("lock")
+			secIcon.AddCSSClass("conn-row-meta-icon")
+			meta.Append(secIcon)
 		}
 	}
 

@@ -220,11 +220,6 @@ func (m *Manager) refreshAll() {
 	// Devices first so connections can check active status.
 	m.refreshDevices()
 	m.refreshConnections()
-
-	// Publish legacy state for backward compatibility
-	if m.bus != nil {
-		m.publishLegacyState()
-	}
 }
 
 func (m *Manager) refreshWirelessEnabled() {

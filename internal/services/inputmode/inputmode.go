@@ -1,11 +1,12 @@
 // Package inputmode manages the global input mode (auto/tablet/desktop)
 // and publishes an effective tablet-mode boolean for the rest of the shell.
 //
-// In "auto" mode the service combines evdev SW_TABLET_MODE (authoritative),
-// logind's TabletMode property, and a physical-keyboard-activity heuristic
-// to decide whether the OSK should auto-trigger.
+// In "auto" mode the service uses a priority chain to decide tablet mode:
 //
-// Priority: evdev SW_TABLET_MODE > logind TabletMode > keyboard heuristic.
+//  1. evdev SW_TABLET_MODE switch   (hardware switch on 2-in-1 devices)
+//  2. IIO gravity sensor posture    (detects laptop vs studio/folded-back)
+//  3. logind TabletMode property
+//  4. keyboard presence heuristic   (has touch device but no physical keyboard)
 package inputmode
 
 import (
@@ -13,6 +14,9 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/exec"
+	"path/filepath"
+	"strconv"
 	"slices"
 	"strings"
 	"sync"
@@ -26,8 +30,11 @@ import (
 )
 
 const (
-	logindProp          = "TabletMode"
-	kbInactivityTimeout = 30 * time.Second
+	logindProp           = "TabletMode"
+	keyboardPollInterval = 2 * time.Second
+	iioPollInterval      = 1 * time.Second
+	iioDebounceCount     = 3
+	iioDeviceDir         = "/sys/bus/iio/devices"
 )
 
 // virtualKeyboardNames matches device names that are NOT real physical keyboards.
@@ -46,19 +53,23 @@ type Service struct {
 	conn dbusutil.DBusConn
 	mu   sync.Mutex
 
-	mode       string // "auto", "tablet", "desktop"
-	logindMode string // "enabled", "disabled", "indeterminate"
-	kbActive   bool
-	kbTimer    *time.Timer
-	hasTouch   bool
-	session    string
+	mode        string // "auto", "tablet", "desktop"
+	logindMode  string // "enabled", "disabled", "indeterminate"
+	hasKeyboard bool
+	hasTouch    bool
+	session     string
 
 	// evdev tablet mode state
 	evdevTablet    bool
 	evdevAvailable bool
+
+	// IIO gravity sensor state
+	iioTablet    bool
+	iioAvailable bool
+	iioPath      string
 }
 
-// New creates the service. Touch device detection runs in Run().
+// New creates the service. Device detection runs in Run().
 func New(b *bus.Bus, conn dbusutil.DBusConn, cfg settings.Config, _ bool) *Service {
 	s := &Service{
 		bus:  b,
@@ -71,15 +82,19 @@ func New(b *bus.Bus, conn dbusutil.DBusConn, cfg settings.Config, _ bool) *Servi
 	return s
 }
 
-// Run starts evdev monitoring, logind monitoring, keyboard activity monitoring
-// and the system-controls listener.  Blocks until ctx is cancelled.
+// Run starts all monitors and the system-controls listener.
+// Blocks until ctx is cancelled.
 func (s *Service) Run(ctx context.Context) error {
-	// Detect touch device availability up front.
 	s.hasTouch = detectTouchDevice()
+	s.hasKeyboard = hasPhysicalKeyboard()
+	s.resolveIIODevice()
 
 	go s.monitorLogind(ctx)
 	go s.monitorEvdevSwitches(ctx)
-	go s.monitorKeyboard(ctx)
+	go s.monitorKeyboardPresence(ctx)
+	if s.iioAvailable {
+		go s.monitorIIOGravity(ctx)
+	}
 
 	s.bus.Subscribe(bus.TopicSystemControls, func(e bus.Event) {
 		action, _ := e.Data.(string)
@@ -152,8 +167,10 @@ func (s *Service) publish() {
 	mode := s.mode
 	evdevAvail := s.evdevAvailable
 	evdevTab := s.evdevTablet
+	iioAvail := s.iioAvailable
+	iioTab := s.iioTablet
 	logind := s.logindMode
-	kb := s.kbActive
+	kb := s.hasKeyboard
 	touch := s.hasTouch
 	s.mu.Unlock()
 
@@ -166,6 +183,8 @@ func (s *Service) publish() {
 	case "auto":
 		if evdevAvail {
 			tablet = evdevTab
+		} else if iioAvail {
+			tablet = iioTab
 		} else {
 			switch logind {
 			case "enabled":
@@ -177,8 +196,8 @@ func (s *Service) publish() {
 			}
 		}
 	}
-	log.Printf("[inputmode] mode=%s evdev=%v(logind=%s) kb=%v touch=%v → tablet=%v",
-		mode, evdevTab, logind, kb, touch, tablet)
+	log.Printf("[inputmode] mode=%s evdev=%v iio=%v(logind=%s) kb=%v touch=%v → tablet=%v",
+		mode, evdevTab, iioTab, logind, kb, touch, tablet)
 	s.bus.Publish(bus.TopicTabletMode, tablet)
 	s.bus.Publish(bus.TopicInputMode, mode)
 }
@@ -228,7 +247,7 @@ func (s *Service) monitorEvdevSwitches(ctx context.Context) {
 		return
 	}
 
-	log.Printf("[inputmode] no SW_TABLET_MODE device found, using logind/heuristic fallback")
+	log.Printf("[inputmode] no SW_TABLET_MODE device found")
 }
 
 func (s *Service) readSwitchEvents(ctx context.Context, dev *evdev.InputDevice) {
@@ -335,69 +354,130 @@ func (s *Service) queryLogind() {
 	s.publish()
 }
 
-// ── keyboard activity monitor ──────────────────────────────────────────────
+// ── IIO gravity sensor monitor ───────────────────────────────────────────────
 
-func (s *Service) monitorKeyboard(ctx context.Context) {
-	devices := findPhysicalKeyboardDevices()
-	if len(devices) == 0 {
-		log.Printf("[inputmode] no physical keyboard devices found")
+// resolveIIODevice searches /sys/bus/iio/devices/ for a gravity sensor.
+func (s *Service) resolveIIODevice() {
+	entries, err := os.ReadDir(iioDeviceDir)
+	if err != nil {
 		return
 	}
-	log.Printf("[inputmode] monitoring %d keyboard device(s)", len(devices))
-
-	for _, dev := range devices {
-		dev.NonBlock()
-		go s.readKeyboard(ctx, dev)
-	}
-}
-
-func (s *Service) readKeyboard(ctx context.Context, dev *evdev.InputDevice) {
-	defer dev.Close()
-
-	for {
-		// NonBlock so ctx cancellation can interrupt the read loop.
-		event, err := dev.ReadOne()
+	for _, e := range entries {
+		data, err := os.ReadFile(filepath.Join(iioDeviceDir, e.Name(), "name"))
 		if err != nil {
-			select {
-			case <-ctx.Done():
-				return
-			default:
-				time.Sleep(50 * time.Millisecond)
-				continue
-			}
+			continue
 		}
-		if event.Type == evdev.EV_KEY && event.Value == 1 {
-			s.onKeyboardActivity()
+		if strings.TrimSpace(string(data)) == "gravity" {
+			s.iioPath = filepath.Join(iioDeviceDir, e.Name())
+			s.iioAvailable = true
+			log.Printf("[inputmode] found IIO gravity sensor: %s", s.iioPath)
+			return
 		}
 	}
+	log.Printf("[inputmode] no IIO gravity sensor found")
 }
 
-func (s *Service) onKeyboardActivity() {
-	s.mu.Lock()
-	s.kbActive = true
-	if s.kbTimer != nil {
-		s.kbTimer.Stop()
-	}
-	s.kbTimer = time.AfterFunc(kbInactivityTimeout, func() {
+// monitorIIOGravity polls the gravity sensor to detect device posture.
+// When the Z-axis gravity dominates over Y-axis, the screen is folded
+// back (studio/tablet mode). Uses debounce to avoid false triggers.
+func (s *Service) monitorIIOGravity(ctx context.Context) {
+	if tablet, ok := s.readGravityPosture(); ok {
 		s.mu.Lock()
-		s.kbActive = false
+		s.iioTablet = tablet
 		s.mu.Unlock()
 		s.publish()
-	})
-	s.mu.Unlock()
-	s.publish()
+	}
+
+	debounceCount := 0
+	var lastCandidate bool
+
+	ticker := time.NewTicker(iioPollInterval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			tablet, ok := s.readGravityPosture()
+			if !ok {
+				continue
+			}
+			if tablet == lastCandidate {
+				debounceCount++
+			} else {
+				lastCandidate = tablet
+				debounceCount = 1
+			}
+			if debounceCount >= iioDebounceCount {
+				s.mu.Lock()
+				if s.iioTablet != tablet {
+					s.iioTablet = tablet
+					s.mu.Unlock()
+					s.publish()
+				} else {
+					s.mu.Unlock()
+				}
+			}
+		}
+	}
+}
+
+// readGravityPosture reads the gravity sensor and returns true if the
+// device appears to be in tablet/studio posture (Z-axis dominant).
+func (s *Service) readGravityPosture() (tablet bool, ok bool) {
+	yRaw, err := readIntFile(filepath.Join(s.iioPath, "in_gravity_y_raw"))
+	if err != nil {
+		return false, false
+	}
+	zRaw, err := readIntFile(filepath.Join(s.iioPath, "in_gravity_z_raw"))
+	if err != nil {
+		return false, false
+	}
+	yAbs := abs64(yRaw)
+	zAbs := abs64(zRaw)
+	// Tablet/studio: Z-axis gravity dominates (screen facing up with
+	// keyboard folded behind) vs Y-axis (screen upright in laptop mode).
+	return zAbs > yAbs, true
+}
+
+// ── keyboard presence monitor ───────────────────────────────────────────────
+
+// monitorKeyboardPresence periodically rescans for physical keyboard devices.
+// This catches hotplug events like a Surface Type Cover being attached/detached.
+func (s *Service) monitorKeyboardPresence(ctx context.Context) {
+	ticker := time.NewTicker(keyboardPollInterval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			kb := hasPhysicalKeyboard()
+			s.mu.Lock()
+			changed := s.hasKeyboard != kb
+			if changed {
+				s.hasKeyboard = kb
+			}
+			s.mu.Unlock()
+			if changed {
+				s.publish()
+			}
+		}
+	}
 }
 
 // ── evdev device helpers ────────────────────────────────────────────────────
 
-func findPhysicalKeyboardDevices() []*evdev.InputDevice {
+// hasPhysicalKeyboard reports whether at least one non-virtual physical keyboard
+// device is currently connected.
+func hasPhysicalKeyboard() bool {
 	paths, err := evdev.ListDevicePaths()
 	if err != nil {
-		log.Printf("[inputmode] evdev enumeration: %v", err)
-		return nil
+		return false
 	}
 
-	var devices []*evdev.InputDevice
 	for _, p := range paths {
 		if isVirtualKeyboard(p.Name) {
 			continue
@@ -415,14 +495,12 @@ func findPhysicalKeyboardDevices() []*evdev.InputDevice {
 		}
 
 		hasKeyA := slices.Contains(dev.CapableEvents(evdev.EV_KEY), 0x1e)
-		if !hasKeyA {
-			dev.Close()
-			continue
+		dev.Close()
+		if hasKeyA {
+			return true
 		}
-
-		devices = append(devices, dev)
 	}
-	return devices
+	return false
 }
 
 func detectTouchDevice() bool {
@@ -460,4 +538,30 @@ func isVirtualKeyboard(name string) bool {
 		}
 	}
 	return false
+}
+
+// ── sysfs helpers ───────────────────────────────────────────────────────────
+
+func readIntFile(path string) (int64, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return 0, err
+	}
+	return strconv.ParseInt(strings.TrimSpace(string(data)), 10, 64)
+}
+
+func abs64(x int64) int64 {
+	if x < 0 {
+		return -x
+	}
+	return x
+}
+
+// init ensures the surface_aggregator_tabletsw module is loaded on Surface devices.
+func init() {
+	if _, err := os.Stat("/sys/bus/surface_aggregator"); err == nil {
+		if err := exec.Command("modprobe", "surface_aggregator_tabletsw").Run(); err != nil {
+			log.Printf("[inputmode] modprobe surface_aggregator_tabletsw: %v", err)
+		}
+	}
 }

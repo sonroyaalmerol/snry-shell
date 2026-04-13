@@ -514,3 +514,91 @@ func TestSignalPublishAlwaysIncludesCachedWiFi(t *testing.T) {
 		}
 	}
 }
+
+// TestWiFiListNotWipedByExternalTopicNetworkPublish verifies that when an
+// external component publishes a NetworkState with empty WiFiNetworks to
+// TopicNetwork, it can race with the Service's cached state and wipe the
+// WiFi list. This was the actual bug: Manager.publishLegacyState() was
+// called inside refreshAll() on every D-Bus signal, publishing a state
+// with no WiFiNetworks that overwrote the Service's scan results.
+//
+// The fix was to remove publishLegacyState() from refreshAll(). This test
+// documents the expected behavior: after ScanWiFi, no subsequent TopicNetwork
+// publish from an external source should result in an empty WiFiNetworks list
+// reaching the UI subscriber.
+func TestWiFiListNotWipedByExternalTopicNetworkPublish(t *testing.T) {
+	b := bus.New()
+	fake := newFakeConn()
+	svc := setupService(fake, b)
+
+	var states []state.NetworkState
+	var mu sync.Mutex
+	b.Subscribe(bus.TopicNetwork, func(e bus.Event) {
+		ns, ok := e.Data.(state.NetworkState)
+		if !ok {
+			return
+		}
+		mu.Lock()
+		states = append(states, ns)
+		mu.Unlock()
+	})
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	go svc.Run(ctx)
+	time.Sleep(100 * time.Millisecond)
+
+	// User opens popup → ScanWiFi fires.
+	svc.ScanWiFi()
+	time.Sleep(100 * time.Millisecond)
+
+	mu.Lock()
+	afterScan := states[len(states)-1]
+	mu.Unlock()
+	if len(afterScan.WiFiNetworks) == 0 {
+		t.Fatal("ScanWiFi should have published WiFi networks")
+	}
+
+	// Simulate what Manager.publishLegacyState used to do: publish a
+	// NetworkState with empty WiFiNetworks. This used to wipe the list
+	// because the UI widget receives ALL TopicNetwork events.
+	//
+	// After the fix (removing publishLegacyState from refreshAll), the
+	// Manager no longer does this. But we still test that the Service's
+	// next signal-driven publish restores the cached WiFi networks.
+	b.Publish(bus.TopicNetwork, state.NetworkState{
+		Type:            "wifi",
+		SSID:            "HomeWiFi",
+		Connected:       true,
+		WirelessEnabled: true,
+		// WiFiNetworks is empty — simulating the old Manager bug.
+	})
+
+	// Now send a signal to trigger the Service's monitorSignals.
+	// The Service should re-publish with cached WiFi networks,
+	// restoring the list.
+	for i := 0; i < 3; i++ {
+		fake.signalCh <- &dbus.Signal{
+			Path: "/org/freedesktop/NetworkManager/AccessPoint/1",
+		}
+	}
+
+	// Wait for debounce.
+	time.Sleep(600 * time.Millisecond)
+
+	mu.Lock()
+	lastState := states[len(states)-1]
+	totalStates := len(states)
+	mu.Unlock()
+
+	t.Logf("Total publishes: %d", totalStates)
+	for i, s := range states {
+		t.Logf("  state[%d]: WiFiNetworks=%d SSID=%q Connected=%v", i, len(s.WiFiNetworks), s.SSID, s.Connected)
+	}
+
+	// The Service's signal handler should have restored the WiFi networks
+	// from cache, so the last state should have them.
+	if len(lastState.WiFiNetworks) == 0 {
+		t.Error("WiFi networks should be restored from cache after signal-driven publish")
+	}
+}
