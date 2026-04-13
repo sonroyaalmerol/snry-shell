@@ -73,7 +73,7 @@ func newAppDrawerIcon() gtk.Widgetter {
 
 // newNotificationIcon returns a single notification icon with unread badge.
 func newNotificationIcon(b *bus.Bus) gtk.Widgetter {
-	var count xsync.Counter
+	count := xsync.NewCounter()
 	icon := gtkutil.MaterialIcon("notifications")
 	icon.AddCSSClass("indicator-icon")
 

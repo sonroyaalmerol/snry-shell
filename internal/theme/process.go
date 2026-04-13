@@ -15,6 +15,8 @@ import (
 	"github.com/sonroyaalmerol/snry-shell/internal/fileutil"
 )
 
+const maxWallpaperDim = 1920
+
 // ProcessConfig holds image post-processing parameters for the wallpaper.
 type ProcessConfig struct {
 	Blur       int // 0–50  (0 = no blur)
@@ -39,14 +41,17 @@ func ProcessWallpaper(src string, cfg ProcessConfig) (string, error) {
 		return "", fmt.Errorf("create cache dir: %w", err)
 	}
 
-	// Fast path: no processing needed, just copy the bytes.
+	// Fast path: no processing needed, but still downsample to save GPU memory.
 	if cfg.Blur == 0 && cfg.Brightness == 100 && !cfg.Grayscale {
-		data, err := os.ReadFile(src)
-		if err != nil {
-			return "", fmt.Errorf("read wallpaper source: %w", err)
-		}
-		if err := os.WriteFile(dst, data, 0644); err != nil {
-			return "", fmt.Errorf("write processed wallpaper: %w", err)
+		if err := downsampleAndSave(src, dst); err != nil {
+			// Fallback: if downsampling fails, just copy.
+			data, err := os.ReadFile(src)
+			if err != nil {
+				return "", fmt.Errorf("read wallpaper source: %w", err)
+			}
+			if err := os.WriteFile(dst, data, 0644); err != nil {
+				return "", fmt.Errorf("write processed wallpaper: %w", err)
+			}
 		}
 		return dst, nil
 	}
@@ -84,6 +89,9 @@ func ProcessWallpaper(src string, cfg ProcessConfig) (string, error) {
 			rgba, tmp = tmp, rgba // result is now rgba; old rgba becomes next output
 		}
 	}
+
+	// Downsample to reduce GPU memory usage.
+	rgba = downsample(rgba, maxWallpaperDim)
 
 	out, err := os.Create(dst)
 	if err != nil {
@@ -224,4 +232,81 @@ func clampU8(v int) uint8 {
 		return 255
 	}
 	return uint8(v)
+}
+
+// downsample scales img down so its largest dimension is at most maxDim.
+// If the image is already within bounds, it is returned unchanged.
+func downsample(img *image.NRGBA, maxDim int) *image.NRGBA {
+	b := img.Bounds()
+	w, h := b.Dx(), b.Dy()
+	if w <= maxDim && h <= maxDim {
+		return img
+	}
+
+	scale := float64(maxDim) / float64(max(w, h))
+	nw := int(float64(w) * scale)
+	nh := int(float64(h) * scale)
+	if nw < 1 {
+		nw = 1
+	}
+	if nh < 1 {
+		nh = 1
+	}
+
+	dst := image.NewNRGBA(image.Rect(0, 0, nw, nh))
+	// Simple area-average downscale.
+	for y := 0; y < nh; y++ {
+		for x := 0; x < nw; x++ {
+			// Map destination pixel to source region.
+			sx0 := b.Min.X + x*w/nw
+			sy0 := b.Min.Y + y*h/nh
+			sx1 := b.Min.X + (x+1)*w/nw
+			sy1 := b.Min.Y + (y+1)*h/nh
+
+			var r, g, b, a, cnt uint32
+			for sy := sy0; sy < sy1; sy++ {
+				for sx := sx0; sx < sx1; sx++ {
+					c := img.NRGBAAt(sx, sy)
+					r += uint32(c.R)
+					g += uint32(c.G)
+					b += uint32(c.B)
+					a += uint32(c.A)
+					cnt++
+				}
+			}
+			if cnt > 0 {
+				dst.SetNRGBA(x, y, color.NRGBA{
+					R: uint8(r / cnt),
+					G: uint8(g / cnt),
+					B: uint8(b / cnt),
+					A: uint8(a / cnt),
+				})
+			}
+		}
+	}
+	return dst
+}
+
+// downsampleAndSave decodes, downsamples, and saves as PNG.
+func downsampleAndSave(src, dst string) error {
+	f, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	img, _, err := image.Decode(f)
+	if err != nil {
+		return err
+	}
+
+	nrgba := toNRGBA(img)
+	nrgba = downsample(nrgba, maxWallpaperDim)
+
+	out, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+	return png.Encode(out, nrgba)
 }

@@ -17,6 +17,7 @@ type M3CustomSwitch struct {
 	disabled  bool
 	animation float64 // 0.0 to 1.0 for thumb position
 	target    float64 // target animation value
+	animating bool
 
 	trackWidget *gtk.DrawingArea
 
@@ -63,9 +64,6 @@ func NewM3CustomSwitch() *M3CustomSwitch {
 	// Set cursor
 	sw.SetCursorFromName("pointer")
 
-	// Start animation loop
-	sw.startAnimation()
-
 	return sw
 }
 
@@ -92,6 +90,7 @@ func (sw *M3CustomSwitch) SetActive(active bool) {
 	} else {
 		sw.target = 0.0
 	}
+	sw.startAnimation()
 
 	// Notify via callback
 	if sw.onChange != nil {
@@ -128,14 +127,20 @@ func (sw *M3CustomSwitch) Connect(signal string, callback any) glib.SignalHandle
 }
 
 // startAnimation starts the animation loop for smooth thumb transitions.
+// The timer stops automatically when the animation converges.
 func (sw *M3CustomSwitch) startAnimation() {
+	if sw.animating {
+		return
+	}
+	sw.animating = true
 	glib.TimeoutAdd(16, func() bool {
 		if math.Abs(sw.animation-sw.target) < 0.001 {
 			if sw.animation != sw.target {
 				sw.animation = sw.target
 				sw.trackWidget.QueueDraw()
 			}
-			return true // Keep running
+			sw.animating = false
+			return false // Stop the timer
 		}
 
 		// Smooth interpolation (eased)

@@ -253,25 +253,33 @@ func (s *Service) monitorEvdevSwitches(ctx context.Context) {
 func (s *Service) readSwitchEvents(ctx context.Context, dev *evdev.InputDevice) {
 	defer dev.Close()
 
+	// Poll for events using a context-aware ticker instead of a tight
+	// 50ms busy-loop. Switch events are rare (only on tablet mode change)
+	// so a 200ms poll interval has negligible latency while using far
+	// less CPU than continuous spinning.
+	ticker := time.NewTicker(200 * time.Millisecond)
+	defer ticker.Stop()
+
 	for {
-		// NonBlock so ctx cancellation can interrupt the read loop.
-		event, err := dev.ReadOne()
-		if err != nil {
-			select {
-			case <-ctx.Done():
-				return
-			default:
-				// No event available right now; brief sleep to avoid busy-spin.
-				time.Sleep(50 * time.Millisecond)
-				continue
-			}
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
 		}
-		if event.Type == evdev.EV_SW && event.Code == evdev.SW_TABLET_MODE {
-			s.mu.Lock()
-			s.evdevAvailable = true
-			s.evdevTablet = event.Value != 0
-			s.mu.Unlock()
-			s.publish()
+
+		// Drain all pending events.
+		for {
+			event, err := dev.ReadOne()
+			if err != nil {
+				break
+			}
+			if event.Type == evdev.EV_SW && event.Code == evdev.SW_TABLET_MODE {
+				s.mu.Lock()
+				s.evdevAvailable = true
+				s.evdevTablet = event.Value != 0
+				s.mu.Unlock()
+				s.publish()
+			}
 		}
 	}
 }

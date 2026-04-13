@@ -38,7 +38,8 @@ func NewWithDefaults(b *bus.Bus) *Service {
 }
 
 // Run starts monitoring the system dark mode preference.
-// It polls for changes since there's no universal signal across all desktops.
+// When the shell override is active (the common case), the poller is
+// completely stopped — no process spawning or timer ticks occur.
 func (s *Service) Run(ctx context.Context) error {
 	// Publish initial state (from settings override)
 	s.publish()
@@ -54,9 +55,11 @@ func (s *Service) Run(ctx context.Context) error {
 		}
 	})
 
-	// Poll for system changes (every 5 seconds)
 	ticker := time.NewTicker(5 * time.Second)
 	defer ticker.Stop()
+
+	// Start with override active, so stop the ticker immediately.
+	ticker.Stop()
 
 	for {
 		select {
@@ -64,6 +67,18 @@ func (s *Service) Run(ctx context.Context) error {
 			return ctx.Err()
 		case <-ticker.C:
 			s.detect()
+		}
+
+		// After each tick (or initial entry), check if we should keep polling.
+		t := s.mu.RLock()
+		ov := s.override
+		s.mu.RUnlock(t)
+		if ov {
+			ticker.Stop()
+			// Block until context cancels. The ticker is stopped so this
+			// loop burns zero CPU. Override can only change via SetOverride.
+			<-ctx.Done()
+			return ctx.Err()
 		}
 	}
 }

@@ -2,7 +2,10 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"net"
+	"net/http"
+	_ "net/http/pprof"
 	"os"
 	"strings"
 
@@ -10,6 +13,12 @@ import (
 	"github.com/sonroyaalmerol/snry-shell/surfaces"
 	"github.com/sonroyaalmerol/snry-shell/surfaces/controlpanel"
 )
+
+func init() {
+	go func() {
+		log.Println(http.ListenAndServe("localhost:6060", nil))
+	}()
+}
 
 func main() {
 	if len(os.Args) > 1 {
